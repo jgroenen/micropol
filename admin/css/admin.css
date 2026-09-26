@@ -21,7 +21,6 @@
 }
 
 /* forms */
-.inlog-formulier,
 .beheer-formulier {
     display: grid;
     gap: var(--space-2);

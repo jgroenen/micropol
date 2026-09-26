@@ -1,4 +1,4 @@
-// the logged in user; main.js shows the right view when it changes
+// the logged in user (from the auth service, see auth.js); main.js shows the right view when it changes
 
 let user = null;
 let bijWijziging = () => {};

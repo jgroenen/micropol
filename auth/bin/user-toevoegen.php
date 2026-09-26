@@ -1,7 +1,7 @@
 <?php
 
-// Adds a user to the admin environment (api/data/users.csv).
-// Usage: php api/bin/user-toevoegen.php <username> <email>
+// Adds a user to the auth service (auth/data/users.csv), who can then log in to the admin.
+// Usage: php auth/bin/user-toevoegen.php <username> <email>
 // The password is asked for, so it does not end up in the shell history.
 
 if (PHP_SAPI !== 'cli') {
@@ -17,7 +17,7 @@ foreach (['Csv', 'Data', 'Wachtwoord'] as $class) {
 $username = trim($username);
 $email = trim($email);
 if ($username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    fwrite(STDERR, "Usage: php api/bin/user-toevoegen.php <username> <email>\n");
+    fwrite(STDERR, "Usage: php auth/bin/user-toevoegen.php <username> <email>\n");
     exit(1);
 }
 if (Data::user($username) !== null) {
@@ -35,7 +35,7 @@ if (vraagWachtwoord('Password again: ') !== $password) {
     exit(1);
 }
 
-Csv::append(Data::usersFile(), Data::USERS, array_merge([Data::uuid(), $username, $email], Wachtwoord::versleutel($password)));
+Data::append('users', Data::USERS, array_merge([Data::uuid(), $username, $email], Wachtwoord::versleutel($password)));
 echo "User $username added.\n";
 
 // reads a line without showing it, when the terminal allows that

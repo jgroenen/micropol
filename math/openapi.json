@@ -266,23 +266,7 @@
                   "type": "object",
                   "description": "stelling_id => hoeveel groepsleden elk antwoord gaven",
                   "additionalProperties": {
-                    "type": "object",
-                    "required": [
-                      "eens",
-                      "neutraal",
-                      "oneens"
-                    ],
-                    "properties": {
-                      "eens": {
-                        "type": "integer"
-                      },
-                      "neutraal": {
-                        "type": "integer"
-                      },
-                      "oneens": {
-                        "type": "integer"
-                      }
-                    }
+                    "$ref": "#/components/schemas/Telling"
                   }
                 }
               }
@@ -345,6 +329,26 @@
                 "type": "number"
               }
             }
+          }
+        }
+      },
+      "Telling": {
+        "description": "Hoeveel deelnemers elk antwoord gaven",
+        "type": "object",
+        "required": [
+          "eens",
+          "neutraal",
+          "oneens"
+        ],
+        "properties": {
+          "eens": {
+            "type": "integer"
+          },
+          "neutraal": {
+            "type": "integer"
+          },
+          "oneens": {
+            "type": "integer"
           }
         }
       }

@@ -1,0 +1,733 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MiniPol auth service",
+    "version": "1.0.0",
+    "description": "Een kleine OAuth 2-server voor het inloggen van beheerders, zo opgezet dat hij later te vervangen is door bijvoorbeeld Keycloak.\n\n- **Inloggen:** authorization code met PKCE (S256): de app stuurt de gebruiker naar `/authorize`, krijgt een code terug en wisselt die bij `/token` in.\n- **Tokens:** willekeurige strings zonder betekenis buiten deze dienst; alleen hun sha256 wordt bewaard. Een access token is 15 minuten geldig. Een refresh token werkt één keer en 30 minuten; elke refresh geeft een nieuw paar. Een login duurt hooguit 12 uur.\n- **Controleren:** een API vraagt met `/introspect` of een access token geldig is.\n- **Uitloggen:** `/revoke` beëindigt de login van een token; alle tokens ervan werken dan meteen niet meer.\n\nOAuth-fouten komen terug als `{ \"error\", \"error_description\" }` (RFC 6749)."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8005",
+      "description": "Lokaal; op /docs wordt dit de server zelf"
+    }
+  ],
+  "security": [
+    {}
+  ],
+  "tags": [
+    {
+      "name": "Inloggen",
+      "description": "Authorization code met PKCE"
+    },
+    {
+      "name": "Tokens",
+      "description": "Vernieuwen, controleren en intrekken"
+    },
+    {
+      "name": "Discovery",
+      "description": "Waar alles staat"
+    },
+    {
+      "name": "Docs",
+      "description": "Deze documentatie"
+    }
+  ],
+  "paths": {
+    "/.well-known/openid-configuration": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "De endpoints van deze server",
+        "description": "Zelfde vorm als bij Keycloak en andere OAuth-servers (RFC 8414); ook op `/.well-known/oauth-authorization-server`. Alleen het OAuth-deel: geen id_token en geen jwks_uri.",
+        "operationId": "getConfiguratie",
+        "responses": {
+          "200": {
+            "description": "De configuratie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Configuratie"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "De endpoints van deze server (RFC 8414)",
+        "operationId": "getConfiguratieRfc8414",
+        "responses": {
+          "200": {
+            "description": "De configuratie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Configuratie"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/authorize": {
+      "get": {
+        "tags": [
+          "Inloggen"
+        ],
+        "summary": "De inlogpagina",
+        "description": "Hier stuurt een app de gebruiker heen. Onbekende apps of terugkeeradressen krijgen een foutpagina; andere fouten gaan terug naar het terugkeeradres als `?error=...&state=...`.",
+        "operationId": "getAuthorize",
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "code"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "minipol-admin"
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Precies één van de adressen van de client in de config"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Komt ongewijzigd terug, zodat de app weet dat het antwoord bij zijn login hoort"
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            },
+            "description": "base64url(sha256(code_verifier))"
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "S256"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Wordt genegeerd; voor Keycloak stuurt de admin `openid`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Het inlogformulier",
+            "content": {
+              "text/html": {}
+            }
+          },
+          "302": {
+            "description": "Terug naar het terugkeeradres met `?error=...` (ongeldige parameters)"
+          },
+          "400": {
+            "description": "Foutpagina: onbekende client of terugkeeradres",
+            "content": {
+              "text/html": {}
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inloggen"
+        ],
+        "summary": "Het inlogformulier versturen",
+        "description": "Na een geslaagde login terug naar het terugkeeradres met `?code=...&state=...`. De code is 60 seconden geldig en werkt één keer.",
+        "operationId": "postAuthorize",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "response_type",
+                  "client_id",
+                  "redirect_uri",
+                  "code_challenge",
+                  "code_challenge_method",
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "response_type": {
+                    "const": "code"
+                  },
+                  "client_id": {
+                    "type": "string"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "code_challenge": {
+                    "type": "string"
+                  },
+                  "code_challenge_method": {
+                    "const": "S256"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "Ingelogd: terug met code en state"
+          },
+          "400": {
+            "description": "Foutpagina: onbekende client of terugkeeradres",
+            "content": {
+              "text/html": {}
+            }
+          },
+          "401": {
+            "description": "Onjuiste gebruikersnaam of wachtwoord: het formulier opnieuw",
+            "content": {
+              "text/html": {}
+            }
+          }
+        }
+      }
+    },
+    "/token": {
+      "post": {
+        "tags": [
+          "Inloggen",
+          "Tokens"
+        ],
+        "summary": "Code inwisselen of tokens vernieuwen",
+        "description": "- `grant_type=authorization_code`: de code uit `/authorize`, met de `code_verifier` van PKCE.\n- `grant_type=refresh_token`: een refresh token, voor een nieuw paar. Het oude refresh token werkt daarna niet meer; wordt het toch nog eens gebruikt, dan eindigt de hele login (het is dan waarschijnlijk gestolen).",
+        "operationId": "postToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "title": "authorization_code",
+                    "type": "object",
+                    "required": [
+                      "grant_type",
+                      "code",
+                      "redirect_uri",
+                      "client_id",
+                      "code_verifier"
+                    ],
+                    "properties": {
+                      "grant_type": {
+                        "const": "authorization_code"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "redirect_uri": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "code_verifier": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "title": "refresh_token",
+                    "type": "object",
+                    "required": [
+                      "grant_type",
+                      "refresh_token",
+                      "client_id"
+                    ],
+                    "properties": {
+                      "grant_type": {
+                        "const": "refresh_token"
+                      },
+                      "refresh_token": {
+                        "type": "string"
+                      },
+                      "client_id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nieuwe tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tokens"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OAuthFout"
+          },
+          "401": {
+            "$ref": "#/components/responses/OAuthFout"
+          }
+        }
+      }
+    },
+    "/introspect": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Is dit access token geldig, en van wie? (RFC 7662)",
+        "description": "Alleen voor de servers in de config (`RESOURCE_SERVERS`), met HTTP Basic: hun id en geheim. Een refresh token is nooit actief: dat is niet voor het aanroepen van een API.",
+        "operationId": "postIntrospect",
+        "security": [
+          {
+            "basic": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het antwoord",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Introspectie"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/OAuthFout"
+          }
+        }
+      }
+    },
+    "/revoke": {
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Uitloggen (RFC 7009)",
+        "description": "Beëindigt de login van het token (een access of refresh token): alle tokens ervan werken meteen niet meer. Ook voor een onbekend token 200.",
+        "operationId": "postRevoke",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "client_id"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "client_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uitgelogd"
+          },
+          "401": {
+            "$ref": "#/components/responses/OAuthFout"
+          }
+        }
+      }
+    },
+    "/userinfo": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Wie is er ingelogd (zoals in OpenID Connect)",
+        "operationId": "getUserinfo",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De gebruiker van het access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Userinfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Ongeldig of verlopen token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "Deze documentatie (Swagger UI)",
+        "operationId": "getDocs",
+        "responses": {
+          "200": {
+            "description": "HTML-pagina",
+            "content": {
+              "text/html": {}
+            }
+          }
+        }
+      }
+    },
+    "/docs/openapi.json": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "De OpenAPI-spec van de auth service",
+        "operationId": "getOpenapi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "basic": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Id en geheim van een resource server, zie RESOURCE_SERVERS in de config"
+      },
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Een access token uit `/token`"
+      }
+    },
+    "responses": {
+      "OAuthFout": {
+        "description": "OAuth-fout",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthFout"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Fout": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "OAuthFout": {
+        "type": "object",
+        "required": [
+          "error",
+          "error_description"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "invalid_client",
+              "invalid_grant",
+              "unsupported_grant_type"
+            ]
+          },
+          "error_description": {
+            "type": "string"
+          }
+        }
+      },
+      "Tokens": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "refresh_token",
+          "refresh_expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "const": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Seconden dat het access token geldig is"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "refresh_expires_in": {
+            "type": "integer",
+            "description": "Seconden dat het refresh token geldig is"
+          }
+        }
+      },
+      "Introspectie": {
+        "oneOf": [
+          {
+            "title": "Niet actief",
+            "type": "object",
+            "required": [
+              "active"
+            ],
+            "properties": {
+              "active": {
+                "const": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "title": "Actief",
+            "description": "De gebruiker (zoals bij /userinfo) plus gegevens over het token",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Userinfo"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "active",
+                  "username",
+                  "client_id",
+                  "token_type",
+                  "exp",
+                  "iat"
+                ],
+                "properties": {
+                  "active": {
+                    "const": true
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "client_id": {
+                    "type": "string"
+                  },
+                  "token_type": {
+                    "const": "Bearer"
+                  },
+                  "exp": {
+                    "type": "integer",
+                    "description": "Unix-tijd"
+                  },
+                  "iat": {
+                    "type": "integer",
+                    "description": "Unix-tijd"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "Configuratie": {
+        "type": "object",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "introspection_endpoint",
+          "revocation_endpoint",
+          "userinfo_endpoint"
+        ],
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "authorization_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "introspection_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "revocation_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "userinfo_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "response_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code_challenge_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "introspection_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "revocation_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Userinfo": {
+        "description": "Wie er ingelogd is",
+        "type": "object",
+        "required": [
+          "sub",
+          "preferred_username",
+          "email"
+        ],
+        "properties": {
+          "sub": {
+            "type": "string"
+          },
+          "preferred_username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      }
+    }
+  }
+}

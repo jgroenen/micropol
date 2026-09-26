@@ -1,34 +1,25 @@
 import { registreer, huidigePagina } from 'cdn/apilog.js';
 import { API_URL } from './config.js';
+import { accessToken, vernieuwNa401 } from './auth.js';
 
 // calls to the PHP api for the admin environment, see api/index.php
 
-// The api is on another domain, so logging in gives a token instead of a cookie; it is sent as
-// "Authorization: Bearer <token>" and kept in localStorage, so a reload or a new tab stays logged in.
-const TOKEN_SLEUTEL = 'minipol_admin_token';
-
-function leesToken() {
+// returns the parsed json (null for an empty response); throws with the status on errors;
+// sends the access token of the auth service (see auth.js), and tries a new one once after a 401;
+// every call is registered for the API popover (apilog.js on the cdn), with verzonden as the request shown there
+async function request(url, options = {}, verzonden = options.body) {
     try {
-        return localStorage.getItem(TOKEN_SLEUTEL);
-    } catch (e) {
-        return null;
+        return await verstuur(url, options, verzonden, await accessToken());
+    } catch (error) {
+        const nieuw = error.status === 401 ? await vernieuwNa401() : null;
+        if (!nieuw) {
+            throw error;
+        }
+        return verstuur(url, options, verzonden, nieuw);
     }
 }
 
-function bewaarToken(token) {
-    try {
-        if (token) {
-            localStorage.setItem(TOKEN_SLEUTEL, token);
-        } else {
-            localStorage.removeItem(TOKEN_SLEUTEL);
-        }
-    } catch (e) {}
-}
-
-// returns the parsed json (null for an empty response); throws with the status on errors;
-// every call is registered for the API popover (apilog.js on the cdn), with verzonden as the request shown there
-async function request(url, options = {}, verzonden = options.body) {
-    const token = leesToken();
+async function verstuur(url, options, verzonden, token) {
     const headers = { ...options.headers };
     if (token) {
         headers.Authorization = `Bearer ${token}`;
@@ -48,9 +39,6 @@ async function request(url, options = {}, verzonden = options.body) {
         verzoek.status = response.status;
         verzoek.tekst = await response.text();
         verzoek.duur = performance.now() - start;
-        if (response.status === 401 && token) {
-            bewaarToken(null); // expired or logged out elsewhere
-        }
         if (!response.ok) {
             const error = new Error(`HTTP ${response.status} for ${url}`);
             error.status = response.status;
@@ -73,34 +61,6 @@ function post(url, data, verzonden) {
         headers: { 'Content-Type': 'application/json' },
         body
     }, verzonden ?? body);
-}
-
-// { id, username, email } of the logged in user, or null
-export async function getUser() {
-    if (!leesToken()) {
-        return null;
-    }
-    const user = (await request('/sessie')).user;
-    if (!user) {
-        bewaarToken(null); // expired or logged out elsewhere
-    }
-    return user;
-}
-
-// the user; throws with status 401 for a wrong username or password
-export async function login(username, password) {
-    // the password is not shown in the API popover
-    const data = await post('/sessie', { username, password }, JSON.stringify({ username, password: '••••••••' }));
-    bewaarToken(data.token);
-    return data.user;
-}
-
-export async function logout() {
-    try {
-        await request('/sessie', { method: 'DELETE' });
-    } finally {
-        bewaarToken(null);
-    }
 }
 
 // [{ id, titel, omschrijving }]

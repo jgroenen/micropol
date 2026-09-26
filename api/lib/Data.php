@@ -14,10 +14,6 @@ class Data {
     const MODERATIE_VOORAF = 'vooraf';
     const BEOORDELING_GOEDGEKEURD = 'goedgekeurd';
     const BEOORDELING_AFGEKEURD = 'afgekeurd';
-    // admin users, see Wachtwoord for salt, encrypted_password and password_method
-    const USERS = ['id', 'username', 'email', 'salt', 'encrypted_password', 'password_method'];
-    // login tokens of admin users, see Sessie; verloopt is a unix timestamp
-    const SESSIES = ['token_hash', 'user_id', 'verloopt'];
 
     public static function gesprekkenFile() {
         return DATA_DIR . '/gesprekken.csv';
@@ -25,14 +21,6 @@ class Data {
 
     public static function stellingenFile() {
         return DATA_DIR . '/stellingen.csv';
-    }
-
-    public static function usersFile() {
-        return DATA_DIR . '/users.csv';
-    }
-
-    public static function sessiesFile() {
-        return DATA_DIR . '/sessies.csv';
     }
 
     // one file per gesprek; only call with an id that passed gesprekExists()
@@ -139,16 +127,6 @@ class Data {
         return $rows;
     }
 
-    // admin user by username (not case sensitive), or null
-    public static function user($username) {
-        foreach (Csv::read(self::usersFile()) as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return $user;
-            }
-        }
-        return null;
-    }
-
     // [stelling_id => { eens, neutraal, oneens }]: how many deelnemers gave each antwoord,
     // the last antwoord of each deelnemer counts
     public static function tellingen($gesprekId) {
@@ -171,26 +149,6 @@ class Data {
             $stelling['antwoorden'] = $tellingen[$stelling['id']] ?? ['eens' => 0, 'neutraal' => 0, 'oneens' => 0];
             return $stelling;
         }, $stellingen);
-    }
-
-    public static function userById($id) {
-        foreach (Csv::read(self::usersFile()) as $user) {
-            if ($user['id'] === $id) {
-                return $user;
-            }
-        }
-        return null;
-    }
-
-    // session row by the hash of its token, or null; the file is append only, the last row counts
-    public static function sessie($tokenHash) {
-        $gevonden = null;
-        foreach (Csv::read(self::sessiesFile()) as $sessie) {
-            if (hash_equals($sessie['token_hash'], $tokenHash)) {
-                $gevonden = $sessie;
-            }
-        }
-        return $gevonden;
     }
 
     // random UUID v4

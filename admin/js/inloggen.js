@@ -1,47 +1,43 @@
-import { login } from './api.js';
-import { zetUser } from './sessie.js';
+import { inloggen } from './auth.js';
 import { toonView } from './views.js';
 
 // elements of views/inloggen.html, set by koppel() once the view is in the page
-let formulier, fout, knop;
+let fout, knop;
 let gekoppeld = false;
 
 function koppel() {
     if (gekoppeld) {
         return;
     }
-    formulier = document.getElementById('inlog-formulier');
     fout = document.getElementById('inlog-fout');
     knop = document.getElementById('inlog-knop');
-    formulier.addEventListener('submit', logIn);
+    knop.addEventListener('click', naarInlogpagina);
     gekoppeld = true;
 }
 
-export async function toonInloggen() {
+// the page with the button to the login page of the auth service; melding: why logging in failed, if it did
+export async function toonInloggen(melding = null) {
     try {
         await toonView('inloggen');
         koppel();
-        document.getElementById('username').focus();
+        fout.textContent = melding ?? '';
+        fout.hidden = !melding;
+        knop.disabled = false;
+        knop.focus();
     } catch (error) {
         console.error('Error showing login:', error);
     }
 }
 
-// after logging in, main.js shows the view of the current hash
-async function logIn(event) {
-    event.preventDefault();
-    fout.hidden = true;
+async function naarInlogpagina() {
     knop.disabled = true;
+    fout.hidden = true;
     try {
-        const user = await login(formulier.username.value.trim(), formulier.password.value);
-        formulier.reset();
-        zetUser(user);
+        await inloggen(); // leaves this page
     } catch (error) {
-        fout.textContent = error.status === 401
-            ? 'Onjuiste gebruikersnaam of wachtwoord.'
-            : 'Inloggen lukt nu niet. Probeer het later opnieuw.';
+        console.error('Error starting login:', error);
+        fout.textContent = 'De inlogpagina is nu niet bereikbaar. Probeer het later opnieuw.';
         fout.hidden = false;
-    } finally {
         knop.disabled = false;
     }
 }

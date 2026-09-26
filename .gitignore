@@ -4,3 +4,5 @@ api/data/*
 !api/data/.htaccess
 math/data/*
 !math/data/.htaccess
+auth/data/*
+!auth/data/.htaccess
