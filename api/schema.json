@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniPol: de typen van de API",
+  "description": "De typen van de MiniPol-API als JSON Schema (2020-12): wat de API teruggeeft en wat je stuurt, en de standaardexport van een gesprek. De OpenAPI-spec (openapi.json) verwijst hiernaar; andere tools kunnen ze ook gebruiken, bijvoorbeeld om een export te valideren of code te genereren. Velden die de server invult, zijn readOnly; welke velden in een antwoord staan, hangt af van de context (zie de beschrijving per type).",
+  "$defs": {
+    "Fout": {
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "Waarde": {
+      "type": "string",
+      "enum": [
+        "eens",
+        "neutraal",
+        "oneens"
+      ]
+    },
+    "Moderatie": {
+      "type": "string",
+      "enum": [
+        "achteraf",
+        "vooraf"
+      ],
+      "description": "`achteraf`: stellingen zijn zichtbaar tenzij afgekeurd. `vooraf`: alleen als goedgekeurd."
+    },
+    "Telling": {
+      "type": "object",
+      "description": "Hoeveel deelnemers elk antwoord gaven",
+      "required": [
+        "eens",
+        "neutraal",
+        "oneens"
+      ],
+      "properties": {
+        "eens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "neutraal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "oneens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Gesprek": {
+      "description": "Een gesprek. `stellingen` staat er alleen in bij `GET /gesprekken/{id}`.",
+      "type": "object",
+      "required": [
+        "titel"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "readOnly": true
+        },
+        "titel": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "omschrijving": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Optioneel; standaard leeg"
+        },
+        "moderatie": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Moderatie"
+            }
+          ],
+          "description": "Optioneel; bij aanmaken standaard `achteraf`, bij aanpassen standaard ongewijzigd"
+        },
+        "stellingen": {
+          "type": "array",
+          "readOnly": true,
+          "items": {
+            "$ref": "#/$defs/Stelling"
+          },
+          "description": "De zichtbare stellingen, in willekeurige volgorde (alleen `id` en `tekst`)"
+        }
+      }
+    },
+    "Stelling": {
+      "description": "Een stelling. Welke velden erin staan, hangt af van waar hij vandaan komt:\n\n- in een gesprek (`GET /gesprekken/{id}`, de export): alleen `id` en `tekst`\n- toegevoegd (`POST /stellingen`): alles behalve `antwoorden`\n- eigen stellingen (`GET /stellingen`): alles\n- beheer (`/beoordelingen`): alles behalve `deelnemer_id`\n\n`deelnemer_id` staat alleen in antwoorden aan de indiener zelf.",
+      "type": "object",
+      "required": [
+        "tekst"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "readOnly": true
+        },
+        "gesprek_id": {
+          "type": "string"
+        },
+        "deelnemer_id": {
+          "type": "string",
+          "description": "De deelnemer die hem toevoegde"
+        },
+        "tekst": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Witruimte wordt één spatie"
+        },
+        "beoordeling": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "goedgekeurd",
+            "afgekeurd",
+            null
+          ],
+          "readOnly": true,
+          "description": "null: nog niet beoordeeld"
+        },
+        "reden": {
+          "type": "string",
+          "readOnly": true,
+          "description": "Bij afgekeurd; de indiener ziet hem"
+        },
+        "zichtbaar": {
+          "type": "boolean",
+          "readOnly": true,
+          "description": "Of deelnemers hem zien; volgt uit de moderatie van het gesprek en de beoordeling"
+        },
+        "antwoorden": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Telling"
+            }
+          ],
+          "readOnly": true,
+          "description": "Hoe hij beantwoord is"
+        }
+      }
+    },
+    "Antwoord": {
+      "description": "Een antwoord van een deelnemer op een stelling; opnieuw antwoorden mag, het laatste telt.",
+      "type": "object",
+      "required": [
+        "stelling_id",
+        "waarde"
+      ],
+      "properties": {
+        "gesprek_id": {
+          "type": "string"
+        },
+        "deelnemer_id": {
+          "type": "string"
+        },
+        "stelling_id": {
+          "type": "string"
+        },
+        "waarde": {
+          "$ref": "#/$defs/Waarde"
+        }
+      }
+    },
+    "Beoordeling": {
+      "description": "Een beoordeling van een stelling door een beheerder; de laatste telt. Bij `afgekeurd` is een reden verplicht.",
+      "type": "object",
+      "required": [
+        "stelling_id",
+        "beoordeling"
+      ],
+      "properties": {
+        "gesprek_id": {
+          "type": "string"
+        },
+        "stelling_id": {
+          "type": "string"
+        },
+        "beoordeling": {
+          "type": "string",
+          "enum": [
+            "goedgekeurd",
+            "afgekeurd"
+          ]
+        },
+        "reden": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "Deelnemer": {
+      "description": "Een deelnemer, anoniem: genummerd op volgorde van het eerste antwoord, met per stelling het laatste antwoord. Dezelfde nummers in de matrix, de export en de analyse.",
+      "type": "object",
+      "required": [
+        "nummer",
+        "antwoorden"
+      ],
+      "properties": {
+        "nummer": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "antwoorden": {
+          "type": "object",
+          "description": "stelling_id => waarde",
+          "additionalProperties": {
+            "$ref": "#/$defs/Waarde"
+          }
+        }
+      }
+    },
+    "Export": {
+      "type": "object",
+      "required": [
+        "formaat",
+        "versie",
+        "gegenereerd",
+        "gesprek",
+        "stellingen",
+        "deelnemers"
+      ],
+      "properties": {
+        "formaat": {
+          "const": "minipol-export"
+        },
+        "versie": {
+          "const": 1
+        },
+        "gegenereerd": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "gesprek": {
+          "type": "object",
+          "required": [
+            "id",
+            "titel"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "titel": {
+              "type": "string"
+            }
+          }
+        },
+        "stellingen": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Stelling"
+          },
+          "description": "De zichtbare stellingen (alleen `id` en `tekst`)"
+        },
+        "deelnemers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Deelnemer"
+          }
+        }
+      }
+    },
+    "Beheerder": {
+      "description": "Wie kan inloggen in de beheeromgeving",
+      "type": "object",
+      "required": [
+        "id",
+        "gebruikersnaam",
+        "email"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "gebruikersnaam": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        }
+      }
+    }
+  }
+}

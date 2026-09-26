@@ -53,13 +53,14 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 |---|---|
 | [api/index.php](api/index.php) | JSON-API: `/<resource>[/<id>]` gaat naar `handlers/<Resource>Handler-><METHOD>($id)` |
 | [api/openapi.json](api/openapi.json) | De OpenAPI-spec van de API, live op <http://localhost:8001/docs>, zie [API](#api) |
+| [api/schema.json](api/schema.json) | De typen van de API als JSON Schema, live op <http://localhost:8001/docs/schema.json>, zie [Typen](#typen) |
 | [api/config.php](api/config.php) | Instellingen per omgeving: welke origins de API mogen aanroepen, en hoe lang een login geldig is, zie [Losse servers](#losse-servers) |
 | [api/handlers/](api/handlers/) | Eén handler per resource |
 | [api/lib/](api/lib/) | Gedeelde code: csv-opslag ([Csv](api/lib/Csv.php), [Data](api/lib/Data.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
 | [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
-| [app/](app/) | Frontend: [index.php](app/index.php), [js/](app/js/), [css/](app/css/) en [views/](app/views/); [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
-| [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
+| [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
+| [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php) met [views/pagina.html](admin/views/pagina.html), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
 | [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
@@ -83,7 +84,20 @@ De volledige beschrijving staat in een OpenAPI 3.1-spec, per server:
 - **Swagger UI:** komt van cdn.jsdelivr.net (`swagger-ui-dist@5`). Alleen `/docs` gebruikt het; de API zelf niet.
 - **Onderhoud:** pas de spec aan als je een endpoint toevoegt of verandert. `npx @redocly/cli lint api/openapi.json math/openapi.json` controleert of de spec geldig is.
 
-De spec heeft één schema per ding: `Gesprek`, `Stelling`, `Antwoord`, `Beoordeling` en `Deelnemer`. Wat de server invult, is `readOnly`. Welke velden in een antwoord staan, hangt af van de context. Een stelling in een gesprek heeft bijvoorbeeld alleen `id` en `tekst`, en een eigen stelling heeft alles.
+### Typen
+
+De typen staan in een los JSON Schema-bestand (2020-12), zodat ook andere tools ze kunnen gebruiken, bijvoorbeeld om een export te valideren of code te genereren:
+
+| Server | Bestand | Live |
+|---|---|---|
+| API | [api/schema.json](api/schema.json) | <http://localhost:8001/docs/schema.json> |
+| Math server | [math/schema.json](math/schema.json) | <http://localhost:8004/docs/schema.json> |
+
+- **Waar:** elk type staat onder `$defs`, bijvoorbeeld `schema.json#/$defs/Export`.
+- **`$id`:** de live versie heeft de eigen URL als `$id`, zodat je er vanuit een ander schema naar kunt verwijzen.
+- **De OpenAPI-spec** heeft zelf geen typen meer: hij verwijst naar `schema.json`. Pas een type daarom aan in `schema.json`.
+
+Er is één type per ding: `Gesprek`, `Stelling`, `Antwoord`, `Beoordeling` en `Deelnemer`. Wat de server invult, is `readOnly`. Welke velden in een antwoord staan, hangt af van de context. Een stelling in een gesprek heeft bijvoorbeeld alleen `id` en `tekst`, en een eigen stelling heeft alles.
 
 De namen zijn Nederlands, behalve `error` in foutmeldingen: dat is de gangbare naam, en zo zijn API en math server gelijk.
 
@@ -240,7 +254,7 @@ De app, de admin, de API, de math server en de cdn draaien elk op een eigen subd
 | `app/` | [instellingen.php](app/instellingen.php): de URL's van API, math server en cdn | `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
 | `admin/` | [instellingen.php](admin/instellingen.php): de URL's van API, app en cdn | `MINIPOL_API_URL`, `MINIPOL_APP_URL`, `MINIPOL_CDN_URL` |
 
-App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL invult, en `js/config.php`, die de URL's als JS-module geeft, draaien in PHP.
+App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL in `views/pagina.html` invult, en `js/config.php`, die de URL's als JS-module geeft, draaien in PHP.
 
 **Wat de servers nodig hebben** (de Caddyfile regelt het):
 - **API en math server:** elk verzoek naar `index.php`, zodat `data/`, `bin/` en `config.php` nooit direct op te vragen zijn. De CORS-preflight (`OPTIONS`) handelt de API zelf af.

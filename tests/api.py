@@ -5,9 +5,14 @@ through the api; run it with tests/run.sh, which puts the data back afterwards.
 """
 import base64, json, os, re, ssl, sys, urllib.error, urllib.parse, urllib.request
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECS = {naam: json.load(open(f'{ROOT}/{naam}/openapi.json')) for naam in ('api', 'math')}
+# the types, in schema.json next to each spec; the spec refers to them as schema.json#/$defs/...
+SCHEMAS = {naam: json.load(open(f'{ROOT}/{naam}/schema.json')) for naam in SPECS}
+REGISTERS = {naam: Registry().with_resource('schema.json', Resource.from_contents(schema, default_specification=DRAFT202012)) for naam, schema in SCHEMAS.items()}
 # the servers; other urls (like a test server) through the environment
 BASIS = {'api': os.environ.get('TEST_API_URL', 'http://localhost:8001'), 'math': os.environ.get('TEST_MATH_URL', 'http://localhost:8004')}
 GEBRUIKER = os.environ.get('TEST_GEBRUIKER', 'minipol-test')
@@ -42,9 +47,10 @@ def verzoek(dienst, methode, pad, body=None, token=None, formulier=False, basic=
         return error.code, dict(error.headers), error.read().decode()
 
 
-def schemafouten(spec, schema, data, wat):
-    wortel = dict(schema, components=spec['components'])
-    return [f'{wat} {"/".join(map(str, e.absolute_path))}: {e.message[:120]}' for e in Draft202012Validator(wortel).iter_errors(data)]
+def schemafouten(dienst, schema, data, wat):
+    wortel = dict(schema, components=SPECS[dienst]['components'])
+    validator = Draft202012Validator(wortel, registry=REGISTERS[dienst])
+    return [f'{wat} {"/".join(map(str, e.absolute_path))}: {e.message[:120]}' for e in validator.iter_errors(data)]
 
 
 def check(dienst, methode, pad, verwacht, body=None, token=None, formulier=False, basic=None):
@@ -66,13 +72,13 @@ def check(dienst, methode, pad, verwacht, body=None, token=None, formulier=False
         gedekt.add((dienst, methode, sjabloon))
         vraag = operatie.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema')
         if vraag and body is not None and not formulier and status < 300:
-            meldingen += schemafouten(spec, vraag, body, 'request')
+            meldingen += schemafouten(dienst, vraag, body, 'request')
         antwoord = operatie['responses'][str(status)]
         while '$ref' in antwoord:
             antwoord = spec['components']['responses'][antwoord['$ref'].split('/')[-1]]
         schema = antwoord.get('content', {}).get('application/json', {}).get('schema')
         if schema:
-            meldingen += schemafouten(spec, schema, json.loads(tekst), 'response')
+            meldingen += schemafouten(dienst, schema, json.loads(tekst), 'response')
         elif 'text/html' in antwoord.get('content', {}) and 'text/html' not in headers.get('Content-Type', ''):
             meldingen.append(f"content-type {headers.get('Content-Type')}")
     fouten += bool(meldingen)
@@ -81,6 +87,17 @@ def check(dienst, methode, pad, verwacht, body=None, token=None, formulier=False
         return headers
     return json.loads(tekst) if tekst and 'json' in headers.get('Content-Type', '') else None
 
+
+# ---- the types: schema.json is a valid JSON Schema, and served with its own url as $id
+for dienst, schema in SCHEMAS.items():
+    try:
+        Draft202012Validator.check_schema(schema)
+        print(f'ok   {dienst}/schema.json is een geldig JSON Schema')
+    except Exception as error:
+        print(f'FOUT {dienst}/schema.json: {error}'); fouten += 1
+    live = check(dienst, 'GET', '/docs/schema.json', 200)
+    if live.get('$id') != BASIS[dienst] + '/docs/schema.json' or live.get('$defs') != schema['$defs']:
+        print(f'FOUT {dienst}: /docs/schema.json heeft niet de eigen url als $id, of andere typen'); fouten += 1
 
 # ---- api: logging in
 check('api', 'GET', '/sessie', 200)

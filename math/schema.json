@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniPol: de typen van de math server",
+  "description": "De typen van de MiniPol math server als JSON Schema (2020-12): de groepsanalyse van een gesprek. De OpenAPI-spec (openapi.json) verwijst hiernaar.",
+  "$defs": {
+    "Fout": {
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "Analyse": {
+      "type": "object",
+      "required": [
+        "gesprek_id",
+        "model",
+        "k",
+        "k_gekozen_op",
+        "verklaarde_variantie",
+        "min_antwoorden",
+        "buiten_analyse",
+        "deelnemers",
+        "groepen"
+      ],
+      "properties": {
+        "gesprek_id": {
+          "type": "string"
+        },
+        "model": {
+          "$ref": "#/$defs/Model"
+        },
+        "k": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Het aantal groepen; 0 als er te weinig deelnemers zijn"
+        },
+        "k_gekozen_op": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "kenmerkend",
+            "silhouette",
+            null
+          ]
+        },
+        "verklaarde_variantie": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Per richting het deel van de verschillen"
+        },
+        "min_antwoorden": {
+          "type": "integer",
+          "description": "Minimum aantal antwoorden om mee te tellen"
+        },
+        "buiten_analyse": {
+          "type": "integer",
+          "description": "Deelnemers met te weinig antwoorden"
+        },
+        "deelnemers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "deelnemer",
+              "antwoorden",
+              "x",
+              "y",
+              "groep"
+            ],
+            "properties": {
+              "deelnemer": {
+                "type": "integer",
+                "description": "Het nummer uit de export"
+              },
+              "antwoorden": {
+                "type": "integer"
+              },
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "groep": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Index in groepen"
+              }
+            }
+          }
+        },
+        "groepen": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "naam",
+              "deelnemers",
+              "stellingen"
+            ],
+            "properties": {
+              "naam": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "B",
+                  "C",
+                  "D",
+                  "E"
+                ]
+              },
+              "deelnemers": {
+                "type": "integer"
+              },
+              "stellingen": {
+                "type": "object",
+                "description": "stelling_id => hoeveel groepsleden elk antwoord gaven",
+                "additionalProperties": {
+                  "$ref": "#/$defs/Telling"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Model": {
+      "type": "object",
+      "description": "Genoeg om een deelnemer zelf te plaatsen: projecteer op de componenten en kies het dichtstbijzijnde centrum",
+      "required": [
+        "berekend",
+        "verloopt",
+        "max_leeftijd",
+        "stellingen",
+        "gemiddelden",
+        "componenten",
+        "centra"
+      ],
+      "properties": {
+        "berekend": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "verloopt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "max_leeftijd": {
+          "type": "integer",
+          "description": "Seconden"
+        },
+        "stellingen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "De kolommen, op volgorde"
+        },
+        "gemiddelden": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "componenten": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "centra": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "Telling": {
+      "description": "Hoeveel deelnemers elk antwoord gaven",
+      "type": "object",
+      "required": [
+        "eens",
+        "neutraal",
+        "oneens"
+      ],
+      "properties": {
+        "eens": {
+          "type": "integer"
+        },
+        "neutraal": {
+          "type": "integer"
+        },
+        "oneens": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
