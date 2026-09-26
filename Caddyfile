@@ -1,0 +1,85 @@
+# MiniPol on one server, with FrankenPHP (Caddy with PHP inside): every part on its own subdomain,
+# HTTPS by Caddy itself (Let's Encrypt). See docs/livegang.md.
+#
+# Settings from the environment (/etc/minipol.env on the server):
+#   MINIPOL_DOMEIN   the domain, like minipol.nl
+#   MINIPOL_EMAIL    for Let's Encrypt
+#   MINIPOL_ROOT     where the repository is; default /srv/minipol
+#   MINIPOL_POORT    only for testing on another port, like :8443; empty in production
+{
+	frankenphp {
+		# errors go to the log (journalctl -u minipol), never into a response
+		php_ini display_errors 0
+		php_ini log_errors 1
+	}
+	email {$MINIPOL_EMAIL}
+}
+
+# the urls of the parts, for PHP (see the instellingen.php and config.php of each part)
+(urls) {
+	env MINIPOL_APP_URL https://www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_ADMIN_URL https://admin.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_API_URL https://api.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_MATH_URL https://math.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_CDN_URL https://cdn.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+}
+
+(beveiliging) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
+
+# app and admin: static files, plus index.php and js/config.php with the urls
+(frontend) {
+	root * {$MINIPOL_ROOT:/srv/minipol}/{args[0]}
+	import beveiliging
+	# no build step, so no hashed file names: browsers check for a new version every time
+	header Cache-Control "no-cache"
+	php_server {
+		import urls
+	}
+}
+
+# api and math: every request goes to index.php, never to a file (data/, bin/, config.php ...)
+(dienst) {
+	root * {$MINIPOL_ROOT:/srv/minipol}/{args[0]}
+	import beveiliging
+	rewrite * /index.php
+	php_server {
+		import urls
+	}
+}
+
+www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	import frontend app
+}
+
+admin.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	import frontend admin
+	header X-Frame-Options "DENY"
+}
+
+api.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	import dienst api
+}
+
+math.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	import dienst math
+}
+
+# the design system and the libraries; browsers only import JS modules from another domain with CORS
+cdn.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	root * {$MINIPOL_ROOT:/srv/minipol}/cdn
+	import beveiliging
+	header Cache-Control "no-cache"
+	header Access-Control-Allow-Origin "*"
+	file_server
+}
+
+# the bare domain to the app
+{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	redir https://www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}{uri} permanent
+}

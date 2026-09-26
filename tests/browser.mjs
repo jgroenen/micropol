@@ -7,8 +7,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const APP = 'http://localhost:8000';
-const ADMIN = 'http://localhost:8002';
+const APP = process.env.TEST_APP_URL ?? 'http://localhost:8000';
+const ADMIN = process.env.TEST_ADMIN_URL ?? 'http://localhost:8002';
+const API = process.env.TEST_API_URL ?? 'http://localhost:8001';
 const GEBRUIKER = process.env.TEST_GEBRUIKER ?? 'minipol-test';
 const WACHTWOORD = process.env.TEST_WACHTWOORD ?? 'testwachtwoord123';
 const data = JSON.parse(readFileSync(process.env.TEST_UITVOER, 'utf8'));
@@ -33,7 +34,9 @@ function chromePad() {
 }
 
 const profiel = mkdtempSync(join(tmpdir(), 'minipol-chrome-'));
-const chrome = spawn(chromePad(), ['--headless=new', '--remote-debugging-port=9333', `--user-data-dir=${profiel}`, '--window-size=1000,900', 'about:blank'], { stdio: 'ignore' });
+// TEST_ONVEILIG_TLS=1: accept a certificate of a local CA (Caddy's local_certs)
+const onveilig = process.env.TEST_ONVEILIG_TLS ? ['--ignore-certificate-errors'] : [];
+const chrome = spawn(chromePad(), ['--headless=new', ...onveilig, '--remote-debugging-port=9333', `--user-data-dir=${profiel}`, '--window-size=1000,900', 'about:blank'], { stdio: 'ignore' });
 const slaap = ms => new Promise(r => setTimeout(r, ms));
 let pagina;
 for (let i = 0; i < 50 && !pagina; i++) {
@@ -99,16 +102,19 @@ try {
     check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
 
     await doe(`document.getElementById('tab-stellingen').click(); document.getElementById('open-toevoegen').click();`);
-    await doe(`document.getElementById('stelling-tekst').value = 'Een stelling uit de browsertest.'; document.getElementById('stelling-indienen').click();`);
-    check('app: stelling toegevoegd', await wachtOp(`${zichtbaar('melding')} && document.getElementById('mijn-stellingen-lijst').textContent.includes('uit de browsertest')`));
+    // with quotes and a tag, which must stay text everywhere
+    await doe(`document.getElementById('stelling-tekst').value = 'Een "stelling" <b>uit</b> de browsertest.'; document.getElementById('stelling-indienen').click();`);
+    check('app: stelling toegevoegd', await wachtOp(`${zichtbaar('melding')} && document.getElementById('mijn-stellingen-lijst').textContent.includes('<b>uit</b> de browsertest')`));
     await doe(`document.getElementById('tab-groepen').click();`);
     check('app: tab groepen', await wachtOp(`document.getElementById('groep-status').textContent.length > 0`));
     check('app: API-popup telt de calls', Number(await waarde(`document.querySelector('.api-log-teller').textContent`)) > 0);
+    check('app: API-popup met eigen stylesheet van de cdn', await wachtOp(`getComputedStyle(document.querySelector('.api-log-knop')).position === 'fixed'`));
 
     // ---- app: the matrix
     await naar(`${APP}/#/gesprekken/${data.gesprek}/matrix`);
     check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers}`));
     check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
+    check('app: aanhalingstekens en tags blijven tekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling === 'Een "stelling" <b>uit</b> de browsertest.') && !document.querySelector('.matrix b')`));
 
     // ---- admin: logging in
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
@@ -143,7 +149,7 @@ try {
     // ---- admin: a reload stays logged in; a token that ended elsewhere means logging in again
     await cmd('Page.reload');
     check('admin: na herladen nog ingelogd', await wachtOp(`document.getElementById('ingelogd-als')?.textContent === '${GEBRUIKER}'`));
-    await doe(`await fetch('http://localhost:8001/sessie', { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('minipol_admin_token') } });`);
+    await doe(`await fetch('${API}/sessie', { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('minipol_admin_token') } });`);
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: token elders beëindigd, dan het inlogformulier', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`));
     await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);

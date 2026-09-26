@@ -1,7 +1,7 @@
 <?php
 
-// Settings of the math server. In production they come from environment variables (SetEnv in the Apache
-// virtual host, see deploy/); without them the defaults are for local development (dev/start.sh).
+// Settings of the math server. In production they come from environment variables (env in the Caddyfile);
+// without them the defaults are for local development (dev/start.sh).
 
 function instelling($naam, $standaard) {
     $waarde = $_SERVER[$naam] ?? getenv($naam);

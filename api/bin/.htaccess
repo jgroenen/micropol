@@ -1,2 +1,0 @@
-# only for the command line, never serve these scripts (Apache)
-Require all denied

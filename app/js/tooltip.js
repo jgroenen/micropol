@@ -1,4 +1,4 @@
-import { escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
 
 // tooltip on elements with data-stelling (S-number + full stelling) or data-tooltip (plain text);
 // fixed position so a scrolling container does not clip it

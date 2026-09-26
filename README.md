@@ -11,7 +11,7 @@ Het bestaat uit vijf delen die elk op een eigen server (en domein) draaien:
 | [api/](api/) | De JSON-API in PHP, met de data | <http://localhost:8001> ([docs](http://localhost:8001/docs)) |
 | [app/](app/) | De frontend voor deelnemers (statische bestanden) | <http://localhost:8000> |
 | [admin/](admin/) | De beheeromgeving (statische bestanden) | <http://localhost:8002> |
-| [cdn/](cdn/) | CSS en JS die de app en de admin delen (statische bestanden) | <http://localhost:8003> |
+| [cdn/](cdn/) | Het design system en de JS-bibliotheken die de app en de admin delen (statische bestanden) | <http://localhost:8003> |
 | [math/](math/) | De math server: rekent de groepsanalyse uit de export van een API, zie [Math server](#math-server) | <http://localhost:8004> ([docs](http://localhost:8004/docs)) |
 
 ```
@@ -58,12 +58,13 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/lib/](api/lib/) | Gedeelde code: csv-opslag ([Csv](api/lib/Csv.php), [Data](api/lib/Data.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
 | [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
-| [app/](app/) | Frontend: [index.html](app/index.html), [js/](app/js/), [css/](app/css/) en [views/](app/views/); [js/config.js](app/js/config.js) zegt waar de API en de math server zijn |
-| [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.html](admin/index.html), [js/](admin/js/), [css/](admin/css/) en [views/](admin/views/); [js/config.js](admin/js/config.js) zegt waar de API en de app zijn |
-| [cdn/](cdn/) | Gedeeld door app en admin: de basisstijlen ([css/main.css](cdn/css/main.css) en wat die importeert), het laden van views ([js/views.js](cdn/js/views.js)), de calls naar de servers ([js/verzoek.js](cdn/js/verzoek.js)), [js/util.js](cdn/js/util.js) en de API-popup ([js/apilog.js](cdn/js/apilog.js), [css/apilog.css](cdn/css/apilog.css)) |
+| [app/](app/) | Frontend: [index.php](app/index.php), [js/](app/js/), [css/](app/css/) en [views/](app/views/); [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
+| [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
+| [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
-| [deploy/](deploy/) | Uitrollen naar een VPS met Apache: [deploy.sh](deploy/deploy.sh), de Apache-sjablonen en [productie.env.voorbeeld](deploy/productie.env.voorbeeld), zie [docs/livegang.md](docs/livegang.md) |
+| [Caddyfile](Caddyfile) | De webserver in productie: alle subdomeinen, met FrankenPHP en automatische HTTPS, zie [docs/livegang.md](docs/livegang.md) |
+| [deploy/](deploy/) | Op de VPS: [installeer.sh](deploy/installeer.sh) (eenmalig), [uppen.sh](deploy/uppen.sh) (nieuwe versie: `git pull`) en de dienst [minipol.service](deploy/minipol.service) |
 | [docs/](docs/) | Achtergronddocumentatie, zoals [analyse.md](docs/analyse.md) |
 | [tests/](tests/) | De tests, zie [Testen](#testen) |
 
@@ -150,7 +151,7 @@ De bestanden worden alleen aangevuld, nooit gewijzigd. Beantwoordt iemand een st
 
 De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn eigen data. Een lege `data/`-map werkt; de bestanden ontstaan bij het eerste gebruik. Hetzelfde geldt voor `math/data/`, met de berekende modellen. Maak op een nieuwe server eerst een beheerder aan, zie [Beheer](#beheer).
 
-Onder Apache blokkeert [api/data/.htaccess](api/data/.htaccess) directe toegang tot de data. Gebruik je een andere webserver, zorg dan zelf dat `api/data/` niet publiek bereikbaar is.
+De data is nooit direct op te vragen: in productie stuurt de [Caddyfile](Caddyfile) elk verzoek aan API en math server naar `index.php`.
 
 ## Deelnemers
 
@@ -228,29 +229,27 @@ Is de math server niet bereikbaar, dan werkt de rest gewoon: beantwoorden en de 
 
 ## Losse servers
 
-De app, de admin, de API, de math server en de cdn draaien elk op een eigen server en domein. Hoe je ze live zet op een VPS met Apache, met elk deel op een subdomein, staat in [docs/livegang.md](docs/livegang.md). [deploy/deploy.sh](deploy/deploy.sh) regelt de instellingen per omgeving; met de hand hoef je niets aan te passen.
+De app, de admin, de API, de math server en de cdn draaien elk op een eigen subdomein. In productie staan ze samen op één VPS, met FrankenPHP (Caddy met PHP), zie [docs/livegang.md](docs/livegang.md).
 
-Waar de instellingen zitten:
+**Instellingen.** Er is geen bouwstap. Elk deel leest zijn instellingen uit omgevingsvariabelen, die de [Caddyfile](Caddyfile) afleidt uit het domein (`MINIPOL_DOMEIN`). Zonder variabelen gelden de waarden voor lokaal ontwikkelen (`localhost`):
 
-| Deel | Instellingen | Hoe per omgeving |
+| Deel | Instellingen | Variabelen |
 |---|---|---|
-| `api/` | [config.php](api/config.php): de URL's van app en admin (CORS), en hoe lang een login geldig is | Omgevingsvariabelen `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` (in Apache via `SetEnv`) |
+| `api/` | [config.php](api/config.php): de URL's van app en admin (CORS), en hoe lang een login geldig is | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` |
 | `math/` | [config.php](math/config.php): de URL's van app en API | `MINIPOL_APP_URL`, `MINIPOL_API_URL` |
-| `app/` | [js/config.js](app/js/config.js) en de cdn-URL in [index.html](app/index.html) | Geschreven door `deploy/deploy.sh` (een browser kent geen omgevingsvariabelen) |
-| `admin/` | [js/config.js](admin/js/config.js) en de cdn-URL in [index.html](admin/index.html) | Geschreven door `deploy/deploy.sh` |
+| `app/` | [instellingen.php](app/instellingen.php): de URL's van API, math server en cdn | `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
+| `admin/` | [instellingen.php](admin/instellingen.php): de URL's van API, app en cdn | `MINIPOL_API_URL`, `MINIPOL_APP_URL`, `MINIPOL_CDN_URL` |
 
-Zonder omgevingsvariabelen gelden de waarden voor lokaal ontwikkelen (`localhost`), zoals in de repository.
+App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL invult, en `js/config.php`, die de URL's als JS-module geeft, draaien in PHP.
 
-Voor de verschillende servers:
+**Wat de servers nodig hebben** (de Caddyfile regelt het):
+- **API en math server:** elk verzoek naar `index.php`, zodat `data/`, `bin/` en `config.php` nooit direct op te vragen zijn. De CORS-preflight (`OPTIONS`) handelt de API zelf af.
+- **Math server:** moet de API kunnen bereiken, via zijn URL.
+- **CDN:** moet `Access-Control-Allow-Origin` meesturen, anders weigert de browser JS-modules van een ander domein. Lokaal doet [dev/cdn.php](dev/cdn.php) dat.
 
-- **API:** handelt de CORS-preflight (`OPTIONS`) zelf af. Alle requests moeten naar [api/index.php](api/index.php), en alleen die: `data/` en `bin/` mogen niet publiek zijn. Onder Apache moet de `Authorization`-header PHP bereiken: `CGIPassAuth On` (php-fpm) of `SetEnvIf Authorization` (mod_php); de sjablonen in `deploy/` doen beide.
-- **Math server:** net als de API: alle requests naar [math/index.php](math/index.php), en `data/` mag niet publiek zijn. Hij moet de API kunnen bereiken en PHP moet urls kunnen openen (`allow_url_fopen`).
-- **App en admin:** zijn alleen statische bestanden; een eigen server-router is niet nodig.
-- **CDN:** moet `Access-Control-Allow-Origin` meesturen voor de JS-bestanden. Zonder die header weigert de browser modules van een ander domein. Lokaal doet [dev/cdn.php](dev/cdn.php) dat.
-
-De CSS en JS op de cdn gebruiken de app en de admin tegelijk: een wijziging daar raakt beide.
+De cdn gebruiken app en admin tegelijk: een wijziging daar raakt beide.
 
 ## Meer
 
 - [docs/analyse.md](docs/analyse.md): hoe de groepsanalyse werkt, welke keuzes erin zitten en waar je iets aanpast.
-- [docs/livegang.md](docs/livegang.md): live zetten op een VPS met Apache, en nieuwe versies uitrollen.
+- [docs/livegang.md](docs/livegang.md): live zetten op een VPS met FrankenPHP, en nieuwe versies uitrollen.

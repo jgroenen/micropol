@@ -1,5 +1,5 @@
 import { getGesprekken } from './api.js';
-import { escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
 import { toonView } from './views.js';
 
 // list all gesprekken as cards

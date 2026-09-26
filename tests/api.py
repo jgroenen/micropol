@@ -3,12 +3,13 @@ be the expected one and in the spec, and the request and response must fit the s
 the specs must be called at least once. The test makes its own data (gesprekken, stellingen, antwoorden)
 through the api; run it with tests/run.sh, which puts the data back afterwards.
 """
-import base64, json, os, re, sys, urllib.error, urllib.parse, urllib.request
+import base64, json, os, re, ssl, sys, urllib.error, urllib.parse, urllib.request
 from jsonschema import Draft202012Validator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECS = {naam: json.load(open(f'{ROOT}/{naam}/openapi.json')) for naam in ('api', 'math')}
-BASIS = {'api': 'http://localhost:8001', 'math': 'http://localhost:8004'}
+# the servers; other urls (like a test server) through the environment
+BASIS = {'api': os.environ.get('TEST_API_URL', 'http://localhost:8001'), 'math': os.environ.get('TEST_MATH_URL', 'http://localhost:8004')}
 GEBRUIKER = os.environ.get('TEST_GEBRUIKER', 'minipol-test')
 WACHTWOORD = os.environ.get('TEST_WACHTWOORD', 'testwachtwoord123')
 
@@ -21,7 +22,9 @@ class GeenRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-urllib.request.install_opener(urllib.request.build_opener(GeenRedirect))
+# TEST_ONVEILIG_TLS=1: accept a certificate of a local CA (Caddy's local_certs)
+context = ssl._create_unverified_context() if os.environ.get('TEST_ONVEILIG_TLS') else None
+urllib.request.install_opener(urllib.request.build_opener(GeenRedirect, urllib.request.HTTPSHandler(context=context)))
 
 
 def verzoek(dienst, methode, pad, body=None, token=None, formulier=False, basic=None):

@@ -1,0 +1,25 @@
+# MiniPol as a systemd service: FrankenPHP (Caddy with PHP) with the Caddyfile of the repository.
+# Installed by deploy/installeer.sh; the settings are in /etc/minipol.env.
+[Unit]
+Description=MiniPol (FrankenPHP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=minipol
+Group=minipol
+EnvironmentFile=/etc/minipol.env
+# where Caddy keeps its certificates
+Environment=XDG_DATA_HOME=/var/lib/minipol XDG_CONFIG_HOME=/var/lib/minipol
+StateDirectory=minipol
+ExecStart=/usr/local/bin/frankenphp run --config ${MINIPOL_ROOT}/Caddyfile
+ExecReload=/usr/local/bin/frankenphp reload --force --config ${MINIPOL_ROOT}/Caddyfile
+# ports 80 and 443 without running as root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+LimitNOFILE=1048576
+Restart=on-failure
+TimeoutStopSec=5s
+
+[Install]
+WantedBy=multi-user.target

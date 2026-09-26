@@ -1,8 +1,8 @@
 import { getGesprekken, postGesprek } from './api.js';
 import { verwerkFout } from './toegang.js';
-import { escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
 import { gesprekVelden } from './util.js';
-import { APP_URL } from './config.js';
+import { APP_URL } from './config.php';
 import { toonView } from './views.js';
 
 // elements of views/gesprekken.html, set by koppel() once the view is in the page

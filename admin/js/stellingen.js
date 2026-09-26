@@ -1,6 +1,6 @@
 import { getBeoordelingen, postBeoordeling } from './api.js';
 import { verwerkFout } from './toegang.js';
-import { escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
 
 // the stellingen of a gesprek on its page (views/gesprek.html), newest first, to approve or reject
 

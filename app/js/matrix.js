@@ -1,6 +1,7 @@
 import { getGesprek, getMatrix, getAnalyse, getMijnAntwoorden } from './api.js';
 import { deelnemerId } from './deelnemer.js';
-import { labels, escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
+import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
 import { tekenPlot, tekenLegenda, tekenGroepKaarten, tekenConsensus, uitlegOnderscheid, uitlegConsensus, groepMarker, groepNaam, plaats } from './analyse.js';

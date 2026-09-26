@@ -1,5 +1,5 @@
 /*
- * Styles of the app, on top of the shared styles of the cdn (css/main.css there, see index.html).
+ * Styles of the app, on top of the design system on the cdn (design/main.css there, see index.php).
  * Layer order decides which styles win, not file order: later layers override earlier ones.
  */
 @layer reset, tokens, base, layout, components;

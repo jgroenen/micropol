@@ -1,5 +1,5 @@
 import { jsonVerzoek, ofNull } from 'cdn/verzoek.js';
-import { API_URL } from './config.js';
+import { API_URL } from './config.php';
 
 // all calls of the admin to the api (api/index.php); registered in the API popover (verzoek.js on the cdn).
 // A call that fails throws an Error with its status; lookups give null when there is nothing (404).

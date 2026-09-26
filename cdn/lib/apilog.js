@@ -1,11 +1,16 @@
-import { escapeHtml } from './util.js';
+import { escapeHtml } from './html.js';
 
 // Developer tool: a "{ } API" button with a popover listing the API calls of the current page
 // (method, url, status, duration, size) with the request and response as formatted JSON.
-// Calls are registered by request() in the api.js of the interface; the list starts over on every page
-// change (its main.js). Shared by the app and the admin, loaded from the cdn.
+// Calls are registered by verzoek.js; the list starts over on every page change (nieuwePagina(), called by the
+// main.js of the interface). A library on the cdn: it brings its own stylesheet (apilog.css, next to it).
 
 const MAX_VERZOEKEN = 50;
+
+const stijl = document.createElement('link');
+stijl.rel = 'stylesheet';
+stijl.href = new URL('apilog.css', import.meta.url);
+document.head.append(stijl);
 
 let pagina = 0;       // increases on every page change
 let verzoeken = [];   // the calls of the current page

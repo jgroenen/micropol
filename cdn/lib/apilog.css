@@ -1,4 +1,4 @@
-/* developer tool: API calls of the current page, see js/apilog.js */
+/* developer tool: API calls of the current page, loaded by apilog.js */
 .api-log-knop {
     position: fixed;
     inset: auto var(--space-3) var(--space-3) auto;

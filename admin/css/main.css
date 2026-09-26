@@ -1,5 +1,5 @@
 /*
- * Styles of the admin, on top of the shared styles of the cdn (css/main.css there, see index.html).
+ * Styles of the admin, on top of the design system on the cdn (design/main.css there, see index.php).
  * Layer order decides which styles win, not file order.
  */
 @layer reset, tokens, base, layout, components;

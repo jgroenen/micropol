@@ -545,7 +545,7 @@ class Analyse {
             $groepen[$groep]['deelnemers']++;
             foreach ($stellingIds as $stellingId) {
                 $waarde = $antwoorden[$stellingId] ?? null;
-                if (isset($groepen[$groep]['stellingen'][$stellingId][$waarde])) {
+                if ($waarde !== null && isset($groepen[$groep]['stellingen'][$stellingId][$waarde])) {
                     $groepen[$groep]['stellingen'][$stellingId][$waarde]++;
                 }
             }

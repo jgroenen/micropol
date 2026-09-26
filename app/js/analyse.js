@@ -1,4 +1,4 @@
-import { escapeHtml } from 'cdn/util.js';
+import { escapeHtml } from 'cdn/html.js';
 
 // Scatter plot of the PCA + K-means result from GET /analyse, and placing the current deelnemer with its model.
 // Groups are shown by color (A-C, the colors that stay distinguishable in a scatter plot),

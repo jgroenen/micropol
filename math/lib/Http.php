@@ -35,7 +35,6 @@ class Http {
     }
 
     // the token from "Authorization: Bearer <token>", or null
-    // (under Apache the header only reaches PHP with CGIPassAuth or SetEnvIf, see deploy/)
     public static function bearer() {
         $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
         return preg_match('/^Bearer\s+(\S+)$/i', $header, $match) === 1 ? $match[1] : null;

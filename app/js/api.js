@@ -1,5 +1,5 @@
 import { jsonVerzoek, ofNull } from 'cdn/verzoek.js';
-import { API_URL, MATH_URL } from './config.js';
+import { API_URL, MATH_URL } from './config.php';
 
 // all calls of the app: to the api (api/index.php), and to the math server for the analyse (math/index.php);
 // registered in the API popover (verzoek.js on the cdn). A call that fails throws an Error with its status;

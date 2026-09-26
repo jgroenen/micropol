@@ -1,13 +1,7 @@
-# Data is not part of the code: every server has its own. The files are created on first use
-# (see Csv::append), so an empty data directory works. Only the .htaccess that blocks direct access stays.
-api/data/*
-!api/data/.htaccess
-math/data/*
-!math/data/.htaccess
-
-# deployment: the settings per environment hold the secret; the build is made by deploy/deploy.sh
-deploy/*.env
-deploy/build/
+# Data is not part of the code: every server has its own. The files and directories are made on first
+# use (see Csv::append), so a checkout without data works.
+api/data/
+math/data/
 
 # the python environment of the tests (jsonschema), made by tests/run.sh
 tests/.venv/
