@@ -209,7 +209,7 @@
       ]
     },
     "Event": {
-      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `waarde`",
+      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
       "type": "object",
       "required": [
         "id",
@@ -296,7 +296,8 @@
           "type": "string"
         },
         "tekst": {
-          "type": "string"
+          "type": "string",
+          "description": "De tekst van de stelling"
         },
         "reden": {
           "type": "string"

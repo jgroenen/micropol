@@ -61,7 +61,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
 | [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php) met [views/pagina.html](admin/views/pagina.html), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
-| [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (het font IBM Plex Sans, reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
+| [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (het font IBM Plex Sans, reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`), [tabs.js](cdn/lib/tabs.js) (tabs, met hun stijl in [design/tabs.css](cdn/design/tabs.css)) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
 | [Caddyfile](Caddyfile) | De webserver in productie: alle subdomeinen, met FrankenPHP en automatische HTTPS, zie [docs/livegang.md](docs/livegang.md) |
@@ -239,7 +239,9 @@ Beheerders beoordelen stellingen op de detailpagina van een gesprek in de beheer
 
 ## Logboek
 
-Op de detailpagina van een gesprek staat in de beheeromgeving ook het logboek: wat er in het gesprek gebeurde, nieuwste eerst, met per regel wanneer, wie en wat ([admin/js/logboek.js](admin/js/logboek.js)). Het komt uit `GET /events` ([EventsHandler.php](api/handlers/EventsHandler.php)), dat de drie stromen van het gesprek samenvoegt.
+Op de detailpagina van een gesprek staat in de beheeromgeving een tab **Logboek**, naast **Stellingen** en **Gegevens**: wat er in het gesprek gebeurde, nieuwste eerst, met per regel wanneer, wie en wat ([admin/js/logboek.js](admin/js/logboek.js)). Het wordt opnieuw geladen elke keer dat je de tab opent.
+
+Het komt uit `GET /events` ([EventsHandler.php](api/handlers/EventsHandler.php)), dat de drie stromen van het gesprek samenvoegt. Events over een stelling hebben daar de `tekst` van de stelling.
 
 - **Deelnemers blijven anoniem:** de API geeft ze als `Deelnemer 12`, met het nummer uit de matrix, nooit met hun id. Wie alleen stellingen toevoegde, krijgt een nummer na de deelnemers die antwoordden.
 - **Antwoorden** van een deelnemer die na elkaar komen, zijn samen één regel („gaf 8 antwoorden”). Anders zou je de rest niet meer zien.

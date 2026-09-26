@@ -1,6 +1,6 @@
 // The app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
 // answering, adding a stelling, the tabs, the matrix, and in the admin logging in,
-// changing a gesprek, rejecting a stelling, the logboek, and logging in and out.
+// changing a gesprek, rejecting a stelling, the tabs with the logboek, and logging in and out.
 // Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -137,14 +137,16 @@ try {
         return !tekst.includes(token) && !tekst.includes('${WACHTWOORD}');`));
 
     // ---- admin: changing
-    await doe(`document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
+    check('admin: tabs, met stellingen eerst', await waarde(`${zichtbaar('paneel-stellingen')} && document.getElementById('paneel-logboek').hidden && document.getElementById('paneel-gegevens').hidden`));
+    await doe(`document.getElementById('tab-gegevens').click(); document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
     check('admin: gesprek opgeslagen', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Testgesprek (browser)'`));
-    await doe(`document.querySelector('#stellingen-lijst [data-actie=afkeuren]').click();`);
+    await doe(`document.getElementById('tab-stellingen').click(); document.querySelector('#stellingen-lijst [data-actie=afkeuren]').click();`);
     await doe(`const f = document.querySelector('#stellingen-lijst .afkeur-formulier:not([hidden])'); f.reden.value = 'Browsertest'; f.querySelector('button[type=submit]').click();`);
     check('admin: stelling afgekeurd', await wachtOp(`[...document.querySelectorAll('.stelling-meta')].some(m => m.textContent.includes('Browsertest'))`));
-    check('admin: afkeuren in het logboek', await wachtOp(`document.querySelector('#logboek-lijst li')?.textContent.includes('keurde af') && document.querySelector('#logboek-lijst li').textContent.includes('Browsertest')`));
+    await doe(`document.getElementById('tab-logboek').click();`);
+    check('admin: afkeuren in het logboek', await wachtOp(`document.querySelector('#gesprek-logboek li')?.textContent.includes('keurde af') && document.querySelector('#gesprek-logboek li').textContent.includes('Browsertest')`));
     check('admin: logboek met aanpassing, antwoorden per deelnemer samen, zonder deelnemer-ids', await waarde(`(() => {
-        const tekst = document.getElementById('logboek-lijst').textContent;
+        const tekst = document.querySelector('#gesprek-logboek .logboek-lijst').textContent;
         return tekst.includes('paste het gesprek aan') && /Deelnemer \\d+\\s+gaf \\d+ antwoorden/.test(tekst) && !tekst.includes('${data.deelnemer}');
     })()`));
     await naar(`${ADMIN}/#/`);

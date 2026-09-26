@@ -1,33 +1,31 @@
-/* one gesprek: its details, its stellingen and its logboek, see js/gesprek.js, js/stellingen.js and js/logboek.js */
-/* directly below the info line, which has its own margin */
-.gesprek-formulier {
-    margin-block-start: 0;
-}
-
+/* one gesprek, with tabs for its stellingen, logboek and details, see js/gesprek.js and js/stellingen.js;
+   the logboek itself is in logboek.css */
 .gesprek-info {
     margin: 0 0 var(--space-5);
     color: var(--color-muted);
     font-weight: 300;
 }
 
-/* stellingen of a gesprek, to approve or reject */
-.beheer-stellingen {
-    margin-block-start: var(--space-6);
+/* in a tab panel, lists and forms are no cards of their own */
+.gesprek-tabs {
+    & .beheer-lijst {
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+
+        & li {
+            padding-inline: 0;
+        }
+    }
+
+    & .beheer-formulier {
+        margin-block-start: 0;
+    }
 }
 
+/* stellingen of a gesprek, to approve or reject; above them the filter */
 .stellingen-kop {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-2) var(--space-4);
     margin-block-end: var(--space-3);
-
-    & h2 {
-        margin: 0;
-        font-size: var(--font-size-h2);
-        font-weight: 600;
-    }
 
     & label {
         font-weight: 300;
@@ -136,59 +134,4 @@
     margin: 0;
     color: var(--color-muted);
     font-weight: 300;
-}
-
-/* what happened in the gesprek, newest first: when, who, what */
-.logboek {
-    margin-block-start: var(--space-6);
-
-    & h2 {
-        margin: 0 0 var(--space-3);
-        font-size: var(--font-size-h2);
-        font-weight: 600;
-    }
-
-    & .link-knop {
-        margin-block-start: var(--space-3);
-    }
-}
-
-.logboek-lijst {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: var(--font-size-small);
-
-    & li {
-        display: grid;
-        grid-template-columns: 11rem 9rem 1fr;
-        gap: var(--space-1) var(--space-3);
-        padding-block: var(--space-2);
-        border-block-end: 1px solid var(--color-border);
-    }
-
-    @media (max-width: 40rem) {
-        & li {
-            grid-template-columns: auto 1fr;
-        }
-
-        & .logboek-wat {
-            grid-column: 1 / -1;
-        }
-    }
-}
-
-.logboek-tijd {
-    color: var(--color-muted);
-    font-weight: 300;
-    font-variant-numeric: tabular-nums;
-}
-
-.logboek-wie {
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
-
-.logboek-wat {
-    overflow-wrap: anywhere;
 }

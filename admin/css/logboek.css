@@ -1,0 +1,45 @@
+/* the logboek of a gesprek, in its tab: what happened, newest first, a line with when, who and what;
+   see js/logboek.js */
+.logboek .link-knop {
+    margin-block-start: var(--space-3);
+}
+
+.logboek-lijst {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size-small);
+
+    & li {
+        display: grid;
+        grid-template-columns: 11rem 9rem 1fr;
+        gap: var(--space-1) var(--space-3);
+        padding-block: var(--space-2);
+        border-block-end: 1px solid var(--color-border);
+    }
+
+    @media (max-width: 40rem) {
+        & li {
+            grid-template-columns: auto 1fr;
+        }
+
+        & .logboek-wat {
+            grid-column: 1 / -1;
+        }
+    }
+}
+
+.logboek-tijd {
+    color: var(--color-muted);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+}
+
+.logboek-wie {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.logboek-wat {
+    overflow-wrap: anywhere;
+}

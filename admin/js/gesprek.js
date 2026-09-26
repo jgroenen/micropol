@@ -1,14 +1,18 @@
 import { getGesprek, putGesprek } from './api.js';
 import { verwerkFout } from './toegang.js';
-import { toonStellingen, verbergStellingen, bijBeoordelingVanStelling } from './stellingen.js';
-import { toonLogboek, verbergLogboek } from './logboek.js';
+import { toonStellingen, verbergStellingen } from './stellingen.js';
+import { maakLogboek } from './logboek.js';
+import { maakTabs } from 'cdn/tabs.js';
 import { gesprekVelden } from './util.js';
 import { APP_URL } from './config.php';
 import { toonView } from './views.js';
 
 // elements of views/gesprek.html, set by koppel() once the view is in the page
-let titel, melding, info, formulier, fout, knop;
+let titel, melding, info, tabs, tabBladen, formulier, fout, knop;
 let gekoppeld = false;
+const logboek = maakLogboek('gesprek-logboek');
+// the tab shown, kept when opening another gesprek
+let actieveTab = 'stellingen';
 
 function koppel() {
     if (gekoppeld) {
@@ -17,23 +21,18 @@ function koppel() {
     titel = document.getElementById('gesprek-titel');
     melding = document.getElementById('gesprek-melding');
     info = document.getElementById('gesprek-info');
+    tabs = document.getElementById('gesprek-tabs');
+    tabBladen = maakTabs(tabs.querySelector('[role="tablist"]'), bijTab);
     formulier = document.getElementById('gesprek-formulier');
     fout = document.getElementById('gesprek-fout');
     knop = document.getElementById('gesprek-knop');
     formulier.addEventListener('submit', slaOp);
-    bijBeoordelingVanStelling(async stellingen => {
-        try {
-            await toonLogboek(huidigId, stellingen);
-        } catch (error) {
-            verwerkFout(error);
-        }
-    });
     gekoppeld = true;
 }
 
 let huidigId = null;
 
-// one gesprek: its details to change, its stellingen to approve or reject, and its logboek
+// one gesprek, with tabs: its stellingen to approve or reject, its logboek, and its details to change
 export async function toonGesprek(id) {
     huidigId = id;
     try {
@@ -41,9 +40,9 @@ export async function toonGesprek(id) {
         koppel();
         melding.hidden = true;
         fout.hidden = true;
-        formulier.hidden = true;
+        tabs.hidden = true;
         verbergStellingen();
-        verbergLogboek();
+        logboek.verberg();
         titel.textContent = '';
         info.textContent = '';
 
@@ -59,18 +58,24 @@ export async function toonGesprek(id) {
         const aantal = gesprek.stellingen.length;
         info.innerHTML = `${aantal} ${aantal === 1 ? 'zichtbare stelling' : 'zichtbare stellingen'} · <a target="_blank" rel="noopener" href="${APP_URL}/#/gesprekken/${encodeURIComponent(id)}">Bekijken in de app →</a>`;
         vulFormulier(gesprek);
-        formulier.hidden = false;
-        await vernieuw(id);
+        tabs.hidden = false;
+        tabBladen.toon(actieveTab);
+        await toonStellingen(id);
     } catch (error) {
         verwerkFout(error);
     }
 }
 
-// the stellingen, and the logboek with their texts; errors are for the caller
-async function vernieuw(id) {
-    const stellingen = await toonStellingen(id);
-    if (stellingen) {
-        await toonLogboek(id, stellingen);
+// the logboek is loaded whenever its tab is shown, so it is up to date after beoordelingen and changes
+async function bijTab(naam) {
+    actieveTab = naam;
+    if (naam !== 'logboek' || huidigId === null) {
+        return;
+    }
+    try {
+        await logboek.toon(huidigId);
+    } catch (error) {
+        verwerkFout(error);
     }
 }
 
@@ -92,7 +97,7 @@ async function slaOp(event) {
         melding.textContent = 'De wijzigingen zijn opgeslagen.';
         melding.hidden = false;
         // the moderatie decides which stellingen are zichtbaar
-        await vernieuw(huidigId);
+        await toonStellingen(huidigId);
     } catch (error) {
         fout.textContent = 'De wijzigingen konden niet worden opgeslagen. Probeer het opnieuw.';
         verwerkFout(error, fout);

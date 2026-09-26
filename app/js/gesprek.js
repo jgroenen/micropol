@@ -1,13 +1,14 @@
 import { getGesprek, getMijnAntwoorden, getMijnStellingen, getAnalyse, postAntwoord, postStelling } from './api.js';
 import { deelnemerId } from './deelnemer.js';
 import { escapeHtml } from 'cdn/html.js';
+import { maakTabs } from 'cdn/tabs.js';
 import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
 import { plaats, groepMarker, groepNaam, tekenPlot, tekenLegenda } from './analyse.js';
 
 // elements of views/gesprek.html, set by koppel() once the view is in the page
-let beantwoorden, toevoegen, melding, titel, teller, huidigeStelling, knoppen, antwoordKnoppen, tabs, tabKnoppen, textarea, indienen;
+let beantwoorden, toevoegen, melding, titel, teller, huidigeStelling, knoppen, antwoordKnoppen, tabs, tabBladen, textarea, indienen;
 let gekoppeld = false;
 
 // the tab shown below the stelling, kept when switching gesprekken
@@ -26,7 +27,6 @@ function koppel() {
     knoppen = document.getElementById('antwoord-knoppen');
     antwoordKnoppen = knoppen.querySelectorAll('button');
     tabs = document.getElementById('gesprek-tabs');
-    tabKnoppen = [...tabs.querySelectorAll('[role="tab"]')];
     textarea = document.getElementById('stelling-tekst');
     indienen = document.getElementById('stelling-indienen');
 
@@ -34,18 +34,7 @@ function koppel() {
         button.addEventListener('click', () => beantwoord(button.dataset.antwoord));
     });
 
-    tabKnoppen.forEach((knop, i) => {
-        knop.addEventListener('click', () => toonTab(knop.dataset.tab));
-        // arrow keys move between the tabs, as in the ARIA tabs pattern
-        knop.addEventListener('keydown', event => {
-            const stap = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-            if (stap) {
-                const volgende = tabKnoppen[(i + stap + tabKnoppen.length) % tabKnoppen.length];
-                toonTab(volgende.dataset.tab);
-                volgende.focus();
-            }
-        });
-    });
+    tabBladen = maakTabs(tabs.querySelector('[role="tablist"]'), naam => actieveTab = naam);
 
     // deelnemer info on the plot points
     koppelTooltip(document.getElementById('groepen-plot'));
@@ -114,13 +103,7 @@ function toonNietGevonden() {
 }
 
 function toonTab(naam) {
-    actieveTab = naam;
-    tabKnoppen.forEach(knop => {
-        const actief = knop.dataset.tab === naam;
-        knop.setAttribute('aria-selected', String(actief));
-        knop.tabIndex = actief ? 0 : -1;
-        document.getElementById(knop.getAttribute('aria-controls')).hidden = !actief;
-    });
+    tabBladen.toon(naam);
 }
 
 // fills a list of the tabs, or shows its empty text

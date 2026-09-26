@@ -1,0 +1,43 @@
+/* tabs, with lib/tabs.js: a row of tabs, and below it the panel of the selected one;
+   the selected tab joins the panel below it */
+.tab-lijst {
+    display: flex;
+    gap: var(--space-1);
+    overflow-x: auto;
+
+    & [role="tab"] {
+        flex-shrink: 0;
+        padding: var(--space-2) var(--space-3);
+        border: none;
+        border-start-start-radius: var(--radius);
+        border-start-end-radius: var(--radius);
+        background: transparent;
+        color: var(--color-muted);
+        font-weight: 400;
+        cursor: pointer;
+
+        &:hover {
+            color: var(--color-brand-text);
+        }
+
+        &[aria-selected="true"] {
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-weight: 600;
+        }
+
+        &:focus-visible {
+            outline-offset: -3px;
+        }
+    }
+}
+
+.tab-paneel {
+    padding: var(--space-4);
+    border-radius: 0 var(--radius) var(--radius);
+    background: var(--color-surface);
+
+    &:focus-visible {
+        outline-offset: -3px;
+    }
+}

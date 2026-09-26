@@ -173,8 +173,11 @@ if 'deelnemer-' in json.dumps(events):
     print('FOUT GET /events geeft de id van een deelnemer'); fouten += 1
 if {e['door']['nummer'] for e in events if e['type'] == 'antwoord.gegeven'} != {1, 2, 3, 4}:
     print('FOUT de deelnemers in GET /events hebben niet de nummers van de matrix'); fouten += 1
-if next(e for e in events if e['type'] == 'stelling.afgekeurd')['door'].get('gebruikersnaam') != GEBRUIKER:
+afgekeurd = next(e for e in events if e['type'] == 'stelling.afgekeurd')
+if afgekeurd['door'].get('gebruikersnaam') != GEBRUIKER:
     print('FOUT een beoordeling in GET /events heeft niet de beheerder'); fouten += 1
+if afgekeurd.get('tekst') != 'Teststelling 8.' or not all(e.get('tekst', '').startswith('Teststelling') for e in events if e['type'] == 'antwoord.gegeven'):
+    print('FOUT events over een stelling in GET /events hebben niet de tekst ervan'); fouten += 1
 pagina = check('api', 'GET', f'/events?gesprek_id={G}&limiet=5', 200, token=TOKEN)
 volgende = check('api', 'GET', f"/events?gesprek_id={G}&limiet=5&voor={pagina['events'][-1]['id']}", 200, token=TOKEN)
 if not pagina['meer'] or [e['id'] for e in pagina['events'] + volgende['events']] != ids[:10]:

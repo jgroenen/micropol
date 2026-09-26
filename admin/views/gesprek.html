@@ -4,45 +4,57 @@
     <p class="melding" id="gesprek-melding" role="status" hidden></p>
     <p class="gesprek-info" id="gesprek-info"></p>
 
-    <form class="beheer-formulier gesprek-formulier" id="gesprek-formulier" hidden>
-        <h2>Gegevens</h2>
-        <p class="melding fout" id="gesprek-fout" role="alert" hidden></p>
-        <label for="gesprek-titel-veld">Titel</label>
-        <input id="gesprek-titel-veld" name="titel" maxlength="200" required>
-        <label for="gesprek-omschrijving">Omschrijving <span>(optioneel)</span></label>
-        <textarea id="gesprek-omschrijving" name="omschrijving" rows="3" maxlength="1000"></textarea>
-        <fieldset class="keuze">
-            <legend>Stellingen van deelnemers</legend>
-            <label><input type="radio" name="moderatie" value="achteraf"> Direct tonen, achteraf afkeuren</label>
-            <label><input type="radio" name="moderatie" value="vooraf"> Pas tonen na goedkeuring</label>
-        </fieldset>
-        <button type="submit" class="knop" id="gesprek-knop">Opslaan</button>
-    </form>
-
-    <!-- see js/stellingen.js -->
-    <section class="beheer-stellingen" id="beheer-stellingen" hidden>
-        <div class="stellingen-kop">
-            <h2>Stellingen</h2>
-            <label>Toon
-                <select id="stellingen-filter">
-                    <option value="alle">alle</option>
-                    <option value="te-beoordelen">te beoordelen</option>
-                    <option value="zichtbaar">zichtbaar</option>
-                    <option value="afgekeurd">afgekeurd</option>
-                </select>
-            </label>
+    <!-- tabs, see js/gesprek.js -->
+    <div class="gesprek-tabs" id="gesprek-tabs" hidden>
+        <div class="tab-lijst" role="tablist" aria-label="Het gesprek beheren">
+            <button role="tab" id="tab-stellingen" aria-controls="paneel-stellingen" data-tab="stellingen">Stellingen</button>
+            <button role="tab" id="tab-logboek" aria-controls="paneel-logboek" data-tab="logboek">Logboek</button>
+            <button role="tab" id="tab-gegevens" aria-controls="paneel-gegevens" data-tab="gegevens">Gegevens</button>
         </div>
-        <p class="melding fout" id="stellingen-fout" role="alert" hidden></p>
-        <ul class="beheer-lijst" id="stellingen-lijst"></ul>
-        <p class="leeg-tekst" id="stellingen-leeg" hidden>Geen stellingen.</p>
-    </section>
 
-    <!-- see js/logboek.js -->
-    <section class="logboek" id="logboek" hidden>
-        <h2>Logboek</h2>
-        <p class="melding fout" id="logboek-fout" role="alert" hidden></p>
-        <ol class="logboek-lijst" id="logboek-lijst"></ol>
-        <p class="leeg-tekst" id="logboek-leeg" hidden>Er is nog niets gebeurd.</p>
-        <button type="button" class="link-knop" id="logboek-meer" hidden>Oudere laden</button>
-    </section>
+        <!-- see js/stellingen.js -->
+        <div class="tab-paneel" role="tabpanel" id="paneel-stellingen" aria-labelledby="tab-stellingen" tabindex="0">
+            <section class="beheer-stellingen" id="beheer-stellingen" hidden>
+                <div class="stellingen-kop">
+                    <label>Toon
+                        <select id="stellingen-filter">
+                            <option value="alle">alle</option>
+                            <option value="te-beoordelen">te beoordelen</option>
+                            <option value="zichtbaar">zichtbaar</option>
+                            <option value="afgekeurd">afgekeurd</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="melding fout" id="stellingen-fout" role="alert" hidden></p>
+                <ul class="beheer-lijst" id="stellingen-lijst"></ul>
+                <p class="leeg-tekst" id="stellingen-leeg" hidden>Geen stellingen.</p>
+            </section>
+        </div>
+
+        <!-- see js/logboek.js -->
+        <div class="tab-paneel" role="tabpanel" id="paneel-logboek" aria-labelledby="tab-logboek" tabindex="0" hidden>
+            <section class="logboek" id="gesprek-logboek" hidden>
+                <p class="melding fout logboek-fout" role="alert" hidden></p>
+                <ol class="logboek-lijst"></ol>
+                <p class="leeg-tekst logboek-leeg" hidden>Er is nog niets gebeurd.</p>
+                <button type="button" class="link-knop logboek-meer" hidden>Oudere laden</button>
+            </section>
+        </div>
+
+        <div class="tab-paneel" role="tabpanel" id="paneel-gegevens" aria-labelledby="tab-gegevens" tabindex="0" hidden>
+            <form class="beheer-formulier gesprek-formulier" id="gesprek-formulier">
+                <p class="melding fout" id="gesprek-fout" role="alert" hidden></p>
+                <label for="gesprek-titel-veld">Titel</label>
+                <input id="gesprek-titel-veld" name="titel" maxlength="200" required>
+                <label for="gesprek-omschrijving">Omschrijving <span>(optioneel)</span></label>
+                <textarea id="gesprek-omschrijving" name="omschrijving" rows="3" maxlength="1000"></textarea>
+                <fieldset class="keuze">
+                    <legend>Stellingen van deelnemers</legend>
+                    <label><input type="radio" name="moderatie" value="achteraf"> Direct tonen, achteraf afkeuren</label>
+                    <label><input type="radio" name="moderatie" value="vooraf"> Pas tonen na goedkeuring</label>
+                </fieldset>
+                <button type="submit" class="knop" id="gesprek-knop">Opslaan</button>
+            </form>
+        </div>
+    </div>
 </section>

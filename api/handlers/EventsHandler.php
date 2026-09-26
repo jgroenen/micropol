@@ -2,6 +2,7 @@
 
 // What happened in a gesprek, for the logboek in the admin: the events of its three streams (see Data),
 // newest first. Deelnemers stay anonymous: door has their nummer, like in the matrix, never their id.
+// Events about a stelling have its tekst, so the logboek can show it.
 class EventsHandler {
     const LIMIET = 100;
     const MAX_LIMIET = 1000;
@@ -22,33 +23,30 @@ class EventsHandler {
         } elseif (preg_match('/^[1-9][0-9]*$/', $limiet) !== 1 || (int) $limiet > self::MAX_LIMIET) {
             throw new HttpFout(400, 'limiet must be a number from 1 to ' . self::MAX_LIMIET . '.');
         }
+        $limiet = (int) $limiet;
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
 
-        // from each stream the last limiet + 1 events before voor; together enough to know whether there are more
+        // from each stream the last limiet + 1 events before voor; together enough to know whether there are more.
+        // The antwoorden first: deelnemers who only added stellingen get a nummer after those who answered
         $nummers = [];
+        $teksten = [];
         $events = array_merge(
-            $this->laatste(Data::events('gesprekken'), (int) $limiet + 1, $voor, $gesprekId),
-            $this->laatste(Data::events('stellingen', $gesprekId), (int) $limiet + 1, $voor),
-            $this->laatste($this->nummer(Data::events('antwoorden', $gesprekId), $nummers), (int) $limiet + 1, $voor)
+            $this->laatste(Data::events('gesprekken'), $limiet + 1, $voor, $gesprekId),
+            $this->laatste($this->nummer(Data::events('antwoorden', $gesprekId), $nummers), $limiet + 1, $voor),
+            $this->laatste($this->stellingen(Data::events('stellingen', $gesprekId), $nummers, $teksten), $limiet + 1, $voor)
         );
         usort($events, function ($a, $b) {
             return strcmp($b['id'], $a['id']);
         });
-        $meer = count($events) > (int) $limiet;
-        $events = array_slice($events, 0, (int) $limiet);
 
-        // deelnemers who only added stellingen get a nummer after those who answered
-        foreach (Data::events('stellingen', $gesprekId) as $event) {
-            $this->nummerVan($event['door'], $nummers);
-        }
         $beheerders = Data::beheerders();
         Http::json([
-            'events' => array_map(function ($event) use ($nummers, $beheerders) {
-                return $this->openbaar($event, $nummers, $beheerders);
-            }, $events),
-            'meer' => $meer,
+            'events' => array_map(function ($event) use ($nummers, $teksten, $beheerders) {
+                return $this->openbaar($event, $nummers, $teksten, $beheerders);
+            }, array_slice($events, 0, $limiet)),
+            'meer' => count($events) > $limiet,
         ]);
     }
 
@@ -67,28 +65,40 @@ class EventsHandler {
         return array_slice($laatste, -$aantal);
     }
 
-    // numbers the deelnemers in order of their first antwoord, like Data::deelnemers(), while passing on the events
+    // numbers the deelnemers in order of their first event, like Data::deelnemers() does for antwoorden,
+    // while passing on the events
     private function nummer($events, array &$nummers) {
         foreach ($events as $event) {
-            $this->nummerVan($event['door'], $nummers);
+            $door = $event['door'];
+            if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER && !isset($nummers[$door['id']])) {
+                $nummers[$door['id']] = count($nummers) + 1;
+            }
             yield $event;
         }
     }
 
-    private function nummerVan(?array $door, array &$nummers) {
-        if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER && !isset($nummers[$door['id']])) {
-            $nummers[$door['id']] = count($nummers) + 1;
+    // like nummer(), and keeps the tekst of every stelling: [stelling_id => tekst]
+    private function stellingen($events, array &$nummers, array &$teksten) {
+        foreach ($this->nummer($events, $nummers) as $event) {
+            if ($event['type'] === Data::STELLING_TOEGEVOEGD) {
+                $teksten[$event['stelling_id']] = $event['tekst'];
+            }
+            yield $event;
         }
     }
 
-    // the event as the api gives it: tijdstip in ISO 8601, and door without the id of a deelnemer
-    private function openbaar(array $event, array $nummers, array $beheerders) {
+    // the event as the api gives it: tijdstip in ISO 8601, door without the id of a deelnemer,
+    // and the tekst of its stelling
+    private function openbaar(array $event, array $nummers, array $teksten, array $beheerders) {
         $event['tijdstip'] = $event['tijdstip'] === null ? null : date('c', $event['tijdstip']);
         $door = $event['door'];
         if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER) {
             $event['door'] = ['soort' => Data::DOOR_DEELNEMER, 'nummer' => $nummers[$door['id']]];
         } elseif (($door['soort'] ?? null) === Data::DOOR_BEHEERDER) {
             $event['door']['gebruikersnaam'] = $beheerders[$door['id']]['gebruikersnaam'] ?? '';
+        }
+        if (isset($event['stelling_id']) && !isset($event['tekst'])) {
+            $event['tekst'] = $teksten[$event['stelling_id']] ?? '';
         }
         return $event;
     }
