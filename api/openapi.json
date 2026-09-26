@@ -1,0 +1,1149 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MiniPol API",
+    "version": "1.0.0",
+    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders: log in met `POST /sessie` en geef het token op via **Authorize**."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8001",
+      "description": "Lokaal; op /docs wordt dit de server zelf"
+    }
+  ],
+  "security": [
+    {}
+  ],
+  "tags": [
+    {
+      "name": "Gesprekken",
+      "description": "Een gesprek met zijn stellingen; aanmaken en aanpassen alleen voor beheerders"
+    },
+    {
+      "name": "Stellingen",
+      "description": "Stellingen die deelnemers toevoegen"
+    },
+    {
+      "name": "Antwoorden",
+      "description": "Eens, neutraal of oneens op een stelling"
+    },
+    {
+      "name": "Moderatie",
+      "description": "Alleen voor beheerders"
+    },
+    {
+      "name": "Export",
+      "description": "Voor de math server en andere tools"
+    },
+    {
+      "name": "Sessie",
+      "description": "Inloggen in de beheeromgeving"
+    },
+    {
+      "name": "Docs",
+      "description": "Deze documentatie"
+    }
+  ],
+  "paths": {
+    "/gesprekken": {
+      "get": {
+        "tags": [
+          "Gesprekken"
+        ],
+        "summary": "Alle gesprekken",
+        "operationId": "getGesprekken",
+        "responses": {
+          "200": {
+            "description": "De gesprekken, op volgorde van aanmaken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "gesprekken"
+                  ],
+                  "properties": {
+                    "gesprekken": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Gesprek"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Gesprekken"
+        ],
+        "summary": "Gesprek aanmaken",
+        "operationId": "postGesprek",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GesprekVelden"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Het nieuwe gesprek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gesprek"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          }
+        }
+      }
+    },
+    "/gesprekken/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Gesprekken"
+        ],
+        "summary": "Eén gesprek met zijn zichtbare stellingen",
+        "description": "De stellingen komen in willekeurige volgorde; alleen de zichtbare, zie Moderatie.",
+        "operationId": "getGesprek",
+        "responses": {
+          "200": {
+            "description": "Het gesprek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Gesprek"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "stellingen"
+                      ],
+                      "properties": {
+                        "stellingen": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Stelling"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Gesprekken"
+        ],
+        "summary": "Gesprek aanpassen",
+        "description": "Zonder `moderatie` blijft die gelijk.",
+        "operationId": "putGesprek",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GesprekVelden"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het aangepaste gesprek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gesprek"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/stellingen": {
+      "get": {
+        "tags": [
+          "Stellingen"
+        ],
+        "summary": "De stellingen die één deelnemer heeft toegevoegd",
+        "description": "Met hun moderatiestatus en hoe ze beantwoord zijn.",
+        "operationId": "getMijnStellingen",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "De user_id van de deelnemer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De stellingen, op volgorde van toevoegen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "stellingen"
+                  ],
+                  "properties": {
+                    "stellingen": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EigenStelling"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Stellingen"
+        ],
+        "summary": "Stelling toevoegen",
+        "description": "Witruimte wordt één spatie. Of de stelling direct zichtbaar is, hangt af van de moderatie van het gesprek.",
+        "operationId": "postStelling",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "user_id",
+                  "content"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "De nieuwe stelling",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Stelling"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Moderatiestatus"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "gesprek_id",
+                        "user_id"
+                      ],
+                      "properties": {
+                        "gesprek_id": {
+                          "type": "string"
+                        },
+                        "user_id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/antwoorden": {
+      "get": {
+        "tags": [
+          "Antwoorden"
+        ],
+        "summary": "De antwoorden van één deelnemer, of van iedereen als matrix",
+        "description": "Met `user_id`: de antwoorden van die deelnemer. Zonder: per deelnemer `{ stelling_id: waarde }`, zonder user_id's, op volgorde van het eerste antwoord. Per deelnemer telt het laatste antwoord.",
+        "operationId": "getAntwoorden",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De antwoorden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "title": "Van één deelnemer",
+                      "type": "object",
+                      "required": [
+                        "antwoorden"
+                      ],
+                      "properties": {
+                        "antwoorden": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Antwoord"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "title": "Matrix",
+                      "type": "object",
+                      "required": [
+                        "gesprek_id",
+                        "antwoorden"
+                      ],
+                      "properties": {
+                        "gesprek_id": {
+                          "type": "string"
+                        },
+                        "antwoorden": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AntwoordenPerStelling"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Antwoorden"
+        ],
+        "summary": "Antwoord geven",
+        "description": "Alleen op zichtbare stellingen. Opnieuw antwoorden mag; het laatste antwoord telt.",
+        "operationId": "postAntwoord",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "user_id",
+                  "stelling_id",
+                  "waarde"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "stelling_id": {
+                    "type": "string"
+                  },
+                  "waarde": {
+                    "$ref": "#/components/schemas/Waarde"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Het opgeslagen antwoord",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Antwoord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/beoordelingen": {
+      "get": {
+        "tags": [
+          "Moderatie"
+        ],
+        "summary": "Alle stellingen van een gesprek met hun moderatiestatus",
+        "description": "Ook de onzichtbare, op volgorde van toevoegen, zonder wie ze toevoegde.",
+        "operationId": "getBeoordelingen",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De stellingen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "stellingen"
+                  ],
+                  "properties": {
+                    "stellingen": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BeoordeeldeStelling"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Moderatie"
+        ],
+        "summary": "Stelling goedkeuren of afkeuren",
+        "description": "Bij `afgekeurd` is een reden verplicht; die ziet de indiener. Een beoordeling is altijd te herzien: de laatste telt.",
+        "operationId": "postBeoordeling",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "stelling_id",
+                  "beoordeling"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "stelling_id": {
+                    "type": "string"
+                  },
+                  "beoordeling": {
+                    "type": "string",
+                    "enum": [
+                      "goedgekeurd",
+                      "afgekeurd"
+                    ]
+                  },
+                  "reden": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "De stelling met haar nieuwe status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeoordeeldeStelling"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/export": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "De standaardexport van een gesprek",
+        "description": "Anoniem: alleen zichtbare stellingen, deelnemers genummerd zoals in de matrix, per deelnemer het laatste antwoord.",
+        "operationId": "getExport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De export",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Export"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/sessie": {
+      "get": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "De ingelogde beheerder",
+        "description": "Zonder geldig token: `{ \"user\": null }`.",
+        "operationId": "getSessie",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "De beheerder van het token, of null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user"
+                  ],
+                  "properties": {
+                    "user": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/User"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "Inloggen",
+        "description": "Geeft een token dat 12 uur geldig is; stuur het mee als `Authorization: Bearer <token>`.",
+        "operationId": "postSessie",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingelogd",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user",
+                    "token",
+                    "verloopt"
+                  ],
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "token": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "verloopt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "description": "Onjuiste gebruikersnaam of wachtwoord",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "Uitloggen",
+        "description": "Het token werkt daarna niet meer.",
+        "operationId": "deleteSessie",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Uitgelogd"
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "Deze documentatie (Swagger UI)",
+        "operationId": "getDocs",
+        "responses": {
+          "200": {
+            "description": "HTML-pagina",
+            "content": {
+              "text/html": {}
+            }
+          }
+        }
+      }
+    },
+    "/docs/openapi.json": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "De OpenAPI-spec van deze API",
+        "operationId": "getOpenapi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Het token uit `POST /sessie`"
+      }
+    },
+    "parameters": {
+      "GesprekId": {
+        "name": "gesprek_id",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Fout": {
+        "description": "Ongeldig verzoek",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      },
+      "NietIngelogd": {
+        "description": "Geen of geen geldig token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      },
+      "NietGevonden": {
+        "description": "Gesprek of stelling niet gevonden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Fout": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Waarde": {
+        "type": "string",
+        "enum": [
+          "eens",
+          "neutraal",
+          "oneens"
+        ]
+      },
+      "Moderatie": {
+        "type": "string",
+        "enum": [
+          "achteraf",
+          "vooraf"
+        ],
+        "description": "`achteraf`: stellingen zijn zichtbaar tenzij afgekeurd. `vooraf`: alleen als goedgekeurd."
+      },
+      "Gesprek": {
+        "type": "object",
+        "required": [
+          "id",
+          "titel",
+          "omschrijving",
+          "moderatie"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "titel": {
+            "type": "string"
+          },
+          "omschrijving": {
+            "type": "string"
+          },
+          "moderatie": {
+            "$ref": "#/components/schemas/Moderatie"
+          }
+        }
+      },
+      "GesprekVelden": {
+        "type": "object",
+        "required": [
+          "titel"
+        ],
+        "properties": {
+          "titel": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "omschrijving": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "moderatie": {
+            "$ref": "#/components/schemas/Moderatie"
+          }
+        }
+      },
+      "Stelling": {
+        "type": "object",
+        "required": [
+          "id",
+          "content"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      },
+      "Moderatiestatus": {
+        "type": "object",
+        "required": [
+          "beoordeling",
+          "reden",
+          "zichtbaar"
+        ],
+        "properties": {
+          "beoordeling": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "goedgekeurd",
+              "afgekeurd",
+              null
+            ],
+            "description": "null: nog niet beoordeeld"
+          },
+          "reden": {
+            "type": "string",
+            "description": "Bij afgekeurd"
+          },
+          "zichtbaar": {
+            "type": "boolean",
+            "description": "Of deelnemers de stelling zien, volgt uit de moderatie van het gesprek en de beoordeling"
+          }
+        }
+      },
+      "Telling": {
+        "type": "object",
+        "description": "Hoeveel deelnemers elk antwoord gaven",
+        "required": [
+          "eens",
+          "neutraal",
+          "oneens"
+        ],
+        "properties": {
+          "eens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "neutraal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "oneens": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "EigenStelling": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Stelling"
+          },
+          {
+            "$ref": "#/components/schemas/Moderatiestatus"
+          },
+          {
+            "type": "object",
+            "required": [
+              "gesprek_id",
+              "user_id",
+              "antwoorden"
+            ],
+            "properties": {
+              "gesprek_id": {
+                "type": "string"
+              },
+              "user_id": {
+                "type": "string"
+              },
+              "antwoorden": {
+                "$ref": "#/components/schemas/Telling"
+              }
+            }
+          }
+        ]
+      },
+      "BeoordeeldeStelling": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Stelling"
+          },
+          {
+            "$ref": "#/components/schemas/Moderatiestatus"
+          },
+          {
+            "type": "object",
+            "required": [
+              "antwoorden"
+            ],
+            "properties": {
+              "antwoorden": {
+                "$ref": "#/components/schemas/Telling"
+              }
+            }
+          }
+        ]
+      },
+      "Antwoord": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "stelling_id",
+          "waarde"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "stelling_id": {
+            "type": "string"
+          },
+          "waarde": {
+            "$ref": "#/components/schemas/Waarde"
+          }
+        }
+      },
+      "AntwoordenPerStelling": {
+        "type": "object",
+        "description": "stelling_id => waarde",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Waarde"
+        }
+      },
+      "Export": {
+        "type": "object",
+        "required": [
+          "formaat",
+          "versie",
+          "gegenereerd",
+          "gesprek",
+          "stellingen",
+          "deelnemers"
+        ],
+        "properties": {
+          "formaat": {
+            "const": "minipol-export"
+          },
+          "versie": {
+            "const": 1
+          },
+          "gegenereerd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gesprek": {
+            "type": "object",
+            "required": [
+              "id",
+              "titel"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "titel": {
+                "type": "string"
+              }
+            }
+          },
+          "stellingen": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stelling"
+            }
+          },
+          "deelnemers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "nummer",
+                "antwoorden"
+              ],
+              "properties": {
+                "nummer": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "antwoorden": {
+                  "$ref": "#/components/schemas/AntwoordenPerStelling"
+                }
+              }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      }
+    }
+  }
+}

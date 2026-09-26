@@ -1,0 +1,353 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MiniPol math server",
+    "version": "1.0.0",
+    "description": "Rekent de groepsanalyse (PCA + K-means) van een gesprek uit de standaardexport van een MiniPol API (`GET /export` daar). De math server heeft zelf geen data; hij haalt alleen exports op bij de API's in zijn config.\n\nFouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode. Zie docs/analyse.md voor hoe de analyse werkt."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8004",
+      "description": "Lokaal; op /docs wordt dit de server zelf"
+    }
+  ],
+  "security": [
+    {}
+  ],
+  "paths": {
+    "/analyse": {
+      "get": {
+        "summary": "De groepsanalyse van een gesprek",
+        "description": "Het model is hooguit 6 uur oud; de deelnemers worden er bij elk verzoek live mee geplaatst. Het model zit in het antwoord, zodat een browser ook de eigen gebruiker kan plaatsen.",
+        "operationId": "getAnalyse",
+        "parameters": [
+          {
+            "name": "api",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "De url van de API waar het gesprek staat, bijvoorbeeld `http://localhost:8001`; moet in de config van de math server staan"
+          },
+          {
+            "name": "gesprek_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "herbereken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Het model nu opnieuw berekenen"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De analyse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Analyse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "403": {
+            "description": "Deze API staat niet in de config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gesprek niet gevonden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "De export kon niet worden opgehaald of is niet in het standaardformaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "summary": "Deze documentatie (Swagger UI)",
+        "operationId": "getDocs",
+        "responses": {
+          "200": {
+            "description": "HTML-pagina",
+            "content": {
+              "text/html": {}
+            }
+          }
+        }
+      }
+    },
+    "/docs/openapi.json": {
+      "get": {
+        "summary": "De OpenAPI-spec van de math server",
+        "operationId": "getOpenapi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Fout": {
+        "description": "Ongeldig verzoek",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Fout": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Analyse": {
+        "type": "object",
+        "required": [
+          "gesprek_id",
+          "model",
+          "k",
+          "k_gekozen_op",
+          "verklaarde_variantie",
+          "min_antwoorden",
+          "buiten_analyse",
+          "deelnemers",
+          "groepen"
+        ],
+        "properties": {
+          "gesprek_id": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/Model"
+          },
+          "k": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Het aantal groepen; 0 als er te weinig deelnemers zijn"
+          },
+          "k_gekozen_op": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "kenmerkend",
+              "silhouette",
+              null
+            ]
+          },
+          "verklaarde_variantie": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Per richting het deel van de verschillen"
+          },
+          "min_antwoorden": {
+            "type": "integer",
+            "description": "Minimum aantal antwoorden om mee te tellen"
+          },
+          "buiten_analyse": {
+            "type": "integer",
+            "description": "Deelnemers met te weinig antwoorden"
+          },
+          "deelnemers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "deelnemer",
+                "antwoorden",
+                "x",
+                "y",
+                "groep"
+              ],
+              "properties": {
+                "deelnemer": {
+                  "type": "integer",
+                  "description": "Het nummer uit de export"
+                },
+                "antwoorden": {
+                  "type": "integer"
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "groep": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Index in groepen"
+                }
+              }
+            }
+          },
+          "groepen": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "naam",
+                "deelnemers",
+                "stellingen"
+              ],
+              "properties": {
+                "naam": {
+                  "type": "string",
+                  "enum": [
+                    "A",
+                    "B",
+                    "C",
+                    "D",
+                    "E"
+                  ]
+                },
+                "deelnemers": {
+                  "type": "integer"
+                },
+                "stellingen": {
+                  "type": "object",
+                  "description": "stelling_id => hoeveel groepsleden elk antwoord gaven",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "eens",
+                      "neutraal",
+                      "oneens"
+                    ],
+                    "properties": {
+                      "eens": {
+                        "type": "integer"
+                      },
+                      "neutraal": {
+                        "type": "integer"
+                      },
+                      "oneens": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Model": {
+        "type": "object",
+        "description": "Genoeg om een deelnemer zelf te plaatsen: projecteer op de componenten en kies het dichtstbijzijnde centrum",
+        "required": [
+          "berekend",
+          "verloopt",
+          "max_leeftijd",
+          "stellingen",
+          "gemiddelden",
+          "componenten",
+          "centra"
+        ],
+        "properties": {
+          "berekend": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verloopt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "max_leeftijd": {
+            "type": "integer",
+            "description": "Seconden"
+          },
+          "stellingen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "De kolommen, op volgorde"
+          },
+          "gemiddelden": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "componenten": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "centra": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

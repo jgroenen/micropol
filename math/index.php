@@ -22,6 +22,7 @@ spl_autoload_register(function ($class) {
 
 $handlers = [
     'analyse' => 'AnalyseHandler',
+    'docs' => 'DocsHandler',
 ];
 
 // the app is on another origin: allow it (CORS), and answer the preflight

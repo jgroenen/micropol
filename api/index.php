@@ -25,6 +25,7 @@ $handlers = [
     'stellingen' => 'StellingenHandler',
     'antwoorden' => 'AntwoordenHandler',
     'export' => 'ExportHandler',
+    'docs' => 'DocsHandler',
     'sessie' => 'SessieHandler',
     'beoordelingen' => 'BeoordelingenHandler',
 ];
