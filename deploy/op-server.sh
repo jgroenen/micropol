@@ -33,7 +33,7 @@ if [ "$ACTIE" = installeer ]; then
     a2enmod -q rewrite headers ssl setenvif
 
     # the data: written by php (www-data), not by the deploy user
-    for deel in api math auth; do
+    for deel in api math; do
         mkdir -p "$DOEL/$deel/data"
         chown www-data:www-data "$DOEL/$deel/data"
         chmod 750 "$DOEL/$deel/data"

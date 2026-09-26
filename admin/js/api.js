@@ -1,31 +1,48 @@
 import { jsonVerzoek, ofNull } from 'cdn/verzoek.js';
 import { API_URL } from './config.js';
-import { accessToken, vernieuwNa401 } from './auth.js';
 
-// all calls of the admin to the api (api/index.php), with the access token of the auth service (see auth.js);
-// registered in the API popover (verzoek.js on the cdn). A call that fails throws an Error with its status;
-// lookups give null when there is nothing (404). What is sent is one object in the shape of the api schema;
-// an id in the url is a parameter of its own.
+// all calls of the admin to the api (api/index.php); registered in the API popover (verzoek.js on the cdn).
+// A call that fails throws an Error with its status; lookups give null when there is nothing (404).
+// What is sent is one object in the shape of the api schema; an id in the url is a parameter of its own.
 
-// after a 401 a new access token is tried once
-async function verzoek(url, options = {}) {
+// Logging in gives a token, sent as "Authorization: Bearer <token>" and kept in localStorage, so a reload
+// or a new tab stays logged in. The api extends it while it is used; a 401 means it has ended.
+const TOKEN = 'minipol_admin_token';
+// not shown in the API popover
+const GEHEIM = ['wachtwoord', 'token'];
+
+function leesToken() {
     try {
-        return await metToken(url, options, await accessToken());
+        return localStorage.getItem(TOKEN);
     } catch (error) {
-        const nieuw = error.status === 401 ? await vernieuwNa401() : null;
-        if (!nieuw) {
-            throw error;
-        }
-        return metToken(url, options, nieuw);
+        return null;
     }
 }
 
-function metToken(url, options, token) {
+function bewaarToken(token) {
+    try {
+        if (token) {
+            localStorage.setItem(TOKEN, token);
+        } else {
+            localStorage.removeItem(TOKEN);
+        }
+    } catch (error) {}
+}
+
+async function verzoek(url, options = {}) {
+    const token = leesToken();
     const headers = { ...options.headers };
     if (token) {
         headers.Authorization = `Bearer ${token}`;
     }
-    return jsonVerzoek(API_URL + url, { ...options, headers });
+    try {
+        return await jsonVerzoek(API_URL + url, { ...options, headers }, GEHEIM);
+    } catch (error) {
+        if (error.status === 401 && token) {
+            bewaarToken(null); // expired or logged out elsewhere
+        }
+        throw error;
+    }
 }
 
 function stuur(methode, url, data) {
@@ -34,6 +51,33 @@ function stuur(methode, url, data) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
+}
+
+// { id, gebruikersnaam, email } of the logged in beheerder, or null
+export async function getBeheerder() {
+    if (!leesToken()) {
+        return null;
+    }
+    const { beheerder } = await verzoek('/sessie');
+    if (!beheerder) {
+        bewaarToken(null); // expired or logged out elsewhere
+    }
+    return beheerder;
+}
+
+// the beheerder; throws with status 401 for a wrong gebruikersnaam or wachtwoord
+export async function login(gebruikersnaam, wachtwoord) {
+    const { beheerder, token } = await stuur('POST', '/sessie', { gebruikersnaam, wachtwoord });
+    bewaarToken(token);
+    return beheerder;
+}
+
+export async function logout() {
+    try {
+        await verzoek('/sessie', { method: 'DELETE' });
+    } finally {
+        bewaarToken(null);
+    }
 }
 
 // [{ id, titel, omschrijving, moderatie }]

@@ -5,10 +5,10 @@
 #   deploy/deploy.sh installeer                  once: install Apache, PHP and the certificate, then deploy
 #   deploy/deploy.sh uitrollen                   deploy the current code (the default)
 #   deploy/deploy.sh controleer                  check that every part answers
-#   deploy/deploy.sh beheerder <naam> <email>    add a beheerder (a gebruiker of the auth service) on the server
+#   deploy/deploy.sh beheerder <naam> <email>    add a beheerder on the server
 #
 # The settings come from deploy/$OMGEVING.env (default: productie), see deploy/productie.env.voorbeeld.
-# The data on the server (api/data, math/data, auth/data) is never overwritten.
+# The data on the server (api/data, math/data) is never overwritten.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -28,16 +28,14 @@ set -a
 : "${APP_URL:=https://www.$DOMEIN}"
 : "${ADMIN_URL:=https://admin.$DOMEIN}"
 : "${API_URL:=https://api.$DOMEIN}"
-: "${AUTH_URL:=https://auth.$DOMEIN}"
 : "${CDN_URL:=https://cdn.$DOMEIN}"
 : "${MATH_URL:=https://math.$DOMEIN}"
 set +a
 
-for naam in DOMEIN SERVER DOEL EMAIL API_SECRET; do
+for naam in DOMEIN SERVER DOEL EMAIL; do
     eval "waarde=\${$naam:-}"
     [ -n "$waarde" ] || fout "$naam is niet ingevuld in $ENV_BESTAND."
 done
-[ ${#API_SECRET} -ge 32 ] || fout "API_SECRET is te kort; maak er een met: openssl rand -hex 32"
 
 # host names for the virtual hosts: the url without https:// and path
 host() {
@@ -46,10 +44,9 @@ host() {
 APP_HOST=$(host "$APP_URL")
 ADMIN_HOST=$(host "$ADMIN_URL")
 API_HOST=$(host "$API_URL")
-AUTH_HOST=$(host "$AUTH_URL")
 CDN_HOST=$(host "$CDN_URL")
 MATH_HOST=$(host "$MATH_URL")
-export APP_HOST ADMIN_HOST API_HOST AUTH_HOST CDN_HOST MATH_HOST
+export APP_HOST ADMIN_HOST API_HOST CDN_HOST MATH_HOST
 
 # root needs no sudo; running as www-data then goes with runuser
 case $SERVER in
@@ -58,7 +55,7 @@ case $SERVER in
 esac
 GEBRUIKER=${SERVER%@*}
 BUILD=deploy/build/$OMGEVING
-DELEN="app admin cdn api math auth"
+DELEN="app admin cdn api math"
 
 # fills in {{NAAM}} with the environment variable NAAM; stops at an unknown name
 vul_in() {
@@ -82,8 +79,6 @@ EOF
 // Made by deploy/deploy.sh for $OMGEVING; the values for local development are in the repository.
 export const API_URL = '$API_URL';
 export const APP_URL = '$APP_URL';
-export const AUTH_URL = '$AUTH_URL';
-export const CLIENT_ID = 'minipol-admin';
 EOF
     for bestand in "$BUILD/app/index.html" "$BUILD/admin/index.html"; do
         perl -pi -e "s#http://localhost:8003#$CDN_URL#g" "$bestand"
@@ -108,7 +103,7 @@ stuur() {
 }
 
 op_server() {
-    ssh -t "$SERVER" "$SUDO sh $DOEL/.deploy/op-server.sh $1 '$DOEL' '$GEBRUIKER' '$DOMEIN' '$EMAIL' $APP_HOST $ADMIN_HOST $API_HOST $AUTH_HOST $CDN_HOST $MATH_HOST"
+    ssh -t "$SERVER" "$SUDO sh $DOEL/.deploy/op-server.sh $1 '$DOEL' '$GEBRUIKER' '$DOMEIN' '$EMAIL' $APP_HOST $ADMIN_HOST $API_HOST $CDN_HOST $MATH_HOST"
 }
 
 controleer() {
@@ -131,15 +126,8 @@ controleer() {
     check "api docs" "$API_URL/docs" 200
     check "api data afgeschermd" "$API_URL/data/gesprekken.csv" 404
     check "math" "$MATH_URL/docs/openapi.json" 200
-    check "auth" "$AUTH_URL/.well-known/openid-configuration" 200
+    check "api inloggen (zonder token)" "$API_URL/sessie" 200
     check "api beheer afgeschermd" "$API_URL/beoordelingen?gesprek_id=x" 401
-    # the shared secret works at the auth service: an unknown token then gives 200 with active false
-    if curl -s -m 15 -u "minipol-api:$API_SECRET" -d token=x "$AUTH_URL/introspect" | grep -q '"active":false'; then
-        echo "ok   api-geheim bij auth"
-    else
-        echo "FOUT api-geheim bij auth: introspection weigert het geheim"
-        fouten=$((fouten + 1))
-    fi
     check "http -> https" "http://$APP_HOST/" 301
     check "kaal domein -> app" "https://$DOMEIN/" 301
     [ $fouten -eq 0 ] || fout "$fouten controle(s) mislukt."
@@ -169,7 +157,7 @@ case $ACTIE in
         ;;
     beheerder)
         [ $# -eq 2 ] || fout "gebruik: deploy/deploy.sh beheerder <naam> <email>"
-        ssh -t "$SERVER" "$ALS_WWW_DATA php '$DOEL/auth/bin/gebruiker-toevoegen.php' '$1' '$2'"
+        ssh -t "$SERVER" "$ALS_WWW_DATA php '$DOEL/api/bin/beheerder-toevoegen.php' '$1' '$2'"
         ;;
     *)
         fout "onbekende actie $ACTIE; kies bouw, installeer, uitrollen, controleer of beheerder."

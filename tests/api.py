@@ -1,18 +1,16 @@
-"""Every call of the api, math server and auth service, checked against their OpenAPI spec: the status must
+"""Every call of the api and the math server, checked against their OpenAPI spec: the status must
 be the expected one and in the spec, and the request and response must fit the schema. Every operation in
 the specs must be called at least once. The test makes its own data (gesprekken, stellingen, antwoorden)
 through the api; run it with tests/run.sh, which puts the data back afterwards.
 """
-import base64, hashlib, json, os, re, secrets, sys, urllib.error, urllib.parse, urllib.request
+import base64, json, os, re, sys, urllib.error, urllib.parse, urllib.request
 from jsonschema import Draft202012Validator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SPECS = {naam: json.load(open(f'{ROOT}/{naam}/openapi.json')) for naam in ('api', 'math', 'auth')}
-BASIS = {'api': 'http://localhost:8001', 'math': 'http://localhost:8004', 'auth': 'http://localhost:8005'}
-ADMIN = 'http://localhost:8002/'
+SPECS = {naam: json.load(open(f'{ROOT}/{naam}/openapi.json')) for naam in ('api', 'math')}
+BASIS = {'api': 'http://localhost:8001', 'math': 'http://localhost:8004'}
 GEBRUIKER = os.environ.get('TEST_GEBRUIKER', 'minipol-test')
 WACHTWOORD = os.environ.get('TEST_WACHTWOORD', 'testwachtwoord123')
-API_GEHEIM = os.environ.get('MINIPOL_API_SECRET', 'dev-api-secret')
 
 fouten = 0
 gedekt = set()
@@ -81,38 +79,16 @@ def check(dienst, methode, pad, verwacht, body=None, token=None, formulier=False
     return json.loads(tekst) if tekst and 'json' in headers.get('Content-Type', '') else None
 
 
-def pkce():
-    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b'=').decode()
-    return verifier, base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
-
-
-# ---- auth: logging in with the authorization code flow
-check('auth', 'GET', '/.well-known/openid-configuration', 200)
-check('auth', 'GET', '/.well-known/oauth-authorization-server', 200)
-verifier, challenge = pkce()
-q = {'response_type': 'code', 'client_id': 'minipol-admin', 'redirect_uri': ADMIN, 'state': 's',
-     'code_challenge': challenge, 'code_challenge_method': 'S256'}
-check('auth', 'GET', '/authorize?' + urllib.parse.urlencode(q), 200)
-check('auth', 'GET', '/authorize?' + urllib.parse.urlencode({**q, 'code_challenge': ''}), 302)
-check('auth', 'GET', '/authorize?' + urllib.parse.urlencode({**q, 'client_id': 'onbekend'}), 400)
-check('auth', 'POST', '/authorize', 400, {'client_id': 'onbekend'}, formulier=True)
-check('auth', 'POST', '/authorize', 401, {**q, 'gebruikersnaam': GEBRUIKER, 'wachtwoord': 'fout'}, formulier=True)
-terug = check('auth', 'POST', '/authorize', 302, {**q, 'gebruikersnaam': GEBRUIKER, 'wachtwoord': WACHTWOORD}, formulier=True)
-code = urllib.parse.parse_qs(urllib.parse.urlparse(terug['Location']).query)['code'][0]
-wissel = {'grant_type': 'authorization_code', 'code': code, 'redirect_uri': ADMIN, 'client_id': 'minipol-admin', 'code_verifier': verifier}
-tokens = check('auth', 'POST', '/token', 200, wissel, formulier=True)
-check('auth', 'POST', '/token', 400, wissel, formulier=True)
-check('auth', 'POST', '/token', 401, {'grant_type': 'refresh_token', 'client_id': 'onbekend'}, formulier=True)
-tokens = check('auth', 'POST', '/token', 200, {'grant_type': 'refresh_token', 'refresh_token': tokens['refresh_token'], 'client_id': 'minipol-admin'}, formulier=True)
-TOKEN = tokens['access_token']
-check('auth', 'POST', '/introspect', 200, {'token': TOKEN}, formulier=True, basic=f'minipol-api:{API_GEHEIM}')
-check('auth', 'POST', '/introspect', 200, {'token': 'onbekend'}, formulier=True, basic=f'minipol-api:{API_GEHEIM}')
-check('auth', 'POST', '/introspect', 401, {'token': TOKEN}, formulier=True)
-check('auth', 'GET', '/userinfo', 200, token=TOKEN)
-check('auth', 'GET', '/userinfo', 401)
-check('auth', 'POST', '/revoke', 401, {'token': 'x', 'client_id': 'onbekend'}, formulier=True)
-check('auth', 'GET', '/docs', 200)
-check('auth', 'GET', '/docs/openapi.json', 200)
+# ---- api: logging in
+check('api', 'GET', '/sessie', 200)
+check('api', 'POST', '/sessie', 400, {})
+check('api', 'POST', '/sessie', 401, {'gebruikersnaam': GEBRUIKER, 'wachtwoord': 'fout'})
+check('api', 'POST', '/sessie', 401, {'gebruikersnaam': 'bestaat-niet', 'wachtwoord': 'fout'})
+TOKEN = check('api', 'POST', '/sessie', 200, {'gebruikersnaam': GEBRUIKER, 'wachtwoord': WACHTWOORD})['token']
+if check('api', 'GET', '/sessie', 200, token=TOKEN)['beheerder']['gebruikersnaam'] != GEBRUIKER:
+    print('FOUT GET /sessie geeft een andere beheerder'); fouten += 1
+if check('api', 'GET', '/sessie', 200, token='a' * 64)['beheerder'] is not None:
+    print('FOUT GET /sessie accepteert een onbekend token'); fouten += 1
 
 # ---- api: gesprekken (the test makes its own)
 check('api', 'POST', '/gesprekken', 401, {'titel': 'x'})
@@ -175,7 +151,11 @@ check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_i
 check('math', 'GET', '/docs', 200)
 check('math', 'GET', '/docs/openapi.json', 200)
 
-check('auth', 'POST', '/revoke', 200, {'token': tokens['refresh_token'], 'client_id': 'minipol-admin'}, formulier=True)
+# ---- api: logging out ends the token
+UIT = check('api', 'POST', '/sessie', 200, {'gebruikersnaam': GEBRUIKER, 'wachtwoord': WACHTWOORD})['token']
+check('api', 'DELETE', '/sessie', 204, token=UIT)
+check('api', 'GET', f'/beoordelingen?gesprek_id={G}', 401, token=UIT)
+check('api', 'DELETE', '/sessie', 204, token=TOKEN)
 
 # every operation of the specs called at least once
 for dienst, spec in SPECS.items():

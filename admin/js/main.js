@@ -1,5 +1,5 @@
 import { nieuwePagina } from 'cdn/apilog.js';
-import { verwerkTerugkeer, ingelogdeBeheerder as haalBeheerder, uitloggen } from './auth.js';
+import { getBeheerder, logout } from './api.js';
 import { ingelogdeBeheerder, zetBeheerder, bijWijzigingVanBeheerder } from './toegang.js';
 import { toonInloggen } from './inloggen.js';
 import { toonGesprekken } from './gesprekken.js';
@@ -13,14 +13,12 @@ const routes = [
 ];
 
 const ingelogd = document.getElementById('ingelogd');
-let inlogMelding = null; // why the last login failed, shown once on the login page
 
 function route() {
     const beheerder = ingelogdeBeheerder();
     ingelogd.hidden = !beheerder;
     if (!beheerder) {
-        toonInloggen(inlogMelding);
-        inlogMelding = null;
+        toonInloggen();
         return;
     }
     document.getElementById('ingelogd-als').textContent = beheerder.gebruikersnaam;
@@ -36,7 +34,7 @@ function route() {
 
 document.getElementById('uitloggen').addEventListener('click', async () => {
     try {
-        await uitloggen();
+        await logout();
     } catch (error) {
         console.error('Error logging out:', error);
     } finally {
@@ -52,15 +50,8 @@ window.addEventListener('hashchange', () => {
     route();
 });
 
-// back from the login page of the auth service, or a normal page load
 try {
-    await verwerkTerugkeer();
-} catch (error) {
-    console.error(error);
-    inlogMelding = 'Inloggen is niet gelukt. Probeer het opnieuw.';
-}
-try {
-    zetBeheerder(await haalBeheerder());
+    zetBeheerder(await getBeheerder());
 } catch (error) {
     console.error('Error loading admin:', error);
     zetBeheerder(null);

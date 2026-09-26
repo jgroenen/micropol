@@ -1,8 +1,11 @@
 <section id="inloggen" class="view" hidden>
-    <div class="inloggen">
-        <h1 class="pagina-titel">Beheer</h1>
+    <form class="beheer-formulier inlog-formulier" id="inlog-formulier">
+        <h1 class="pagina-titel">Inloggen</h1>
         <p class="melding fout" id="inlog-fout" role="alert" hidden></p>
-        <p>Log in om gesprekken en stellingen te beheren. Je gaat daarvoor naar de inlogpagina van MiniPol.</p>
-        <button type="button" class="knop" id="inlog-knop">Inloggen</button>
-    </div>
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input id="gebruikersnaam" name="gebruikersnaam" autocomplete="username" required>
+        <label for="wachtwoord">Wachtwoord</label>
+        <input id="wachtwoord" name="wachtwoord" type="password" autocomplete="current-password" required>
+        <button type="submit" class="knop" id="inlog-knop">Inloggen</button>
+    </form>
 </section>

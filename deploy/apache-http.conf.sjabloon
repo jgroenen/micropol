@@ -3,7 +3,7 @@
 
 <VirtualHost *:80>
     ServerName {{APP_HOST}}
-    ServerAlias {{DOMEIN}} {{ADMIN_HOST}} {{API_HOST}} {{AUTH_HOST}} {{CDN_HOST}} {{MATH_HOST}}
+    ServerAlias {{DOMEIN}} {{ADMIN_HOST}} {{API_HOST}} {{CDN_HOST}} {{MATH_HOST}}
 
     # certbot certonly --webroot puts its checks here
     Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/

@@ -7,16 +7,15 @@ Alle delen draaien op één VPS, elk op een eigen subdomein:
 | `www.<domein>` | app (het kale `<domein>` stuurt hierheen door) |
 | `admin.<domein>` | admin |
 | `api.<domein>` | API |
-| `auth.<domein>` | auth service |
 | `cdn.<domein>` | cdn |
 | `math.<domein>` | math server |
 
 Het uitrollen gaat met [deploy/deploy.sh](../deploy/deploy.sh). Dat script leest je instellingen uit `deploy/productie.env` en regelt de rest:
 
-- **Configs:** de PHP-delen krijgen hun URL's en het geheim via `SetEnv` in Apache. In de app en de admin schrijft het script `js/config.js`, en de URL van de cdn in `index.html`.
+- **Configs:** de PHP-delen krijgen hun URL's via `SetEnv` in Apache. In de app en de admin schrijft het script `js/config.js`, en de URL van de cdn in `index.html`.
 - **Apache:** de vhosts voor alle subdomeinen, uit [deploy/apache-http.conf.sjabloon](../deploy/apache-http.conf.sjabloon) en [deploy/apache-https.conf.sjabloon](../deploy/apache-https.conf.sjabloon).
 - **HTTPS:** één certificaat van Let's Encrypt voor alle subdomeinen. Het wordt vanzelf vernieuwd.
-- **De code:** gaat met rsync naar de server. De data op de server (`api/data`, `math/data`, `auth/data`) wordt nooit overschreven.
+- **De code:** gaat met rsync naar de server. De data op de server (`api/data` en `math/data`) wordt nooit overschreven.
 - **Controle:** na elke uitrol kijkt het script of alles bereikbaar is.
 
 ## Eenmalig
@@ -42,7 +41,7 @@ ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
 
 ### 2. DNS
 
-Maak bij je domein A-records (en AAAA voor IPv6) naar het IP-adres van de VPS, voor `@`, `www`, `admin`, `api`, `auth`, `cdn` en `math`. Een wildcard-record `*` mag ook, maar `@` moet er apart bij.
+Maak bij je domein A-records (en AAAA voor IPv6) naar het IP-adres van de VPS, voor `@`, `www`, `admin`, `api`, `cdn` en `math`. Een wildcard-record `*` mag ook, maar `@` moet er apart bij.
 
 Wacht tot de namen naar de VPS wijzen, bijvoorbeeld met `dig +short api.<domein>`. Let's Encrypt controleert elke naam via de VPS.
 
@@ -50,10 +49,9 @@ Wacht tot de namen naar de VPS wijzen, bijvoorbeeld met `dig +short api.<domein>
 
 ```sh
 cp deploy/productie.env.voorbeeld deploy/productie.env
-openssl rand -hex 32    # het geheim van de API bij de auth service
 ```
 
-Vul in `deploy/productie.env` het domein, de server (`deploy@<ip of naam>`), het e-mailadres voor Let's Encrypt en het geheim in. Dit bestand staat niet in git.
+Vul in `deploy/productie.env` het domein, de server (`deploy@<ip of naam>`) en het e-mailadres voor Let's Encrypt in. Dit bestand staat niet in git.
 
 ### 4. Installeren en uitrollen
 
@@ -80,7 +78,7 @@ rsync -a api/data/ deploy@<server>:/tmp/api-data/
 ssh -t deploy@<server> 'sudo rsync -a /tmp/api-data/ /var/www/minipol/api/data/ && sudo chown -R www-data:www-data /var/www/minipol/api/data && rm -rf /tmp/api-data'
 ```
 
-Met `auth/data` (de beheerders) en `math/data` (de analysemodellen) gaat het op dezelfde manier. De analysemodellen worden ook vanzelf opnieuw berekend.
+Met `math/data` (de analysemodellen) gaat het op dezelfde manier. De beheerders staan in `api/data`, dus die gaan al mee. De analysemodellen worden ook vanzelf opnieuw berekend.
 
 ## Daarna: een nieuwe versie uitrollen
 
@@ -101,8 +99,8 @@ Andere commando's:
 | Wat | Waar |
 |---|---|
 | De code | `/var/www/minipol/<deel>/` (van `deploy`) |
-| De data | `/var/www/minipol/{api,math,auth}/data/` (van `www-data`) |
-| Apache-config | `/etc/apache2/sites-available/minipol-http.conf` en `minipol-https.conf`; het tweede bevat het geheim en is alleen voor root leesbaar |
+| De data | `/var/www/minipol/{api,math}/data/` (van `www-data`) |
+| Apache-config | `/etc/apache2/sites-available/minipol-http.conf` en `minipol-https.conf` |
 | Certificaat | `/etc/letsencrypt/live/<domein>/`; vernieuwen gaat vanzelf (`systemctl list-timers certbot`) |
 | Logs | `/var/log/apache2/error.log` |
 
@@ -122,5 +120,5 @@ rsync -a --rsync-path="sudo rsync" deploy@<server>:/var/www/minipol/api/data/ ba
 ## Wat het script niet doet
 
 - De VPS zelf beveiligen, zoals automatische updates (`unattended-upgrades`), inloggen met alleen een SSH-sleutel, en fail2ban. Die zijn wel aan te raden.
-- Een beperking op het aantal inlogpogingen bij de auth service.
-- Opruimen van verlopen tokens in `auth/data`.
+- Een beperking op het aantal inlogpogingen.
+- Opruimen van verlopen tokens in `api/data/sessies.csv`.

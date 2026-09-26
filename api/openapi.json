@@ -3,7 +3,7 @@
   "info": {
     "title": "MiniPol API",
     "version": "1.0.0",
-    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders, met een access token van de auth service (`Authorization: Bearer <token>`). De API controleert het token daar via introspection. Een token voor hier uitproberen haal je via de admin (zie `minipol_admin_tokens` in localStorage) of via de flow van de auth service, en vul je in bij **Authorize**."
+    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders: log in met `POST /sessie` en vul het token in bij **Authorize**. Een token blijft geldig zolang het gebruikt wordt: het verloopt na een uur zonder gebruik, en na 12 uur altijd."
   },
   "servers": [
     {
@@ -38,6 +38,10 @@
     {
       "name": "Docs",
       "description": "Deze documentatie"
+    },
+    {
+      "name": "Sessie",
+      "description": "Inloggen in de beheeromgeving"
     }
   ],
   "paths": {
@@ -566,6 +570,141 @@
         }
       }
     },
+    "/sessie": {
+      "get": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "De ingelogde beheerder",
+        "description": "Zonder geldig token: `{ \"beheerder\": null }`. Een geldig token wordt verlengd.",
+        "operationId": "getSessie",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "De beheerder van het token, of null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "beheerder"
+                  ],
+                  "properties": {
+                    "beheerder": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/Beheerder"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "Inloggen",
+        "operationId": "postSessie",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gebruikersnaam",
+                  "wachtwoord"
+                ],
+                "properties": {
+                  "gebruikersnaam": {
+                    "type": "string"
+                  },
+                  "wachtwoord": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingelogd",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "beheerder",
+                    "token",
+                    "verloopt"
+                  ],
+                  "properties": {
+                    "beheerder": {
+                      "$ref": "#/components/schemas/Beheerder"
+                    },
+                    "token": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "verloopt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Als het token niet gebruikt wordt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "description": "Onjuiste gebruikersnaam of wachtwoord",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sessie"
+        ],
+        "summary": "Uitloggen",
+        "description": "Het token werkt daarna niet meer.",
+        "operationId": "deleteSessie",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Uitgelogd"
+          }
+        }
+      }
+    },
     "/docs": {
       "get": {
         "tags": [
@@ -606,7 +745,7 @@
       "bearer": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Een access token van de auth service (OAuth 2), zie de docs van de auth service"
+        "description": "Het token uit `POST /sessie`"
       }
     },
     "parameters": {
@@ -915,6 +1054,27 @@
             "items": {
               "$ref": "#/components/schemas/Deelnemer"
             }
+          }
+        }
+      },
+      "Beheerder": {
+        "description": "Wie kan inloggen in de beheeromgeving",
+        "type": "object",
+        "required": [
+          "id",
+          "gebruikersnaam",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "gebruikersnaam": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
           }
         }
       }

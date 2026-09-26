@@ -1,10 +1,5 @@
 /* login, see js/inloggen.js */
-.inloggen {
-    max-inline-size: 30rem;
+.inlog-formulier {
+    max-inline-size: 24rem;
     margin-inline: auto;
-
-    & p {
-        margin: 0 0 var(--space-4);
-        font-weight: 300;
-    }
 }

@@ -1,7 +1,7 @@
 <?php
 
-// Adds a gebruiker to the auth service (auth/data/gebruikers.csv), who can then log in to the admin.
-// Usage: php auth/bin/gebruiker-toevoegen.php <gebruikersnaam> <email>
+// Adds a beheerder (api/data/beheerders.csv), who can then log in to the admin.
+// Usage: php api/bin/beheerder-toevoegen.php <gebruikersnaam> <email>
 // The wachtwoord is asked for, so it does not end up in the shell history.
 
 if (PHP_SAPI !== 'cli') {
@@ -17,11 +17,11 @@ foreach (['Csv', 'Data', 'Wachtwoord'] as $class) {
 $gebruikersnaam = trim($gebruikersnaam);
 $email = trim($email);
 if ($gebruikersnaam === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    fwrite(STDERR, "Gebruik: php auth/bin/gebruiker-toevoegen.php <gebruikersnaam> <email>\n");
+    fwrite(STDERR, "Gebruik: php api/bin/beheerder-toevoegen.php <gebruikersnaam> <email>\n");
     exit(1);
 }
-if (Data::gebruiker($gebruikersnaam) !== null) {
-    fwrite(STDERR, "Gebruiker $gebruikersnaam bestaat al.\n");
+if (Data::beheerder($gebruikersnaam) !== null) {
+    fwrite(STDERR, "Beheerder $gebruikersnaam bestaat al.\n");
     exit(1);
 }
 
@@ -35,8 +35,8 @@ if (vraagWachtwoord('Wachtwoord nogmaals: ') !== $wachtwoord) {
     exit(1);
 }
 
-Data::voegToe('gebruikers', Data::GEBRUIKERS, array_merge([Data::uuid(), $gebruikersnaam, $email], Wachtwoord::versleutel($wachtwoord)));
-echo "Gebruiker $gebruikersnaam toegevoegd.\n";
+Data::voegToe('beheerders', Data::BEHEERDERS, array_merge([Data::uuid(), $gebruikersnaam, $email], Wachtwoord::versleutel($wachtwoord)));
+echo "Beheerder $gebruikersnaam toegevoegd.\n";
 
 // reads a line without showing it, when the terminal allows that
 function vraagWachtwoord($vraag) {

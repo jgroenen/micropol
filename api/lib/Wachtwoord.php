@@ -1,8 +1,8 @@
 <?php
 
-// Storing and checking the wachtwoorden of gebruikers (gebruikers.csv).
+// Storing and checking the wachtwoorden of beheerders (beheerders.csv).
 // wachtwoord_methode says how versleuteld_wachtwoord was made, so another method can be added later
-// without breaking existing gebruikers:
+// without breaking existing beheerders:
 //   password_hash   PHP's password_hash(); the hash holds its own algorithm and salt, the salt column stays empty
 class Wachtwoord {
     const METHODE = 'password_hash';
@@ -12,10 +12,10 @@ class Wachtwoord {
         return ['', password_hash($wachtwoord, PASSWORD_DEFAULT), self::METHODE];
     }
 
-    public static function klopt($wachtwoord, array $gebruiker) {
-        switch ($gebruiker['wachtwoord_methode']) {
+    public static function klopt($wachtwoord, array $beheerder) {
+        switch ($beheerder['wachtwoord_methode']) {
             case 'password_hash':
-                return password_verify($wachtwoord, $gebruiker['versleuteld_wachtwoord']);
+                return password_verify($wachtwoord, $beheerder['versleuteld_wachtwoord']);
             default:
                 return false;
         }

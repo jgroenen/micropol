@@ -9,6 +9,10 @@ class Data {
     const ANTWOORDEN = ['deelnemer_id', 'stelling_id', 'waarde'];
     // tijdstip is unix time, like every time in the data
     const BEOORDELINGEN = ['stelling_id', 'beoordeling', 'reden', 'beheerder_id', 'tijdstip'];
+    // who may log in to the admin; see Wachtwoord for salt, versleuteld_wachtwoord and wachtwoord_methode
+    const BEHEERDERS = ['id', 'gebruikersnaam', 'email', 'salt', 'versleuteld_wachtwoord', 'wachtwoord_methode'];
+    // logins, see Toegang; the token is stored as its sha256; verloopt 0 once logged out
+    const SESSIES = ['token_hash', 'beheerder_id', 'begonnen', 'verloopt'];
 
     // the values the data allows
     const WAARDEN = ['eens', 'neutraal', 'oneens'];
@@ -149,6 +153,20 @@ class Data {
             $stelling['antwoorden'] = $tellingen[$stelling['id']] ?? array_fill_keys(self::WAARDEN, 0);
             return $stelling;
         }, $stellingen);
+    }
+
+    // beheerder by gebruikersnaam (not case sensitive), or null
+    public static function beheerder($gebruikersnaam) {
+        foreach (Csv::lastPer(self::bestand('beheerders'), 'id') as $beheerder) {
+            if (strcasecmp($beheerder['gebruikersnaam'], $gebruikersnaam) === 0) {
+                return $beheerder;
+            }
+        }
+        return null;
+    }
+
+    public static function beheerderMetId($id) {
+        return self::laatste('beheerders', 'id', $id);
     }
 
     // random UUID v4

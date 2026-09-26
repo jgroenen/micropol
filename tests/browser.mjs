@@ -1,6 +1,6 @@
 // The app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
-// answering, adding a stelling, the tabs, the matrix, and in the admin logging in with the auth service,
-// changing a gesprek, rejecting a stelling, refreshing the token and logging out.
+// answering, adding a stelling, the tabs, the matrix, and in the admin logging in,
+// changing a gesprek, rejecting a stelling, and logging in and out.
 // Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -110,24 +110,22 @@ try {
     check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers}`));
     check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
 
-    // ---- admin: logging in with the auth service
+    // ---- admin: logging in
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
-    check('admin: zonder login de inlogpagina', await wachtOp(zichtbaar('inloggen')));
-    await doe(`document.getElementById('inlog-knop').click();`);
-    check('admin: naar de inlogpagina van auth', await wachtOp(`location.port === '8005' && !!document.querySelector('[name=wachtwoord]')`));
-    await doe(`document.querySelector('[name=gebruikersnaam]').value = '${GEBRUIKER}'; document.querySelector('[name=wachtwoord]').value = 'fout'; document.querySelector('form').submit();`);
-    check('admin: fout wachtwoord gemeld', await wachtOp(`!!document.querySelector('.melding.fout')`));
-    await doe(`document.querySelector('[name=wachtwoord]').value = '${WACHTWOORD}'; document.querySelector('form').submit();`);
-    check('admin: terug op het gesprek, ingelogd', await wachtOp(`location.port === '8002' && document.getElementById('stellingen-lijst')?.children.length > 0`));
+    check('admin: zonder login het inlogformulier', await wachtOp(zichtbaar('inloggen')));
+    await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = 'fout'; document.getElementById('inlog-knop').click();`);
+    check('admin: fout wachtwoord gemeld', await wachtOp(zichtbaar('inlog-fout')));
+    await doe(`const f = document.getElementById('inlog-formulier'); f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);
+    check('admin: ingelogd, op het gesprek', await wachtOp(`document.getElementById('stellingen-lijst')?.children.length > 0`));
     check('admin: naam in de kop', await waarde(`document.getElementById('ingelogd-als').textContent`) === GEBRUIKER);
-    check('admin: geen tokens in de API-popup', await doe(`
-        const tokens = JSON.parse(localStorage.getItem('minipol_admin_tokens'));
+    check('admin: geen wachtwoord of token in de API-popup', await doe(`
+        const token = localStorage.getItem('minipol_admin_token');
         document.querySelector('.api-log-knop').click();
         document.querySelectorAll('.api-log-lijst details').forEach(d => d.open = true);
         await new Promise(r => setTimeout(r, 200));
         const tekst = document.querySelector('.api-log-lijst').textContent;
         document.getElementById('api-log').hidePopover();
-        return !tekst.includes(tokens.access_token) && !tekst.includes(tokens.refresh_token);`));
+        return !tekst.includes(token) && !tekst.includes('${WACHTWOORD}');`));
 
     // ---- admin: changing
     await doe(`document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
@@ -142,17 +140,16 @@ try {
     await naar(`${ADMIN}/#/gesprekken/bestaatniet`);
     check('admin: onbekend gesprek', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Gesprek niet gevonden'`));
 
-    // ---- admin: an expired access token is refreshed, a reload stays logged in, logging out ends it all
-    const voor = await waarde(`JSON.parse(localStorage.getItem('minipol_admin_tokens'))`);
-    await doe(`const t = JSON.parse(localStorage.getItem('minipol_admin_tokens')); t.verloopt = Date.now(); localStorage.setItem('minipol_admin_tokens', JSON.stringify(t));`);
-    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
-    await wachtOp(`document.getElementById('stellingen-lijst')?.children.length > 0`);
-    const na = await waarde(`JSON.parse(localStorage.getItem('minipol_admin_tokens'))`);
-    check('admin: token vernieuwd', na.refresh_token !== voor.refresh_token);
+    // ---- admin: a reload stays logged in; a token that ended elsewhere means logging in again
     await cmd('Page.reload');
     check('admin: na herladen nog ingelogd', await wachtOp(`document.getElementById('ingelogd-als')?.textContent === '${GEBRUIKER}'`));
+    await doe(`await fetch('http://localhost:8001/sessie', { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('minipol_admin_token') } });`);
+    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
+    check('admin: token elders beëindigd, dan het inlogformulier', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`));
+    await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);
+    await wachtOp(`!document.getElementById('ingelogd').hidden`);
     await doe(`document.getElementById('uitloggen').click();`);
-    check('admin: uitgelogd', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_tokens') === null`));
+    check('admin: uitgelogd', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`));
 } finally {
     ws.close();
     chrome.kill();

@@ -1,26 +1,42 @@
 <?php
 
-// Who has access to the beheer endpoints: the admin sends an access token of the auth service as
-// "Authorization: Bearer <token>".
-// The api asks the auth service whether it is valid (introspection, RFC 7662), with its own id and secret,
-// see config.php. That works with any OAuth server with introspection, like Keycloak.
-// The answer is kept INTROSPECTIE_CACHE seconds, so logging out takes at most that long to reach the api.
+// Who has access to the beheer endpoints. Logging in (POST /sessie) gives a random token, which the admin
+// sends as "Authorization: Bearer <token>". Only its sha256 is stored (sessies.csv, append only).
+// A token stays valid while it is used: it expires SESSIE_IDLE seconds after it was last used, and
+// SESSIE_MAX seconds after logging in at the latest. Logging out ends it at once.
 class Toegang {
-    // the logged in beheerder { id, gebruikersnaam, email }, or null
+    // a use extends the token only when this much of its idle time has passed, so the file gets at most
+    // one row per this many seconds per login
+    const VERLENG_NA = 5 * 60;
+
+    // logs in: a new token for the beheerder => { token, verloopt (ISO 8601) }
+    public static function login(array $beheerder) {
+        $token = bin2hex(random_bytes(32));
+        $verloopt = time() + SESSIE_IDLE;
+        Data::voegToe('sessies', Data::SESSIES, [hash('sha256', $token), $beheerder['id'], time(), $verloopt]);
+        return ['token' => $token, 'verloopt' => date('c', $verloopt)];
+    }
+
+    // logs out: the token of this request stops working
+    public static function logout() {
+        $sessie = self::sessie();
+        if ($sessie !== null) {
+            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['beheerder_id'], $sessie['begonnen'], 0]);
+        }
+    }
+
+    // the logged in beheerder { id, gebruikersnaam, email }, or null; a valid token is extended
     public static function beheerder() {
-        $token = Http::bearer();
-        if ($token === null) {
+        $sessie = self::sessie();
+        if ($sessie === null) {
             return null;
         }
-        $info = self::introspecteer($token);
-        if (empty($info['active']) || !isset($info['sub'])) {
+        $beheerder = Data::beheerderMetId($sessie['beheerder_id']);
+        if ($beheerder === null) {
             return null;
         }
-        return [
-            'id' => $info['sub'],
-            'gebruikersnaam' => $info['username'] ?? $info['preferred_username'] ?? '',
-            'email' => $info['email'] ?? '',
-        ];
+        self::verleng($sessie);
+        return ['id' => $beheerder['id'], 'gebruikersnaam' => $beheerder['gebruikersnaam'], 'email' => $beheerder['email']];
     }
 
     // for the beheer endpoints: the logged in beheerder; without one a 401
@@ -33,42 +49,23 @@ class Toegang {
         return $beheerder;
     }
 
-    // the answer of the auth service for a token, from the cache when recent enough
-    private static function introspecteer($token) {
-        $cache = DATA_DIR . '/cache/introspectie-' . hash('sha256', $token) . '.json';
-        $bewaard = is_file($cache) ? json_decode((string) file_get_contents($cache), true) : null;
-        if (is_array($bewaard) && $bewaard['tot'] > time()) {
-            return $bewaard['info'];
-        }
-
-        $info = self::vraagAuth($token);
-        if ($info === null) {
-            return ['active' => false]; // the auth service could not be reached: nobody is logged in
-        }
-        // not longer than the token itself is valid
-        $tot = min(time() + INTROSPECTIE_CACHE, (int) ($info['exp'] ?? PHP_INT_MAX));
-        if (!is_dir(dirname($cache))) {
-            @mkdir(dirname($cache), 0775, true);
-        }
-        @file_put_contents($cache, json_encode(['tot' => $tot, 'info' => $info]), LOCK_EX);
-        return $info;
-    }
-
-    private static function vraagAuth($token) {
-        $context = stream_context_create(['http' => [
-            'method' => 'POST',
-            'timeout' => 5,
-            'ignore_errors' => true,
-            'header' => "Content-Type: application/x-www-form-urlencoded\r\n"
-                . 'Authorization: Basic ' . base64_encode(rawurlencode(AUTH_CLIENT_ID) . ':' . rawurlencode(AUTH_CLIENT_SECRET)) . "\r\n",
-            'content' => http_build_query(['token' => $token]),
-        ]]);
-        $tekst = @file_get_contents(AUTH_INTROSPECTIE_URL, false, $context);
-        $info = $tekst === false ? null : json_decode($tekst, true);
-        if (!is_array($info) || !array_key_exists('active', $info)) {
-            error_log('Introspection at the auth service failed.');
+    // the valid sessie of the token in this request, or null
+    private static function sessie() {
+        $token = Http::bearer();
+        if ($token === null) {
             return null;
         }
-        return $info;
+        $sessie = Data::laatste('sessies', 'token_hash', hash('sha256', $token));
+        if ($sessie === null || (int) $sessie['verloopt'] < time() || (int) $sessie['begonnen'] + SESSIE_MAX < time()) {
+            return null;
+        }
+        return $sessie;
+    }
+
+    private static function verleng(array $sessie) {
+        $nieuw = min(time() + SESSIE_IDLE, (int) $sessie['begonnen'] + SESSIE_MAX);
+        if ($nieuw - (int) $sessie['verloopt'] >= self::VERLENG_NA) {
+            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['beheerder_id'], $sessie['begonnen'], $nieuw]);
+        }
     }
 }
