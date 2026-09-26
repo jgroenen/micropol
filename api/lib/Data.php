@@ -1,18 +1,40 @@
 <?php
 
-// Where the data lives and the lookups the handlers share. Every file is append only: a change is a
-// new row with the same key, and the last row counts (Csv::lastPer). Handlers read and write through here.
+// Where the data lives and the lookups the handlers share. Handlers read and write through here.
+//
+// What happens in the gesprekken is stored as events, one JSON object per line (Jsonl), append only.
+// There are three streams:
+//   gesprekken.jsonl                  gesprek.aangemaakt, gesprek.aangepast (of all gesprekken)
+//   gesprekken/<id>/stellingen.jsonl  stelling.toegevoegd, stelling.goedgekeurd, stelling.afgekeurd
+//   gesprekken/<id>/antwoorden.jsonl  antwoord.gegeven
+// Every event has id (UUID v7: sorting by id is sorting by time), tijdstip (unix time; null in data
+// from before the events), type, door ({ soort, id } of who did it; null when unknown) and gesprek_id,
+// plus the fields of its type, see event(). A gesprek, its stellingen and the antwoorden follow from
+// reading the events in order: a change is a new event, and the last one counts.
+//
+// Beheerders and logins are no events of a gesprek: those are csv, where a change is a new row with
+// the same key and the last row counts (Csv::lastPer).
 class Data {
-    // the columns of each file
-    const GESPREKKEN = ['id', 'titel', 'omschrijving', 'moderatie'];
-    const STELLINGEN = ['id', 'gesprek_id', 'tekst', 'deelnemer_id'];
-    const ANTWOORDEN = ['deelnemer_id', 'stelling_id', 'waarde'];
-    // tijdstip is unix time, like every time in the data
-    const BEOORDELINGEN = ['stelling_id', 'beoordeling', 'reden', 'beheerder_id', 'tijdstip'];
+    // the columns of the csv files
     // who may log in to the admin; see Wachtwoord for salt, versleuteld_wachtwoord and wachtwoord_methode
     const BEHEERDERS = ['id', 'gebruikersnaam', 'email', 'salt', 'versleuteld_wachtwoord', 'wachtwoord_methode'];
     // logins, see Toegang; the token is stored as its sha256; verloopt 0 once logged out
     const SESSIES = ['token_hash', 'beheerder_id', 'begonnen', 'verloopt'];
+
+    // the types of events, with their fields besides the ones every event has
+    const GESPREK_AANGEMAAKT = 'gesprek.aangemaakt';       // titel, omschrijving, moderatie
+    const GESPREK_AANGEPAST = 'gesprek.aangepast';         // only the fields that changed
+    const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst
+    const STELLING_GOEDGEKEURD = 'stelling.goedgekeurd';   // stelling_id, reden (optional)
+    const STELLING_AFGEKEURD = 'stelling.afgekeurd';       // stelling_id, reden
+    const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde
+    // the stream of each kind of event, by the part of the type before the dot
+    const STROMEN = ['gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden'];
+    // the fields of a gesprek besides its id
+    const GESPREK_VELDEN = ['titel', 'omschrijving', 'moderatie'];
+    // who does something: door.soort
+    const DOOR_BEHEERDER = 'beheerder';
+    const DOOR_DEELNEMER = 'deelnemer';
 
     // the values the data allows
     const WAARDEN = ['eens', 'neutraal', 'oneens'];
@@ -23,9 +45,15 @@ class Data {
     const BEOORDELING_GOEDGEKEURD = 'goedgekeurd';
     const BEOORDELING_AFGEKEURD = 'afgekeurd';
     const BEOORDELING_WAARDEN = [self::BEOORDELING_GOEDGEKEURD, self::BEOORDELING_AFGEKEURD];
+    // the event of each beoordeling, and back
+    const BEOORDELING_EVENTS = [
+        self::BEOORDELING_GOEDGEKEURD => self::STELLING_GOEDGEKEURD,
+        self::BEOORDELING_AFGEKEURD => self::STELLING_AFGEKEURD,
+    ];
 
-    // the file with this name, like 'gesprekken' or 'antwoorden/<gesprek_id>';
-    // a gesprek id in the name must have passed gesprekBestaat()
+    // ---- csv: beheerders and sessies
+
+    // the csv file with this name, like 'beheerders'
     public static function bestand($naam) {
         return DATA_DIR . "/$naam.csv";
     }
@@ -40,13 +68,47 @@ class Data {
         return Csv::lastPer(self::bestand($naam), $kolom)[$waarde] ?? null;
     }
 
-    // all gesprekken, in the order they were created
+    // ---- events
+
+    // the file of a stream: 'gesprekken', or 'stellingen' or 'antwoorden' of one gesprek;
+    // the gesprek id must have passed gesprekBestaat(), since it ends up in the path
+    public static function stroom($naam, $gesprekId = null) {
+        return DATA_DIR . ($naam === 'gesprekken' ? '/gesprekken.jsonl' : "/gesprekken/$gesprekId/$naam.jsonl");
+    }
+
+    // the events of a stream, oldest first (a generator)
+    public static function events($naam, $gesprekId = null) {
+        return Jsonl::read(self::stroom($naam, $gesprekId));
+    }
+
+    // a new event, not yet stored; $door from doorBeheerder() or doorDeelnemer()
+    public static function event($type, ?array $door, $gesprekId, array $velden) {
+        return ['id' => self::uuid7(), 'tijdstip' => time(), 'type' => $type, 'door' => $door, 'gesprek_id' => $gesprekId] + $velden;
+    }
+
+    // stores a new event in its stream and returns it
+    public static function voegEventToe($type, ?array $door, $gesprekId, array $velden) {
+        $stroom = self::STROMEN[strstr($type, '.', true)];
+        return Jsonl::append(self::stroom($stroom, $gesprekId), self::event($type, $door, $gesprekId, $velden));
+    }
+
+    public static function doorBeheerder(array $beheerder) {
+        return ['soort' => self::DOOR_BEHEERDER, 'id' => $beheerder['id']];
+    }
+
+    public static function doorDeelnemer($deelnemerId) {
+        return ['soort' => self::DOOR_DEELNEMER, 'id' => $deelnemerId];
+    }
+
+    // ---- gesprekken
+
+    // all gesprekken { id, titel, omschrijving, moderatie }, in the order they were created
     public static function gesprekken() {
-        return array_values(Csv::lastPer(self::bestand('gesprekken'), 'id'));
+        return array_values(self::alleGesprekken());
     }
 
     public static function gesprek($id) {
-        return self::laatste('gesprekken', 'id', $id);
+        return self::alleGesprekken()[$id] ?? null;
     }
 
     // also guards the file names, since a gesprek id ends up in a path
@@ -54,19 +116,33 @@ class Data {
         return preg_match('/^[A-Za-z0-9-]+$/', $id) === 1 && self::gesprek($id) !== null;
     }
 
-    // stellingen of one gesprek, in the order they were added
-    public static function stellingen($gesprekId) {
-        return array_values(array_filter(
-            Csv::read(self::bestand('stellingen')),
-            function ($stelling) use ($gesprekId) {
-                return $stelling['gesprek_id'] === $gesprekId;
+    // [id => gesprek]
+    private static function alleGesprekken() {
+        $velden = array_flip(self::GESPREK_VELDEN);
+        $gesprekken = [];
+        foreach (self::events('gesprekken') as $event) {
+            $id = $event['gesprek_id'];
+            if ($event['type'] === self::GESPREK_AANGEMAAKT) {
+                $gesprekken[$id] = ['id' => $id] + array_fill_keys(self::GESPREK_VELDEN, '');
             }
-        ));
+            if (isset($gesprekken[$id])) {
+                $gesprekken[$id] = array_merge($gesprekken[$id], array_intersect_key($event, $velden));
+            }
+        }
+        return $gesprekken;
     }
 
-    // [stelling_id => the last beoordeling]
-    public static function beoordelingen($gesprekId) {
-        return Csv::lastPer(self::bestand("beoordelingen/$gesprekId"), 'stelling_id');
+    // ---- stellingen
+
+    // stellingen of one gesprek, in the order they were added:
+    // { id, gesprek_id, tekst, deelnemer_id, beoordeling (or null), reden, zichtbaar }
+    public static function stellingen($gesprekId) {
+        return array_values(self::alleStellingen($gesprekId));
+    }
+
+    // one stelling like stellingen(), or null
+    public static function stelling($gesprekId, $stellingId) {
+        return self::alleStellingen($gesprekId)[$stellingId] ?? null;
     }
 
     // whether a stelling is shown to deelnemers, given the moderatie of its gesprek and its beoordeling (or null)
@@ -76,22 +152,9 @@ class Data {
             : $beoordeling !== self::BEOORDELING_AFGEKEURD;
     }
 
-    // stellingen of one gesprek with their moderatie state: beoordeling (or null), reden, zichtbaar
-    public static function stellingenMetBeoordeling($gesprekId) {
-        $moderatie = self::gesprek($gesprekId)['moderatie'] ?? self::MODERATIE_ACHTERAF;
-        $beoordelingen = self::beoordelingen($gesprekId);
-        return array_map(function ($stelling) use ($moderatie, $beoordelingen) {
-            $beoordeling = $beoordelingen[$stelling['id']] ?? null;
-            $stelling['beoordeling'] = $beoordeling['beoordeling'] ?? null;
-            $stelling['reden'] = $beoordeling['reden'] ?? '';
-            $stelling['zichtbaar'] = self::zichtbaar($moderatie, $stelling['beoordeling']);
-            return $stelling;
-        }, self::stellingen($gesprekId));
-    }
-
     // the stellingen deelnemers see, answer and that count in the analyse
     public static function zichtbareStellingen($gesprekId) {
-        return array_values(array_filter(self::stellingenMetBeoordeling($gesprekId), function ($stelling) {
+        return array_values(array_filter(self::stellingen($gesprekId), function ($stelling) {
             return $stelling['zichtbaar'];
         }));
     }
@@ -100,17 +163,42 @@ class Data {
         return in_array($stellingId, array_column(self::zichtbareStellingen($gesprekId), 'id'), true);
     }
 
-    // all antwoorden of a gesprek, oldest first
-    public static function antwoorden($gesprekId) {
-        return Csv::read(self::bestand("antwoorden/$gesprekId"));
+    // [id => stelling]; the last beoordeling counts
+    private static function alleStellingen($gesprekId) {
+        $beoordelingen = array_flip(self::BEOORDELING_EVENTS);
+        $stellingen = [];
+        foreach (self::events('stellingen', $gesprekId) as $event) {
+            $id = $event['stelling_id'];
+            if ($event['type'] === self::STELLING_TOEGEVOEGD) {
+                $stellingen[$id] = [
+                    'id' => $id,
+                    'gesprek_id' => $gesprekId,
+                    'tekst' => $event['tekst'],
+                    'deelnemer_id' => $event['door']['id'] ?? '',
+                    'beoordeling' => null,
+                    'reden' => '',
+                ];
+            } elseif (isset($stellingen[$id], $beoordelingen[$event['type']])) {
+                $stellingen[$id]['beoordeling'] = $beoordelingen[$event['type']];
+                $stellingen[$id]['reden'] = $event['reden'] ?? '';
+            }
+        }
+        $moderatie = self::gesprek($gesprekId)['moderatie'] ?? self::MODERATIE_ACHTERAF;
+        foreach ($stellingen as &$stelling) {
+            $stelling['zichtbaar'] = self::zichtbaar($moderatie, $stelling['beoordeling']);
+        }
+        unset($stelling);
+        return $stellingen;
     }
+
+    // ---- antwoorden
 
     // [deelnemer_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
     // the last antwoord of a deelnemer on a stelling counts
     public static function matrix($gesprekId) {
         $rows = [];
-        foreach (self::antwoorden($gesprekId) as $antwoord) {
-            $rows[$antwoord['deelnemer_id']][$antwoord['stelling_id']] = $antwoord['waarde'];
+        foreach (self::events('antwoorden', $gesprekId) as $event) {
+            $rows[$event['door']['id']][$event['stelling_id']] = $event['waarde'];
         }
         return $rows;
     }
@@ -155,9 +243,11 @@ class Data {
         }, $stellingen);
     }
 
+    // ---- beheerders
+
     // beheerder by gebruikersnaam (not case sensitive), or null
     public static function beheerder($gebruikersnaam) {
-        foreach (Csv::lastPer(self::bestand('beheerders'), 'id') as $beheerder) {
+        foreach (self::beheerders() as $beheerder) {
             if (strcasecmp($beheerder['gebruikersnaam'], $gebruikersnaam) === 0) {
                 return $beheerder;
             }
@@ -166,14 +256,36 @@ class Data {
     }
 
     public static function beheerderMetId($id) {
-        return self::laatste('beheerders', 'id', $id);
+        return self::beheerders()[$id] ?? null;
     }
 
-    // random UUID v4
+    // [id => beheerder]
+    public static function beheerders() {
+        return Csv::lastPer(self::bestand('beheerders'), 'id');
+    }
+
+    // ---- ids
+
+    // random UUID v4, for gesprekken and stellingen
     public static function uuid() {
         $bytes = random_bytes(16);
         $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40); // version 4
         $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80); // variant RFC 4122
+        return self::uuidTekst($bytes);
+    }
+
+    // UUID v7, for events: it starts with the time in milliseconds, so ids sort by time;
+    // within this process always higher than the one before, also within the same millisecond
+    public static function uuid7() {
+        static $vorige = 0;
+        $vorige = max((int) floor(microtime(true) * 1000), $vorige + 1);
+        $bytes = substr(pack('J', $vorige), 2) . random_bytes(10);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x70); // version 7
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80); // variant RFC 4122
+        return self::uuidTekst($bytes);
+    }
+
+    private static function uuidTekst($bytes) {
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
     }
 }

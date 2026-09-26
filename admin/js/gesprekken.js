@@ -63,7 +63,7 @@ function gesprekRegel(g) {
     `;
 }
 
-// a new gesprek is added at the end of the list, like in gesprekken.csv
+// a new gesprek is added at the end of the list, like in GET /gesprekken
 async function maakGesprek(event) {
     event.preventDefault();
     fout.hidden = true;

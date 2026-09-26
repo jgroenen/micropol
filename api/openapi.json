@@ -3,7 +3,7 @@
   "info": {
     "title": "MiniPol API",
     "version": "1.0.0",
-    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders: log in met `POST /sessie` en vul het token in bij **Authorize**. Een token blijft geldig zolang het gebruikt wordt: het verloopt na een uur zonder gebruik, en na 12 uur altijd."
+    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie, het logboek (events) en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders: log in met `POST /sessie` en vul het token in bij **Authorize**. Een token blijft geldig zolang het gebruikt wordt: het verloopt na een uur zonder gebruik, en na 12 uur altijd."
   },
   "servers": [
     {
@@ -30,6 +30,10 @@
     {
       "name": "Moderatie",
       "description": "Alleen voor beheerders"
+    },
+    {
+      "name": "Events",
+      "description": "Wat er in een gesprek gebeurde; alleen voor beheerders"
     },
     {
       "name": "Export",
@@ -537,6 +541,84 @@
         }
       }
     },
+    "/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Wat er in een gesprek gebeurde, nieuwste eerst",
+        "description": "De events van het gesprek: aangemaakt en aangepast, stellingen toegevoegd, goedgekeurd en afgekeurd, en antwoorden. Deelnemers staan erin met hun nummer uit de matrix, nooit met hun id. Oudere events haal je op met `voor`: het id van het oudste event dat je al hebt.",
+        "operationId": "getEvents",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          },
+          {
+            "name": "voor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Alleen events van vóór het event met dit id"
+          },
+          {
+            "name": "limiet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Hoeveel events hooguit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "events",
+                    "meer"
+                  ],
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
+                    },
+                    "meer": {
+                      "type": "boolean",
+                      "description": "Of er oudere events zijn"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
     "/export": {
       "get": {
         "tags": [
@@ -832,6 +914,12 @@
       },
       "Beoordeling": {
         "$ref": "schema.json#/$defs/Beoordeling"
+      },
+      "EventType": {
+        "$ref": "schema.json#/$defs/EventType"
+      },
+      "Event": {
+        "$ref": "schema.json#/$defs/Event"
       },
       "Deelnemer": {
         "$ref": "schema.json#/$defs/Deelnemer"

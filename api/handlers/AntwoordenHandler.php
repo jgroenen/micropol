@@ -42,18 +42,16 @@ class AntwoordenHandler {
             throw new HttpFout(404, 'Stelling not found in this gesprek.');
         }
 
-        $antwoord = Data::voegToe("antwoorden/$gesprekId", Data::ANTWOORDEN, [$deelnemerId, $stellingId, $waarde]);
-        Http::json(['gesprek_id' => $gesprekId] + $antwoord, 201);
+        Data::voegEventToe(Data::ANTWOORD_GEGEVEN, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'waarde' => $waarde]);
+        Http::json(['gesprek_id' => $gesprekId, 'deelnemer_id' => $deelnemerId, 'stelling_id' => $stellingId, 'waarde' => $waarde], 201);
     }
 
     // the last antwoord of the deelnemer on each stelling
     private function vanDeelnemer($gesprekId, $deelnemerId) {
         $antwoorden = [];
-        foreach (Data::antwoorden($gesprekId) as $antwoord) {
-            if ($antwoord['deelnemer_id'] === $deelnemerId) {
-                $antwoorden[$antwoord['stelling_id']] = ['gesprek_id' => $gesprekId] + $antwoord;
-            }
+        foreach (Data::matrix($gesprekId)[$deelnemerId] ?? [] as $stellingId => $waarde) {
+            $antwoorden[] = ['gesprek_id' => $gesprekId, 'deelnemer_id' => $deelnemerId, 'stelling_id' => (string) $stellingId, 'waarde' => $waarde];
         }
-        return array_values($antwoorden);
+        return $antwoorden;
     }
 }

@@ -6,7 +6,7 @@
 
 require __DIR__ . '/config.php';
 
-// csv storage, see data/
+// the data: events (jsonl) and csv, see lib/Data.php
 define('DATA_DIR', __DIR__ . '/data');
 
 // classes live in handlers/ and lib/, one class per file
@@ -28,6 +28,7 @@ $handlers = [
     'sessie' => 'SessieHandler',
     'docs' => 'DocsHandler',
     'beoordelingen' => 'BeoordelingenHandler',
+    'events' => 'EventsHandler',
 ];
 
 // the app and the admin are on other origins: allow those (CORS), and answer the preflight

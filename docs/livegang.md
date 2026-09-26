@@ -85,6 +85,12 @@ ssh root@<vps> 'chown -R minipol:minipol /srv/minipol/api/data'
 
 Met `math/data` gaat het net zo, maar dat hoeft niet: de analysemodellen worden vanzelf opnieuw berekend.
 
+Is de data van vóór de events (met `gesprekken.csv` in plaats van `gesprekken.jsonl`), zet hem dan eenmalig om. Zie [Opslag](../README.md#opslag) in de README.
+
+```sh
+sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/naar-events.php
+```
+
 ## Een nieuwe versie uitrollen
 
 Push de code naar de repository, en dan op de VPS:
@@ -122,7 +128,7 @@ Pas op de server niets aan in `/srv/minipol`: de volgende pull verwacht een scho
 
 ## Back-ups
 
-Alle data staat in `api/data` (gesprekken, stellingen, antwoorden, beoordelingen, beheerders en logins). De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg. Twee opties:
+Alle data staat in `api/data`: de events van de gesprekken, en de beheerders en logins. De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg. Twee opties:
 
 - **Snapshots van de VPS** bij je provider.
 - **Zelf ophalen**, bijvoorbeeld dagelijks vanaf een andere machine:

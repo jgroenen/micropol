@@ -1,6 +1,7 @@
 import { getGesprek, putGesprek } from './api.js';
 import { verwerkFout } from './toegang.js';
-import { toonStellingen, verbergStellingen } from './stellingen.js';
+import { toonStellingen, verbergStellingen, bijBeoordelingVanStelling } from './stellingen.js';
+import { toonLogboek, verbergLogboek } from './logboek.js';
 import { gesprekVelden } from './util.js';
 import { APP_URL } from './config.php';
 import { toonView } from './views.js';
@@ -20,12 +21,19 @@ function koppel() {
     fout = document.getElementById('gesprek-fout');
     knop = document.getElementById('gesprek-knop');
     formulier.addEventListener('submit', slaOp);
+    bijBeoordelingVanStelling(async stellingen => {
+        try {
+            await toonLogboek(huidigId, stellingen);
+        } catch (error) {
+            verwerkFout(error);
+        }
+    });
     gekoppeld = true;
 }
 
 let huidigId = null;
 
-// one gesprek: its details to change, and its stellingen to approve or reject
+// one gesprek: its details to change, its stellingen to approve or reject, and its logboek
 export async function toonGesprek(id) {
     huidigId = id;
     try {
@@ -35,6 +43,7 @@ export async function toonGesprek(id) {
         fout.hidden = true;
         formulier.hidden = true;
         verbergStellingen();
+        verbergLogboek();
         titel.textContent = '';
         info.textContent = '';
 
@@ -51,9 +60,17 @@ export async function toonGesprek(id) {
         info.innerHTML = `${aantal} ${aantal === 1 ? 'zichtbare stelling' : 'zichtbare stellingen'} · <a target="_blank" rel="noopener" href="${APP_URL}/#/gesprekken/${encodeURIComponent(id)}">Bekijken in de app →</a>`;
         vulFormulier(gesprek);
         formulier.hidden = false;
-        await toonStellingen(id);
+        await vernieuw(id);
     } catch (error) {
         verwerkFout(error);
+    }
+}
+
+// the stellingen, and the logboek with their texts; errors are for the caller
+async function vernieuw(id) {
+    const stellingen = await toonStellingen(id);
+    if (stellingen) {
+        await toonLogboek(id, stellingen);
     }
 }
 
@@ -75,7 +92,7 @@ async function slaOp(event) {
         melding.textContent = 'De wijzigingen zijn opgeslagen.';
         melding.hidden = false;
         // the moderatie decides which stellingen are zichtbaar
-        await toonStellingen(huidigId);
+        await vernieuw(huidigId);
     } catch (error) {
         fout.textContent = 'De wijzigingen konden niet worden opgeslagen. Probeer het opnieuw.';
         verwerkFout(error, fout);

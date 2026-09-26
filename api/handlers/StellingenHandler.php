@@ -15,7 +15,7 @@ class StellingenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
-        $stellingen = array_values(array_filter(Data::stellingenMetBeoordeling($gesprekId), function ($stelling) use ($deelnemerId) {
+        $stellingen = array_values(array_filter(Data::stellingen($gesprekId), function ($stelling) use ($deelnemerId) {
             return $stelling['deelnemer_id'] === $deelnemerId;
         }));
         Http::json(['stellingen' => Data::metTellingen($gesprekId, $stellingen)]);
@@ -38,10 +38,8 @@ class StellingenHandler {
             throw new HttpFout(404, 'Gesprek not found.');
         }
 
-        $stelling = Data::voegToe('stellingen', Data::STELLINGEN, [Data::uuid(), $gesprekId, $tekst, $deelnemerId]);
-        $stelling['beoordeling'] = null;
-        $stelling['reden'] = '';
-        $stelling['zichtbaar'] = Data::zichtbaar(Data::gesprek($gesprekId)['moderatie'], null);
-        Http::json($stelling, 201);
+        $stellingId = Data::uuid();
+        Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst]);
+        Http::json(Data::stelling($gesprekId, $stellingId), 201);
     }
 }

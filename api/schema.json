@@ -197,6 +197,115 @@
         }
       }
     },
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "gesprek.aangemaakt",
+        "gesprek.aangepast",
+        "stelling.toegevoegd",
+        "stelling.goedgekeurd",
+        "stelling.afgekeurd",
+        "antwoord.gegeven"
+      ]
+    },
+    "Event": {
+      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `waarde`",
+      "type": "object",
+      "required": [
+        "id",
+        "tijdstip",
+        "type",
+        "door",
+        "gesprek_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUID v7: die begint met de tijd, dus op id sorteren is op tijd sorteren"
+        },
+        "tijdstip": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "null bij events uit de data van vóór de events: toen werd dat niet bewaard"
+        },
+        "type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "door": {
+          "description": "Wie het deed: een beheerder, of een deelnemer, anoniem met het nummer uit de matrix (wie alleen stellingen toevoegde, krijgt een nummer daarna). null als het onbekend is.",
+          "oneOf": [
+            {
+              "title": "Beheerder",
+              "type": "object",
+              "required": [
+                "soort",
+                "id",
+                "gebruikersnaam"
+              ],
+              "properties": {
+                "soort": {
+                  "const": "beheerder"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "gebruikersnaam": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "title": "Deelnemer",
+              "type": "object",
+              "required": [
+                "soort",
+                "nummer"
+              ],
+              "properties": {
+                "soort": {
+                  "const": "deelnemer"
+                },
+                "nummer": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gesprek_id": {
+          "type": "string"
+        },
+        "titel": {
+          "type": "string"
+        },
+        "omschrijving": {
+          "type": "string"
+        },
+        "moderatie": {
+          "$ref": "#/$defs/Moderatie"
+        },
+        "stelling_id": {
+          "type": "string"
+        },
+        "tekst": {
+          "type": "string"
+        },
+        "reden": {
+          "type": "string"
+        },
+        "waarde": {
+          "$ref": "#/$defs/Waarde"
+        }
+      }
+    },
     "Deelnemer": {
       "description": "Een deelnemer, anoniem: genummerd op volgorde van het eerste antwoord, met per stelling het laatste antwoord. Dezelfde nummers in de matrix, de export en de analyse.",
       "type": "object",

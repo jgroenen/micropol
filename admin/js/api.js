@@ -110,3 +110,13 @@ export async function getBeoordelingen(gesprekId) {
 export function postBeoordeling(beoordeling) {
     return stuur('POST', '/beoordelingen', beoordeling);
 }
+
+// what happened in a gesprek, newest first: { events: [{ id, tijdstip, type, door, gesprek_id, ... }], meer };
+// with voor (the id of the oldest event so far) the ones before it
+export function getEvents(gesprekId, voor = null) {
+    const parameters = new URLSearchParams({ gesprek_id: gesprekId });
+    if (voor) {
+        parameters.set('voor', voor);
+    }
+    return verzoek(`/events?${parameters}`);
+}

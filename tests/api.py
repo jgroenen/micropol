@@ -1,7 +1,7 @@
 """Every call of the api and the math server, checked against their OpenAPI spec: the status must
 be the expected one and in the spec, and the request and response must fit the schema. Every operation in
 the specs must be called at least once. The test makes its own data (gesprekken, stellingen, antwoorden)
-through the api; run it with tests/run.sh, which puts the data back afterwards.
+through the api (so also the events of the logboek); run it with tests/run.sh, which puts the data back afterwards.
 """
 import base64, json, os, re, ssl, sys, urllib.error, urllib.parse, urllib.request
 from jsonschema import Draft202012Validator
@@ -116,6 +116,8 @@ check('api', 'POST', '/gesprekken', 400, {'titel': ''}, token=TOKEN)
 G = check('api', 'POST', '/gesprekken', 201, {'titel': 'Testgesprek', 'omschrijving': 'Van tests/api.py.'}, token=TOKEN)['id']
 VOORAF = check('api', 'POST', '/gesprekken', 201, {'titel': 'Testgesprek vooraf', 'moderatie': 'vooraf'}, token=TOKEN)['id']
 check('api', 'PUT', f'/gesprekken/{G}', 200, {'titel': 'Testgesprek (aangepast)'}, token=TOKEN)
+# nothing changed: no event
+check('api', 'PUT', f'/gesprekken/{G}', 200, {'titel': 'Testgesprek (aangepast)'}, token=TOKEN)
 check('api', 'PUT', '/gesprekken/bestaatniet', 404, {'titel': 'x'}, token=TOKEN)
 check('api', 'PUT', f'/gesprekken/{G}', 401, {'titel': 'x'})
 check('api', 'GET', '/gesprekken', 200)
@@ -153,6 +155,34 @@ check('api', 'POST', '/beoordelingen', 200, {'gesprek_id': G, 'stelling_id': ste
 check('api', 'POST', '/beoordelingen', 400, {'gesprek_id': G, 'stelling_id': stellingen[-1], 'beoordeling': 'afgekeurd'}, token=TOKEN)
 check('api', 'POST', '/beoordelingen', 401, {'gesprek_id': G, 'stelling_id': stellingen[-1], 'beoordeling': 'goedgekeurd'})
 check('api', 'POST', '/beoordelingen', 404, {'gesprek_id': G, 'stelling_id': 'bestaatniet', 'beoordeling': 'goedgekeurd'}, token=TOKEN)
+
+# ---- api: the logboek (events)
+events = check('api', 'GET', f'/events?gesprek_id={G}', 200, token=TOKEN)['events']
+ids = [e['id'] for e in events]
+typen = [e['type'] for e in events]
+if ids != sorted(ids, reverse=True):
+    print('FOUT GET /events is niet nieuwste eerst'); fouten += 1
+for soort in ('gesprek.aangemaakt', 'gesprek.aangepast', 'stelling.toegevoegd', 'stelling.afgekeurd', 'antwoord.gegeven'):
+    if soort not in typen:
+        print(f'FOUT GET /events mist {soort}'); fouten += 1
+if typen.count('gesprek.aangepast') != 1:
+    print('FOUT een PUT zonder wijziging geeft een event'); fouten += 1
+if typen.count('antwoord.gegeven') != 4 * len(stellingen):
+    print('FOUT GET /events heeft niet alle antwoorden'); fouten += 1
+if 'deelnemer-' in json.dumps(events):
+    print('FOUT GET /events geeft de id van een deelnemer'); fouten += 1
+if {e['door']['nummer'] for e in events if e['type'] == 'antwoord.gegeven'} != {1, 2, 3, 4}:
+    print('FOUT de deelnemers in GET /events hebben niet de nummers van de matrix'); fouten += 1
+if next(e for e in events if e['type'] == 'stelling.afgekeurd')['door'].get('gebruikersnaam') != GEBRUIKER:
+    print('FOUT een beoordeling in GET /events heeft niet de beheerder'); fouten += 1
+pagina = check('api', 'GET', f'/events?gesprek_id={G}&limiet=5', 200, token=TOKEN)
+volgende = check('api', 'GET', f"/events?gesprek_id={G}&limiet=5&voor={pagina['events'][-1]['id']}", 200, token=TOKEN)
+if not pagina['meer'] or [e['id'] for e in pagina['events'] + volgende['events']] != ids[:10]:
+    print('FOUT GET /events met limiet en voor geeft niet de volgende events'); fouten += 1
+check('api', 'GET', f'/events?gesprek_id={G}', 401)
+check('api', 'GET', '/events', 400, token=TOKEN)
+check('api', 'GET', f'/events?gesprek_id={G}&limiet=0', 400, token=TOKEN)
+check('api', 'GET', '/events?gesprek_id=bestaatniet', 404, token=TOKEN)
 
 # ---- api: export and docs
 export = check('api', 'GET', f'/export?gesprek_id={G}', 200)

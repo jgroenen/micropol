@@ -32,19 +32,27 @@ const FILTERS = {
 
 let gesprekId = null;
 let stellingen = [];
+let bijBeoordeling = () => {};
 
-// loads and shows the stellingen of a gesprek; errors are for the caller
+// loads and shows the stellingen of a gesprek, and returns them (null when another gesprek was opened
+// in the meantime); errors are for the caller
 export async function toonStellingen(id) {
     koppel();
     gesprekId = id;
     const geladen = await getBeoordelingen(id);
     if (gesprekId !== id) {
-        return; // another gesprek was opened in the meantime
+        return null;
     }
     stellingen = geladen.reverse();
     fout.hidden = true;
     sectie.hidden = false;
     tekenLijst();
+    return stellingen;
+}
+
+// callback after a stelling is goedgekeurd or afgekeurd, with all stellingen
+export function bijBeoordelingVanStelling(callback) {
+    bijBeoordeling = callback;
 }
 
 export function verbergStellingen() {
@@ -127,6 +135,7 @@ async function beoordeel(li, beoordeling, reden = '') {
         const nieuw = await postBeoordeling({ gesprek_id: gesprekId, stelling_id: li.dataset.id, beoordeling, reden });
         stellingen = stellingen.map(s => s.id === nieuw.id ? nieuw : s);
         tekenLijst();
+        bijBeoordeling(stellingen);
     } catch (error) {
         li.querySelectorAll('button').forEach(b => b.disabled = false);
         fout.textContent = 'De beoordeling kon niet worden opgeslagen. Probeer het opnieuw.';

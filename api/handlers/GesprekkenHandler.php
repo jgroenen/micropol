@@ -26,23 +26,30 @@ class GesprekkenHandler {
     // POST /gesprekken  { titel, omschrijving, moderatie }   beheerders only; returns the new gesprek
     // moderatie is optional, default achteraf
     public function POST($id = null) {
-        Toegang::vereisBeheerder();
+        $beheerder = Toegang::vereisBeheerder();
         $velden = $this->velden(Http::body(), Data::MODERATIE_ACHTERAF);
-        Http::json(Data::voegToe('gesprekken', Data::GESPREKKEN, array_merge([Data::uuid()], $velden)), 201);
+        $id = Data::uuid();
+        Data::voegEventToe(Data::GESPREK_AANGEMAAKT, Data::doorBeheerder($beheerder), $id, $velden);
+        Http::json(Data::gesprek($id), 201);
     }
 
     // PUT /gesprekken/<id>  { titel, omschrijving, moderatie }   beheerders only; returns the changed gesprek
-    // moderatie is optional, default unchanged; the file is append only, so this adds a row with the same id
+    // moderatie is optional, default unchanged; the event has only the fields that changed, and there is
+    // no event when nothing changed
     public function PUT($id = null) {
-        Toegang::vereisBeheerder();
+        $beheerder = Toegang::vereisBeheerder();
         if ($id === null || !Data::gesprekBestaat($id)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
-        $velden = $this->velden(Http::body(), Data::gesprek($id)['moderatie'] ?: Data::MODERATIE_ACHTERAF);
-        Http::json(Data::voegToe('gesprekken', Data::GESPREKKEN, array_merge([$id], $velden)));
+        $gesprek = Data::gesprek($id);
+        $gewijzigd = array_diff_assoc($this->velden(Http::body(), $gesprek['moderatie'] ?: Data::MODERATIE_ACHTERAF), $gesprek);
+        if ($gewijzigd) {
+            Data::voegEventToe(Data::GESPREK_AANGEPAST, Data::doorBeheerder($beheerder), $id, $gewijzigd);
+        }
+        Http::json(Data::gesprek($id));
     }
 
-    // [titel, omschrijving, moderatie] from the body
+    // { titel, omschrijving, moderatie } from the body
     private function velden(array $input, $standaardModeratie) {
         $titel = Http::line($input, 'titel');
         $omschrijving = Http::line($input, 'omschrijving');
@@ -59,7 +66,7 @@ class GesprekkenHandler {
         if (!in_array($moderatie, Data::MODERATIES, true)) {
             throw new HttpFout(400, 'moderatie must be one of: ' . implode(', ', Data::MODERATIES) . '.');
         }
-        return [$titel, $omschrijving, $moderatie];
+        return ['titel' => $titel, 'omschrijving' => $omschrijving, 'moderatie' => $moderatie];
     }
 
     // the order in which stellingen are offered for answering; random for now,

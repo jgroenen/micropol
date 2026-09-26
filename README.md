@@ -2,7 +2,7 @@
 
 Een kleine, Polis-achtige tool voor gesprekken. Deelnemers beantwoorden stellingen met *eens*, *neutraal* of *oneens* en kunnen zelf stellingen toevoegen. De analyse deelt deelnemers in groepen in die stellingen op een vergelijkbare manier beantwoorden.
 
-Er is geen database, er zijn geen dependencies en er is geen build-stap: een PHP-backend die csv-bestanden bijhoudt, en frontends in vanilla JavaScript (ES modules).
+Er is geen database, er zijn geen dependencies en er is geen build-stap: een PHP-backend die alles wat er gebeurt bijhoudt als events in bestanden, en frontends in vanilla JavaScript (ES modules).
 
 Het bestaat uit vijf delen die elk op een eigen server (en domein) draaien:
 
@@ -56,8 +56,8 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/schema.json](api/schema.json) | De typen van de API als JSON Schema, live op <http://localhost:8001/docs/schema.json>, zie [Typen](#typen) |
 | [api/config.php](api/config.php) | Instellingen per omgeving: welke origins de API mogen aanroepen, en hoe lang een login geldig is, zie [Losse servers](#losse-servers) |
 | [api/handlers/](api/handlers/) | Eén handler per resource |
-| [api/lib/](api/lib/) | Gedeelde code: csv-opslag ([Csv](api/lib/Csv.php), [Data](api/lib/Data.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
-| [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer) |
+| [api/lib/](api/lib/) | Gedeelde code: opslag ([Data](api/lib/Data.php), [Jsonl](api/lib/Jsonl.php), [Csv](api/lib/Csv.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
+| [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer), en [naar-events.php](api/bin/naar-events.php), zie [Opslag](#opslag) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
 | [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php) met [views/pagina.html](admin/views/pagina.html), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
@@ -97,7 +97,7 @@ De typen staan in een los JSON Schema-bestand (2020-12), zodat ook andere tools 
 - **`$id`:** de live versie heeft de eigen URL als `$id`, zodat je er vanuit een ander schema naar kunt verwijzen.
 - **De OpenAPI-spec** heeft zelf geen typen meer: hij verwijst naar `schema.json`. Pas een type daarom aan in `schema.json`.
 
-Er is één type per ding: `Gesprek`, `Stelling`, `Antwoord`, `Beoordeling` en `Deelnemer`. Wat de server invult, is `readOnly`. Welke velden in een antwoord staan, hangt af van de context. Een stelling in een gesprek heeft bijvoorbeeld alleen `id` en `tekst`, en een eigen stelling heeft alles.
+Er is één type per ding: `Gesprek`, `Stelling`, `Antwoord`, `Beoordeling`, `Event` en `Deelnemer`. Wat de server invult, is `readOnly`. Welke velden in een antwoord staan, hangt af van de context. Een stelling in een gesprek heeft bijvoorbeeld alleen `id` en `tekst`, en een eigen stelling heeft alles.
 
 De namen zijn Nederlands, behalve `error` in foutmeldingen: dat is de gangbare naam, en zo zijn API en math server gelijk.
 
@@ -116,6 +116,7 @@ Het overzicht hieronder is de korte versie:
 | `POST /antwoorden` | Antwoord geven: `{ gesprek_id, deelnemer_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
 | `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor ingelogde beheerders |
 | `POST /beoordelingen` | Stelling beoordelen, alleen voor ingelogde beheerders: `{ gesprek_id, stelling_id, beoordeling, reden }`, met `beoordeling` `goedgekeurd` of `afgekeurd`; bij `afgekeurd` is een `reden` verplicht (max. 500 tekens) |
+| `GET /events?gesprek_id=<id>[&voor=<id>][&limiet=<n>]` | Wat er in een gesprek gebeurde, nieuwste eerst: `{ events, meer }`, alleen voor ingelogde beheerders, zie [Logboek](#logboek) |
 | `GET /export?gesprek_id=<id>` | De standaardexport van een gesprek, voor de math server, zie [Math server](#math-server) |
 | `GET /docs` | Deze API-documentatie (Swagger UI, lokaal <http://localhost:8001/docs>); de spec zelf op `GET /docs/openapi.json` |
 | `POST /sessie` | Inloggen in de beheeromgeving: `{ gebruikersnaam, wachtwoord }`, geeft `{ beheerder, token, verloopt }` |
@@ -131,7 +132,7 @@ De twee PHP-diensten (api en math) zijn op dezelfde manier opgebouwd:
 
 - **`index.php`** is de router: `/<resource>[/<id>]` gaat naar `handlers/<Resource>Handler-><METHOD>($id)`.
 - **Fouten:** een handler gooit een `HttpFout($status, $melding)`, en `index.php` antwoordt dan met `{ "error": "..." }`.
-- **Data:** handlers lezen en schrijven alleen via `Data`: `bestand()`, `voegToe()` en `laatste()`. De bestanden worden alleen aangevuld; „de laatste regel telt” zit in `Csv::lastPer()`.
+- **Data:** handlers lezen en schrijven alleen via `Data`. Wat er in een gesprek gebeurt, schrijven ze met `voegEventToe()`; `gesprekken()`, `stellingen()`, `matrix()` en de andere lezen de events en geven de stand. Voor beheerders en logins zijn er `bestand()`, `voegToe()` en `laatste()`. Zie [Opslag](#opslag).
 - **Gedeelde bestanden:** `Csv.php`, `Http.php`, `HttpFout.php` en `DocsHandler.php` staan in elk project als gelijke kopie. De projecten zijn los, dus ze delen geen code.
 
 App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per view met `koppel()`, een hash-router in `main.js`, en `api.js` voor de calls. Het laden van views en de calls zelf komen van de cdn (`views.js` en `verzoek.js`). Een call die mislukt, gooit een `Error` met `status`; opzoekfuncties geven `null` als er niets is.
@@ -144,24 +145,49 @@ App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per v
   - `error` in foutmeldingen
   - CSS-eigenschappen in design tokens (`--font-size-…`)
   - begrippen uit de DOM en fetch (`response`, `options`)
-- **Engels, voor de dunne wrappers rond PHP:** `Csv` en `Http`. Hun methodes spiegelen PHP- en HTTP-begrippen (`read`, `append`, `json`, `bearer`, `noCache`).
+- **Engels, voor de dunne wrappers rond PHP:** `Csv`, `Jsonl` en `Http`. Hun methodes spiegelen PHP- en HTTP-begrippen (`read`, `append`, `json`, `bearer`, `noCache`).
 - **Engels, voor structuurnamen:** mappen (`handlers`, `lib`, `views`, `data`), `…Handler`, en „view”.
 - **Taal van teksten:** commentaar is Engels. Teksten voor mensen (schermen, meldingen, het aanmaakscript) zijn Nederlands. Foutmeldingen van de API zijn Engels, want die zijn voor ontwikkelaars.
 
 ## Opslag
 
-Alle data staat als csv in [api/data/](api/data/):
+Alles wat er in een gesprek gebeurt, staat als **event** in [api/data/](api/data/): één JSON-object per regel (jsonl). Er zijn drie stromen:
+
+| Bestand | Events |
+|---|---|
+| `gesprekken.jsonl` | `gesprek.aangemaakt`, `gesprek.aangepast` (van alle gesprekken) |
+| `gesprekken/<gesprek_id>/stellingen.jsonl` | `stelling.toegevoegd`, `stelling.goedgekeurd`, `stelling.afgekeurd` |
+| `gesprekken/<gesprek_id>/antwoorden.jsonl` | `antwoord.gegeven` |
+
+Een event ziet er zo uit:
+
+```json
+{"id":"0199d4c2-…","tijdstip":1790345554,"type":"stelling.afgekeurd","door":{"soort":"beheerder","id":"7faf…"},"gesprek_id":"39ee…","stelling_id":"b336…","reden":"Matige stelling."}
+```
+
+- **Elk event** heeft `id`, `tijdstip` (unix-tijd), `type`, `door` en `gesprek_id`, plus de velden van zijn type (zie `Event` in [api/schema.json](api/schema.json)).
+- **`id`** is een UUID v7. Die begint met de tijd, dus op id sorteren is op tijd sorteren; zo voegt het [logboek](#logboek) de drie stromen samen.
+- **`door`** is `{ soort, id }`: een beheerder, of een deelnemer met zijn `deelnemer_id`.
+- **`gesprek.aangepast`** heeft alleen de velden die veranderden. Verandert er niets, dan komt er geen event.
+- **De stand volgt uit de events:** een gesprek, zijn stellingen met hun beoordeling, en de antwoorden krijg je door de events op volgorde te lezen ([Data.php](api/lib/Data.php)). Een wijziging is een nieuw event, en het laatste telt. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord.
+- **Snel genoeg:** `GET /gesprekken` leest alleen het kleine `gesprekken.jsonl`, en tellingen, de matrix en de export lezen de antwoorden van één gesprek.
+
+De bestanden worden alleen aangevuld, nooit gewijzigd. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
+
+Beheerders en logins zijn geen gebeurtenissen van een gesprek. Die staan als csv in dezelfde map, en daar telt de laatste regel met dezelfde sleutel:
 
 | Bestand | Kolommen |
 |---|---|
-| [gesprekken.csv](api/data/gesprekken.csv) | `id, titel, omschrijving, moderatie` |
-| [stellingen.csv](api/data/stellingen.csv) | `id, gesprek_id, tekst, deelnemer_id` (`deelnemer_id` leeg bij stellingen van vóór die kolom) |
-| [antwoorden/](api/data/antwoorden/)`<gesprek_id>.csv` | `deelnemer_id, stelling_id, waarde` |
 | [beheerders.csv](api/data/beheerders.csv) | `id, gebruikersnaam, email, salt, versleuteld_wachtwoord, wachtwoord_methode`, zie [Beheer](#beheer) |
 | `sessies.csv` | `token_hash, beheerder_id, begonnen, verloopt`, zie [Inloggen](#inloggen) |
-| `beoordelingen/<gesprek_id>.csv` | `stelling_id, beoordeling, reden, beheerder_id, tijdstip` (`tijdstip` als unix-tijd, zoals alle tijden in de data) |
 
-De bestanden worden alleen aangevuld, nooit gewijzigd. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord. Zo werkt het ook bij een aangepast gesprek (een nieuwe regel met hetzelfde `id` in `gesprekken.csv`) en bij een nieuwe beoordeling van een stelling: de laatste regel telt. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
+**Data van vóór de events** (`gesprekken.csv`, `stellingen.csv`, `antwoorden/` en `beoordelingen/`) zet je eenmalig om:
+
+```sh
+php api/bin/naar-events.php
+```
+
+Het script schrijft de events en zet de oude csv-bestanden in `api/data/csv-voor-events/`. Die bewaarden niet wanneer iets gebeurde, behalve bij beoordelingen. De andere events krijgen daarom `tijdstip` `null`, en wie een gesprek aanmaakte of aanpaste is onbekend (`door` `null`).
 
 De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn eigen data. Een lege `data/`-map werkt; de bestanden ontstaan bij het eerste gebruik. Hetzelfde geldt voor `math/data/`, met de berekende modellen. Maak op een nieuwe server eerst een beheerder aan, zie [Beheer](#beheer).
 
@@ -200,7 +226,7 @@ Beheerders loggen in bij de API ([Toegang.php](api/lib/Toegang.php)), met een ee
 
 ## Moderatie
 
-Per gesprek stelt een beheerder in hoe stellingen van deelnemers worden getoond (`moderatie` in `gesprekken.csv`):
+Per gesprek stelt een beheerder in hoe stellingen van deelnemers worden getoond (`moderatie` van het gesprek):
 
 | `moderatie` | Stelling is zichtbaar |
 |---|---|
@@ -210,6 +236,14 @@ Per gesprek stelt een beheerder in hoe stellingen van deelnemers worden getoond 
 Een stelling die niet zichtbaar is, verdwijnt uit het gesprek, de matrix en de analyse, en kan niet meer beantwoord worden. De indiener ziet onder **Mijn stellingen** dat een stelling nog niet is goedgekeurd, of dat hij is afgekeurd, met de reden. Wie een stelling heeft ingediend, ziet een beheerder niet.
 
 Beheerders beoordelen stellingen op de detailpagina van een gesprek in de beheeromgeving. Een beoordeling is altijd te herzien; de laatste telt.
+
+## Logboek
+
+Op de detailpagina van een gesprek staat in de beheeromgeving ook het logboek: wat er in het gesprek gebeurde, nieuwste eerst, met per regel wanneer, wie en wat ([admin/js/logboek.js](admin/js/logboek.js)). Het komt uit `GET /events` ([EventsHandler.php](api/handlers/EventsHandler.php)), dat de drie stromen van het gesprek samenvoegt.
+
+- **Deelnemers blijven anoniem:** de API geeft ze als `Deelnemer 12`, met het nummer uit de matrix, nooit met hun id. Wie alleen stellingen toevoegde, krijgt een nummer na de deelnemers die antwoordden.
+- **Antwoorden** van een deelnemer die na elkaar komen, zijn samen één regel („gaf 8 antwoorden”). Anders zou je de rest niet meer zien.
+- **Per 100:** de API geeft de nieuwste 100 events. Met **Oudere laden** haalt de admin de events van vóór de oudste die hij al heeft (`voor=<id>`).
 
 ## Math server
 

@@ -45,11 +45,12 @@ class BeoordelingenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
-        if (!in_array($stellingId, array_column(Data::stellingen($gesprekId), 'id'), true)) {
+        if (Data::stelling($gesprekId, $stellingId) === null) {
             throw new HttpFout(404, 'Stelling not found in this gesprek.');
         }
 
-        Data::voegToe("beoordelingen/$gesprekId", Data::BEOORDELINGEN, [$stellingId, $beoordeling, $reden, $beheerder['id'], time()]);
+        $velden = ['stelling_id' => $stellingId] + ($reden === '' ? [] : ['reden' => $reden]);
+        Data::voegEventToe(Data::BEOORDELING_EVENTS[$beoordeling], Data::doorBeheerder($beheerder), $gesprekId, $velden);
         foreach ($this->stellingen($gesprekId) as $stelling) {
             if ($stelling['id'] === $stellingId) {
                 Http::json($stelling);
@@ -64,6 +65,6 @@ class BeoordelingenHandler {
         return array_map(function ($stelling) {
             unset($stelling['deelnemer_id']);
             return $stelling;
-        }, Data::metTellingen($gesprekId, Data::stellingenMetBeoordeling($gesprekId)));
+        }, Data::metTellingen($gesprekId, Data::stellingen($gesprekId)));
     }
 }
