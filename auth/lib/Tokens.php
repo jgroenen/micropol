@@ -12,11 +12,11 @@
 // Tokens are random strings, meaningless outside this service; only their sha256 is stored.
 // A token is valid while its own verloopt and that of its sessie are in the future.
 class Tokens {
-    // an authorization code for a user who just logged in at /authorize
-    public static function maakCode($clientId, $redirectUri, $codeChallenge, array $user) {
+    // an authorization code for a gebruiker who just logged in at /authorize
+    public static function maakCode($clientId, $redirectUri, $codeChallenge, array $gebruiker) {
         $code = self::willekeurig();
         Data::append('codes', Data::CODES, [
-            self::hash($code), $clientId, $redirectUri, $codeChallenge, $user['id'], time() + CODE_GELDIG,
+            self::hash($code), $clientId, $redirectUri, $codeChallenge, $gebruiker['id'], time() + CODE_GELDIG,
         ]);
         return $code;
     }
@@ -38,7 +38,7 @@ class Tokens {
         }
 
         $sessieId = Data::uuid();
-        Data::append('sessies', Data::SESSIES, [$sessieId, $rij['user_id'], $clientId, time(), time() + SESSIE_MAX]);
+        Data::append('sessies', Data::SESSIES, [$sessieId, $rij['gebruiker_id'], $clientId, time(), time() + SESSIE_MAX]);
         return self::geefUit($sessieId);
     }
 
@@ -72,16 +72,17 @@ class Tokens {
             return ['active' => false];
         }
         $sessie = self::actieveSessie($rij['sessie_id']);
-        $user = $sessie ? Data::userById($sessie['user_id']) : null;
-        if ($user === null) {
+        $gebruiker = $sessie ? Data::gebruikerById($sessie['gebruiker_id']) : null;
+        if ($gebruiker === null) {
             return ['active' => false];
         }
         return [
             'active' => true,
-            'sub' => $user['id'],
-            'username' => $user['username'],
-            'preferred_username' => $user['username'],
-            'email' => $user['email'],
+            // the names of RFC 7662 and OpenID Connect
+            'sub' => $gebruiker['id'],
+            'username' => $gebruiker['gebruikersnaam'],
+            'preferred_username' => $gebruiker['gebruikersnaam'],
+            'email' => $gebruiker['email'],
             'client_id' => $sessie['client_id'],
             'token_type' => 'Bearer',
             'exp' => (int) $rij['verloopt'],
@@ -123,7 +124,7 @@ class Tokens {
     private static function beeindig($sessieId) {
         $sessie = Data::laatste('sessies', 'id', $sessieId);
         if ($sessie !== null && (int) $sessie['verloopt'] !== 0) {
-            Data::append('sessies', Data::SESSIES, [$sessie['id'], $sessie['user_id'], $sessie['client_id'], $sessie['begonnen'], 0]);
+            Data::append('sessies', Data::SESSIES, [$sessie['id'], $sessie['gebruiker_id'], $sessie['client_id'], $sessie['begonnen'], 0]);
         }
     }
 

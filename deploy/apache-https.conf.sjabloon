@@ -1,0 +1,103 @@
+# MiniPol, port 443: one virtual host per part.
+# Made by deploy/deploy.sh from deploy/apache-https.conf.sjabloon: change the template, not this file.
+# Holds the api secret: readable for root only.
+
+<Directory {{DOEL}}>
+    Options -Indexes -FollowSymLinks
+    AllowOverride None
+    Require all granted
+    # the bearer token of the admin must reach php (with php-fpm; mod_php uses the SetEnvIf below)
+    CGIPassAuth On
+</Directory>
+
+# never serve data or scripts directly (the php parts send everything to index.php anyway)
+<DirectoryMatch "^{{DOEL}}/[a-z]+/(data|bin)(/|$)">
+    Require all denied
+</DirectoryMatch>
+
+# one certificate for all subdomains (certbot --cert-name {{DOMEIN}})
+SSLCertificateFile /etc/letsencrypt/live/{{DOMEIN}}/fullchain.pem
+SSLCertificateKeyFile /etc/letsencrypt/live/{{DOMEIN}}/privkey.pem
+
+# the bare domain to the app
+<VirtualHost *:443>
+    ServerName {{DOMEIN}}
+    SSLEngine on
+    Redirect permanent / {{APP_URL}}/
+</VirtualHost>
+
+# ---- static parts: app, admin and cdn
+
+<VirtualHost *:443>
+    ServerName {{APP_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/app
+    # no build step, so no hashed file names: browsers check for a new version every time
+    Header set Cache-Control "no-cache"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Strict-Transport-Security "max-age=31536000"
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ADMIN_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/admin
+    Header set Cache-Control "no-cache"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Strict-Transport-Security "max-age=31536000"
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{CDN_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/cdn
+    Header set Cache-Control "no-cache"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Strict-Transport-Security "max-age=31536000"
+    # browsers only import JS modules from another domain with this header
+    Header set Access-Control-Allow-Origin "*"
+</VirtualHost>
+
+# ---- php parts: api, math and auth; every request goes to index.php, which reads its settings
+# from the environment (see config.php)
+
+<VirtualHost *:443>
+    ServerName {{API_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/api
+    SetEnv MINIPOL_APP_URL {{APP_URL}}
+    SetEnv MINIPOL_ADMIN_URL {{ADMIN_URL}}
+    SetEnv MINIPOL_AUTH_URL {{AUTH_URL}}
+    SetEnv MINIPOL_API_SECRET {{API_SECRET}}
+    # the bearer token of the admin must reach php
+    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+    Header always set Strict-Transport-Security "max-age=31536000"
+    RewriteEngine On
+    RewriteRule ^ /index.php [END]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{MATH_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/math
+    SetEnv MINIPOL_APP_URL {{APP_URL}}
+    SetEnv MINIPOL_API_URL {{API_URL}}
+    Header always set Strict-Transport-Security "max-age=31536000"
+    RewriteEngine On
+    RewriteRule ^ /index.php [END]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{AUTH_HOST}}
+    SSLEngine on
+    DocumentRoot {{DOEL}}/auth
+    SetEnv MINIPOL_ADMIN_URL {{ADMIN_URL}}
+    SetEnv MINIPOL_AUTH_URL {{AUTH_URL}}
+    SetEnv MINIPOL_CDN_URL {{CDN_URL}}
+    SetEnv MINIPOL_API_SECRET {{API_SECRET}}
+    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+    Header always set Strict-Transport-Security "max-age=31536000"
+    RewriteEngine On
+    RewriteRule ^ /index.php [END]
+</VirtualHost>

@@ -88,7 +88,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GesprekVelden"
+                "$ref": "#/components/schemas/Gesprek"
               }
             }
           }
@@ -137,7 +137,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GesprekMetStellingen"
+                  "$ref": "#/components/schemas/Gesprek"
                 }
               }
             }
@@ -164,7 +164,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GesprekVelden"
+                "$ref": "#/components/schemas/Gesprek"
               }
             }
           }
@@ -205,13 +205,13 @@
             "$ref": "#/components/parameters/GesprekId"
           },
           {
-            "name": "user_id",
+            "name": "deelnemer_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string"
             },
-            "description": "De user_id van de deelnemer"
+            "description": "Het id van de deelnemer"
           }
         ],
         "responses": {
@@ -228,7 +228,7 @@
                     "stellingen": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/EigenStelling"
+                        "$ref": "#/components/schemas/Stelling"
                       }
                     }
                   }
@@ -256,7 +256,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StellingVelden"
+                "description": "Een stelling, met gesprek_id en deelnemer_id",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Stelling"
+                  },
+                  {
+                    "required": [
+                      "gesprek_id",
+                      "deelnemer_id",
+                      "tekst"
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -267,7 +279,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IngediendeStelling"
+                  "$ref": "#/components/schemas/Stelling"
                 }
               }
             }
@@ -287,14 +299,14 @@
           "Antwoorden"
         ],
         "summary": "De antwoorden van één deelnemer, of van iedereen als matrix",
-        "description": "Met `user_id`: de antwoorden van die deelnemer. Zonder: per deelnemer `{ stelling_id: waarde }`, zonder user_id's, op volgorde van het eerste antwoord. Per deelnemer telt het laatste antwoord.",
+        "description": "Met `deelnemer_id`: de antwoorden van die deelnemer. Zonder: de matrix, per deelnemer anoniem, zoals in de export.",
         "operationId": "getAntwoorden",
         "parameters": [
           {
             "$ref": "#/components/parameters/GesprekId"
           },
           {
-            "name": "user_id",
+            "name": "deelnemer_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -329,16 +341,16 @@
                       "type": "object",
                       "required": [
                         "gesprek_id",
-                        "antwoorden"
+                        "deelnemers"
                       ],
                       "properties": {
                         "gesprek_id": {
                           "type": "string"
                         },
-                        "antwoorden": {
+                        "deelnemers": {
                           "type": "array",
                           "items": {
-                            "$ref": "#/components/schemas/AntwoordenPerStelling"
+                            "$ref": "#/components/schemas/Deelnemer"
                           }
                         }
                       }
@@ -368,7 +380,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AntwoordVelden"
+                "description": "Een antwoord, met alle velden",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Antwoord"
+                  },
+                  {
+                    "required": [
+                      "gesprek_id",
+                      "deelnemer_id",
+                      "stelling_id",
+                      "waarde"
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -425,7 +450,7 @@
                     "stellingen": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/BeoordeeldeStelling"
+                        "$ref": "#/components/schemas/Stelling"
                       }
                     }
                   }
@@ -461,18 +486,30 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BeoordelingVelden"
+                "description": "Een beoordeling, met gesprek_id",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Beoordeling"
+                  },
+                  {
+                    "required": [
+                      "gesprek_id",
+                      "stelling_id",
+                      "beoordeling"
+                    ]
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "De stelling met haar nieuwe status",
+            "description": "De stelling met zijn nieuwe status",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BeoordeeldeStelling"
+                  "$ref": "#/components/schemas/Stelling"
                 }
               }
             }
@@ -658,114 +695,67 @@
           }
         }
       },
-      "GesprekVelden": {
+      "Gesprek": {
+        "description": "Een gesprek. `stellingen` staat er alleen in bij `GET /gesprekken/{id}`.",
         "type": "object",
         "required": [
           "titel"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true
+          },
           "titel": {
             "type": "string",
             "maxLength": 200
           },
           "omschrijving": {
             "type": "string",
-            "maxLength": 1000
+            "maxLength": 1000,
+            "description": "Optioneel; standaard leeg"
           },
           "moderatie": {
-            "$ref": "#/components/schemas/Moderatie"
-          }
-        },
-        "description": "Wat je stuurt bij aanmaken en aanpassen"
-      },
-      "Gesprek": {
-        "description": "Een gesprek zoals de API het teruggeeft: de velden plus id, altijd allemaal aanwezig",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/GesprekVelden"
-          },
-          {
-            "type": "object",
-            "required": [
-              "id",
-              "titel",
-              "omschrijving",
-              "moderatie"
-            ],
-            "properties": {
-              "id": {
-                "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Moderatie"
               }
-            }
-          }
-        ]
-      },
-      "GesprekMetStellingen": {
-        "description": "Een gesprek met zijn zichtbare stellingen, in willekeurige volgorde",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Gesprek"
-          },
-          {
-            "type": "object",
-            "required": [
-              "stellingen"
             ],
-            "properties": {
-              "stellingen": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Stelling"
-                }
-              }
-            }
+            "description": "Optioneel; bij aanmaken standaard `achteraf`, bij aanpassen standaard ongewijzigd"
+          },
+          "stellingen": {
+            "type": "array",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/Stelling"
+            },
+            "description": "De zichtbare stellingen, in willekeurige volgorde (alleen `id` en `tekst`)"
           }
-        ]
+        }
       },
       "Stelling": {
+        "description": "Een stelling. Welke velden erin staan, hangt af van waar hij vandaan komt:\n\n- in een gesprek (`GET /gesprekken/{id}`, de export): alleen `id` en `tekst`\n- toegevoegd (`POST /stellingen`): alles behalve `antwoorden`\n- eigen stellingen (`GET /stellingen`): alles\n- beheer (`/beoordelingen`): alles behalve `deelnemer_id`\n\n`deelnemer_id` staat alleen in antwoorden aan de indiener zelf.",
         "type": "object",
         "required": [
-          "id",
-          "content"
+          "tekst"
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true
           },
-          "content": {
-            "type": "string"
-          }
-        }
-      },
-      "StellingVelden": {
-        "description": "Wat je stuurt bij het toevoegen van een stelling; witruimte wordt één spatie",
-        "type": "object",
-        "required": [
-          "gesprek_id",
-          "user_id",
-          "content"
-        ],
-        "properties": {
           "gesprek_id": {
             "type": "string"
           },
-          "user_id": {
-            "type": "string"
-          },
-          "content": {
+          "deelnemer_id": {
             "type": "string",
-            "maxLength": 500
-          }
-        }
-      },
-      "Moderatiestatus": {
-        "type": "object",
-        "required": [
-          "beoordeling",
-          "reden",
-          "zichtbaar"
-        ],
-        "properties": {
+            "description": "De deelnemer die hem toevoegde"
+          },
+          "tekst": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Witruimte wordt één spatie"
+          },
           "beoordeling": {
             "type": [
               "string",
@@ -776,56 +766,56 @@
               "afgekeurd",
               null
             ],
+            "readOnly": true,
             "description": "null: nog niet beoordeeld"
           },
           "reden": {
             "type": "string",
-            "description": "Bij afgekeurd"
+            "readOnly": true,
+            "description": "Bij afgekeurd; de indiener ziet hem"
           },
           "zichtbaar": {
             "type": "boolean",
-            "description": "Of deelnemers de stelling zien, volgt uit de moderatie van het gesprek en de beoordeling"
+            "readOnly": true,
+            "description": "Of deelnemers hem zien; volgt uit de moderatie van het gesprek en de beoordeling"
+          },
+          "antwoorden": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Telling"
+              }
+            ],
+            "readOnly": true,
+            "description": "Hoe hij beantwoord is"
           }
         }
       },
-      "IngediendeStelling": {
-        "description": "Een stelling zoals de indiener hem terugkrijgt: met id en moderatiestatus",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Stelling"
-          },
-          {
-            "$ref": "#/components/schemas/StellingVelden"
-          },
-          {
-            "$ref": "#/components/schemas/Moderatiestatus"
-          }
-        ]
-      },
-      "EigenStelling": {
-        "description": "Een eigen stelling, met hoe hij beantwoord is",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/IngediendeStelling"
-          },
-          {
-            "type": "object",
-            "required": [
-              "antwoorden"
-            ],
-            "properties": {
-              "antwoorden": {
-                "$ref": "#/components/schemas/Telling"
-              }
-            }
-          }
-        ]
-      },
-      "BeoordelingVelden": {
-        "description": "Wat je stuurt bij het beoordelen van een stelling; bij afgekeurd is een reden verplicht",
+      "Antwoord": {
+        "description": "Een antwoord van een deelnemer op een stelling; opnieuw antwoorden mag, het laatste telt.",
         "type": "object",
         "required": [
-          "gesprek_id",
+          "stelling_id",
+          "waarde"
+        ],
+        "properties": {
+          "gesprek_id": {
+            "type": "string"
+          },
+          "deelnemer_id": {
+            "type": "string"
+          },
+          "stelling_id": {
+            "type": "string"
+          },
+          "waarde": {
+            "$ref": "#/components/schemas/Waarde"
+          }
+        }
+      },
+      "Beoordeling": {
+        "description": "Een beoordeling van een stelling door een beheerder; de laatste telt. Bij `afgekeurd` is een reden verplicht.",
+        "type": "object",
+        "required": [
           "stelling_id",
           "beoordeling"
         ],
@@ -849,72 +839,25 @@
           }
         }
       },
-      "BeoordeeldeStelling": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Stelling"
-          },
-          {
-            "$ref": "#/components/schemas/Moderatiestatus"
-          },
-          {
-            "type": "object",
-            "required": [
-              "antwoorden"
-            ],
-            "properties": {
-              "antwoorden": {
-                "$ref": "#/components/schemas/Telling"
-              }
-            }
-          }
-        ],
-        "description": "Een stelling zoals een beheerder hem ziet: met moderatiestatus en hoe hij beantwoord is, zonder wie hem indiende"
-      },
-      "Antwoord": {
+      "Deelnemer": {
+        "description": "Een deelnemer, anoniem: genummerd op volgorde van het eerste antwoord, met per stelling het laatste antwoord. Dezelfde nummers in de matrix, de export en de analyse.",
         "type": "object",
         "required": [
-          "user_id",
-          "stelling_id",
-          "waarde"
+          "nummer",
+          "antwoorden"
         ],
         "properties": {
-          "user_id": {
-            "type": "string"
+          "nummer": {
+            "type": "integer",
+            "minimum": 1
           },
-          "stelling_id": {
-            "type": "string"
-          },
-          "waarde": {
-            "$ref": "#/components/schemas/Waarde"
-          }
-        },
-        "description": "Een antwoord zoals de API het teruggeeft"
-      },
-      "AntwoordVelden": {
-        "description": "Wat je stuurt bij het geven van een antwoord: een antwoord plus het gesprek",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Antwoord"
-          },
-          {
+          "antwoorden": {
             "type": "object",
-            "required": [
-              "gesprek_id"
-            ],
-            "properties": {
-              "gesprek_id": {
-                "type": "string"
-              }
+            "description": "stelling_id => waarde",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Waarde"
             }
           }
-        ]
-      },
-      "AntwoordenPerStelling": {
-        "type": "object",
-        "description": "stelling_id => waarde",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/Waarde"
         }
       },
       "Export": {
@@ -957,25 +900,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Stelling"
-            }
+            },
+            "description": "De zichtbare stellingen (alleen `id` en `tekst`)"
           },
           "deelnemers": {
             "type": "array",
             "items": {
-              "type": "object",
-              "required": [
-                "nummer",
-                "antwoorden"
-              ],
-              "properties": {
-                "nummer": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "antwoorden": {
-                  "$ref": "#/components/schemas/AntwoordenPerStelling"
-                }
-              }
+              "$ref": "#/components/schemas/Deelnemer"
             }
           }
         }

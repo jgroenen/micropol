@@ -68,7 +68,7 @@ export async function getGesprekken() {
     return (await request('/gesprekken')).gesprekken;
 }
 
-// { id, titel, omschrijving, stellingen: [{ id, content }] } or throws with status 404
+// { id, titel, omschrijving, moderatie, stellingen: [{ id, tekst }] } or throws with status 404
 export function getGesprek(id) {
     return request(`/gesprekken/${encodeURIComponent(id)}`);
 }
@@ -87,7 +87,7 @@ export function postGesprek(velden) {
     return post('/gesprekken', velden);
 }
 
-// all stellingen of a gesprek: [{ id, content, beoordeling, reden, zichtbaar, antwoorden: { eens, neutraal, oneens } }]
+// all stellingen of a gesprek: [{ id, gesprek_id, tekst, beoordeling, reden, zichtbaar, antwoorden: { eens, neutraal, oneens } }]
 export async function getBeoordelingen(gesprekId) {
     return (await request(`/beoordelingen?gesprek_id=${encodeURIComponent(gesprekId)}`)).stellingen;
 }

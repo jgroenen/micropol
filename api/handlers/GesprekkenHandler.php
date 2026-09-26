@@ -17,9 +17,9 @@ class GesprekkenHandler {
             Http::error(404, "Gesprek not found.");
             return;
         }
-        // only id and content: who added a stelling stays private
+        // only id and tekst: who added a stelling stays private
         $gesprek['stellingen'] = array_map(function ($stelling) {
-            return ['id' => $stelling['id'], 'content' => $stelling['content']];
+            return ['id' => $stelling['id'], 'tekst' => $stelling['tekst']];
         }, $this->_volgorde(Data::zichtbareStellingen($id)));
 
         Http::json($gesprek);
@@ -40,7 +40,7 @@ class GesprekkenHandler {
     // moderatie is optional, default unchanged;
     // the file is append only, so this adds a row with the same id (see Data::gesprekken())
     public function PUT($id = null) {
-        if (!Sessie::vereisUser()) {
+        if (!Sessie::vereisBeheerder()) {
             return;
         }
         if ($id === null || !Data::gesprekExists($id)) {
@@ -57,7 +57,7 @@ class GesprekkenHandler {
 
     // [titel, omschrijving, moderatie] from the body of an admin request, or null after sending an error
     private function _velden($standaardModeratie) {
-        if (!Sessie::vereisUser()) {
+        if (!Sessie::vereisBeheerder()) {
             return null;
         }
         $input = Http::body();

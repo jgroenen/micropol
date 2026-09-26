@@ -4,7 +4,7 @@ class AnalyseHandler {
     // GET /analyse?api=<base url of the api>&gesprek_id=<id>[&herbereken=1]
     // The analyse of a gesprek on an api server, from its standard export (see lib/Export.php).
     // The model (PCA + K-means, see lib/Analyse.php) is at most 6 hours old, see lib/AnalyseModel.php;
-    // the deelnemers are placed live with it. The model is included, so the browser can place its own user.
+    // the deelnemers are placed live with it. The model is included, so the browser can place its own deelnemer.
     public function GET($id = null) {
         $api = rtrim(Http::field($_GET, 'api'), '/');
         $gesprekId = Http::field($_GET, 'gesprek_id');

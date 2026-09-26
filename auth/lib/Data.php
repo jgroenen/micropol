@@ -3,11 +3,12 @@
 // Where the data of the auth service lives. Every file is append only: a change is a new row
 // with the same key, and the last row counts. Tokens and codes are stored as their sha256 only.
 class Data {
-    const USERS = ['id', 'username', 'email', 'salt', 'encrypted_password', 'password_method'];
+    // accounts, see Wachtwoord for salt, versleuteld_wachtwoord and wachtwoord_methode
+    const GEBRUIKERS = ['id', 'gebruikersnaam', 'email', 'salt', 'versleuteld_wachtwoord', 'wachtwoord_methode'];
     // authorization codes, valid until verloopt (unix time); 0 once exchanged
-    const CODES = ['code_hash', 'client_id', 'redirect_uri', 'code_challenge', 'user_id', 'verloopt'];
+    const CODES = ['code_hash', 'client_id', 'redirect_uri', 'code_challenge', 'gebruiker_id', 'verloopt'];
     // logins; verloopt is the end of the login (SESSIE_MAX), 0 once revoked
-    const SESSIES = ['id', 'user_id', 'client_id', 'begonnen', 'verloopt'];
+    const SESSIES = ['id', 'gebruiker_id', 'client_id', 'begonnen', 'verloopt'];
     // access and refresh tokens (soort); verloopt 0 for a refresh token that was used (rotation)
     const TOKENS = ['token_hash', 'soort', 'sessie_id', 'verloopt'];
 
@@ -30,18 +31,18 @@ class Data {
         return $gevonden;
     }
 
-    // user by username (not case sensitive), or null
-    public static function user($username) {
-        foreach (Csv::read(self::file('users')) as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return $user;
+    // gebruiker by gebruikersnaam (not case sensitive), or null
+    public static function gebruiker($gebruikersnaam) {
+        foreach (Csv::read(self::file('gebruikers')) as $gebruiker) {
+            if (strcasecmp($gebruiker['gebruikersnaam'], $gebruikersnaam) === 0) {
+                return $gebruiker;
             }
         }
         return null;
     }
 
-    public static function userById($id) {
-        return self::laatste('users', 'id', $id);
+    public static function gebruikerById($id) {
+        return self::laatste('gebruikers', 'id', $id);
     }
 
     // random UUID v4

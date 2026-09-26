@@ -74,7 +74,7 @@
         }
     }
 
-    /* the current user: a ring and a label, drawn on top */
+    /* the current deelnemer: a ring and a label, drawn on top */
     & .jij {
         & .jij-ring {
             fill: none;

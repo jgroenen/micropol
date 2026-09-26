@@ -1,6 +1,6 @@
 import { escapeHtml } from 'cdn/util.js';
 
-// Scatter plot of the PCA + K-means result from GET /analyse, and placing the current user with its model.
+// Scatter plot of the PCA + K-means result from GET /analyse, and placing the current deelnemer with its model.
 // Groups are shown by color (A-C, the colors that stay distinguishable in a scatter plot),
 // by shape (all groups) and by a letter at the center of each group, never by color alone.
 
@@ -63,7 +63,7 @@ export function groepMarker(groep) {
     return `<svg class="groep-marker groep-${groep + 1}" width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true"><path d="${VORMEN[groep]}"/></svg>`;
 }
 
-// draws the plot into container, with the current user (result of plaats(), or null) highlighted;
+// draws the plot into container, with the current deelnemer (result of plaats(), or null) highlighted;
 // returns false if there is nothing to show
 export function tekenPlot(container, analyse, jij = null) {
     const punten = analyse.deelnemers;
@@ -125,7 +125,7 @@ export function tekenPlot(container, analyse, jij = null) {
         return `<text class="groep-letter" x="${cx.toFixed(1)}" y="${(cy - 16).toFixed(1)}">${NAMEN[groep]}</text>`;
     }).join('');
 
-    // the current user on top: a ring around its own marker, with a label
+    // the current deelnemer on top: a ring around its own marker, with a label
     let jijMarker = '';
     if (jij) {
         const tekst = jij.groep === null ? 'Jij' : `Jij · Groep ${NAMEN[jij.groep]}`;
@@ -269,7 +269,7 @@ function stellingRegel(item, extra = '') {
             <span class="bolletje ${item.kant}" role="img" aria-label="${item.kant === 'eens' ? 'Eens' : 'Oneens'}"></span>
             <span class="aandeel">${Math.round((item.aandeel ?? item.laagste) * 100)}%</span>
             <span class="nummer">S${item.nummer}</span>
-            <span class="tekst">${escapeHtml(item.stelling.content)}${extra}</span>
+            <span class="tekst">${escapeHtml(item.stelling.tekst)}${extra}</span>
         </li>`;
 }
 
@@ -309,7 +309,7 @@ export function tekenConsensus(container, analyse, stellingen) {
         )).join('')}</ul>`;
 }
 
-// legend: one line per group with its marker and size, and where the current user is
+// legend: one line per group with its marker and size, and where the current deelnemer is
 export function tekenLegenda(lijst, analyse, jij = null) {
     const regels = analyse.groepen.map((g, groep) => `
         <li>${groepMarker(groep)} <strong>Groep ${escapeHtml(g.naam)}</strong> <span>${g.deelnemers} ${g.deelnemers === 1 ? 'deelnemer' : 'deelnemers'}</span></li>

@@ -51,15 +51,15 @@ export async function getGesprekken() {
     return data.gesprekken;
 }
 
-// { id, titel, omschrijving, moderatie, stellingen: [{ id, content }] } or null;
+// { id, titel, omschrijving, moderatie, stellingen: [{ id, tekst }] } or null;
 // only the zichtbare stellingen, in random order
 export function getGesprek(gesprekId) {
     return request(`/gesprekken/${encodeURIComponent(gesprekId)}`);
 }
 
-// { stelling_id: waarde } for one user, or null if the gesprek does not exist
-export async function getMijnAntwoorden(gesprekId, userId) {
-    const data = await request(`/antwoorden?gesprek_id=${encodeURIComponent(gesprekId)}&user_id=${encodeURIComponent(userId)}`);
+// { stelling_id: waarde } for one deelnemer, or null if the gesprek does not exist
+export async function getMijnAntwoorden(gesprekId, deelnemerId) {
+    const data = await request(`/antwoorden?gesprek_id=${encodeURIComponent(gesprekId)}&deelnemer_id=${encodeURIComponent(deelnemerId)}`);
     if (!data) {
         return null;
     }
@@ -70,10 +70,10 @@ export async function getMijnAntwoorden(gesprekId, userId) {
     return antwoorden;
 }
 
-// [{ stelling_id: waarde }], one object per deelnemer, or null
+// [{ nummer, antwoorden: { stelling_id: waarde } }], one per deelnemer (anonymous, like the export), or null
 export async function getMatrix(gesprekId) {
     const data = await request(`/antwoorden?gesprek_id=${encodeURIComponent(gesprekId)}`);
-    return data ? data.antwoorden : null;
+    return data ? data.deelnemers : null;
 }
 
 // PCA + K-means groups: { k, verklaarde_variantie, deelnemers: [{ deelnemer, x, y, groep, antwoorden }], groepen, ... }
@@ -82,23 +82,23 @@ export function getAnalyse(gesprekId) {
     return request(`/analyse?api=${encodeURIComponent(API_URL)}&gesprek_id=${encodeURIComponent(gesprekId)}`, {}, MATH_URL);
 }
 
-export function postAntwoord(gesprekId, userId, stellingId, waarde) {
+export function postAntwoord(gesprekId, deelnemerId, stellingId, waarde) {
     return post('/antwoorden', {
         gesprek_id: gesprekId,
-        user_id: userId,
+        deelnemer_id: deelnemerId,
         stelling_id: stellingId,
         waarde: waarde
     });
 }
 
-// [{ id, gesprek_id, content, user_id, beoordeling, reden, zichtbaar, antwoorden: { eens, neutraal, oneens } }]
-// added by one user, or null if the gesprek does not exist; beoordeling is goedgekeurd, afgekeurd or null
-export async function getMijnStellingen(gesprekId, userId) {
-    const data = await request(`/stellingen?gesprek_id=${encodeURIComponent(gesprekId)}&user_id=${encodeURIComponent(userId)}`);
+// [{ id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar, antwoorden: { eens, neutraal, oneens } }]
+// added by one deelnemer, or null if the gesprek does not exist; beoordeling is goedgekeurd, afgekeurd or null
+export async function getMijnStellingen(gesprekId, deelnemerId) {
+    const data = await request(`/stellingen?gesprek_id=${encodeURIComponent(gesprekId)}&deelnemer_id=${encodeURIComponent(deelnemerId)}`);
     return data ? data.stellingen : null;
 }
 
-// returns the new stelling { id, gesprek_id, content, user_id, beoordeling, reden, zichtbaar }
-export function postStelling(gesprekId, userId, content) {
-    return post('/stellingen', { gesprek_id: gesprekId, user_id: userId, content: content });
+// returns the new stelling { id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar }
+export function postStelling(gesprekId, deelnemerId, tekst) {
+    return post('/stellingen', { gesprek_id: gesprekId, deelnemer_id: deelnemerId, tekst });
 }

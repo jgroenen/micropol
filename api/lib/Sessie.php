@@ -5,8 +5,8 @@
 // see config.php. That works with any OAuth server with introspection, like Keycloak.
 // The answer is kept INTROSPECTIE_CACHE seconds, so logging out takes at most that long to reach the api.
 class Sessie {
-    // the logged in user { id, username, email }, or null
-    public static function user() {
+    // the logged in beheerder { id, gebruikersnaam, email }, or null
+    public static function beheerder() {
         $token = self::token();
         if ($token === null) {
             return null;
@@ -17,20 +17,20 @@ class Sessie {
         }
         return [
             'id' => $info['sub'],
-            'username' => $info['username'] ?? $info['preferred_username'] ?? '',
+            'gebruikersnaam' => $info['username'] ?? $info['preferred_username'] ?? '',
             'email' => $info['email'] ?? '',
         ];
     }
 
-    // for handlers of the admin environment: the logged in user, or false after sending a 401
-    public static function vereisUser() {
-        $user = self::user();
-        if ($user === null) {
+    // for handlers of the admin environment: the logged in beheerder, or false after sending a 401
+    public static function vereisBeheerder() {
+        $beheerder = self::beheerder();
+        if ($beheerder === null) {
             header('WWW-Authenticate: Bearer');
             Http::error(401, "Not logged in.");
             return false;
         }
-        return $user;
+        return $beheerder;
     }
 
     // the answer of the auth service for a token, from the cache when recent enough

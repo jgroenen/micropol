@@ -80,7 +80,7 @@ function stellingRegel(s) {
     const aantal = s.antwoorden.eens + s.antwoorden.neutraal + s.antwoorden.oneens;
     return `
         <li data-id="${escapeHtml(s.id)}">
-            <p class="stelling-tekst">${escapeHtml(s.content)}</p>
+            <p class="stelling-tekst">${escapeHtml(s.tekst)}</p>
             <p class="stelling-meta">${status(s)} · ${aantal} ${aantal === 1 ? 'antwoord' : 'antwoorden'}</p>
             <div class="stelling-acties">
                 ${s.beoordeling !== 'goedgekeurd' ? '<button type="button" class="knop-klein" data-actie="goedkeuren">Goedkeuren</button>' : ''}

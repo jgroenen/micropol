@@ -1,0 +1,17 @@
+# MiniPol, port 80: only for the certificate checks of Let's Encrypt, everything else to https.
+# Made by deploy/deploy.sh from deploy/apache-http.conf.sjabloon: change the template, not this file.
+
+<VirtualHost *:80>
+    ServerName {{APP_HOST}}
+    ServerAlias {{DOMEIN}} {{ADMIN_HOST}} {{API_HOST}} {{AUTH_HOST}} {{CDN_HOST}} {{MATH_HOST}}
+
+    # certbot certonly --webroot puts its checks here
+    Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
+    <Directory /var/www/letsencrypt>
+        Require all granted
+    </Directory>
+
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>

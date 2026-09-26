@@ -1,5 +1,5 @@
 import { getGesprek, getMatrix, getAnalyse, getMijnAntwoorden } from './api.js';
-import { userId } from './user.js';
+import { deelnemerId } from './deelnemer.js';
 import { labels, escapeHtml } from 'cdn/util.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
@@ -43,7 +43,7 @@ export async function toonMatrix(id) {
                 console.error('Error fetching analyse:', error);
                 return null;
             }),
-            getMijnAntwoorden(id, userId)
+            getMijnAntwoorden(id, deelnemerId)
         ]);
         if (!gesprek) {
             titel.textContent = 'Gesprek niet gevonden';
@@ -61,7 +61,7 @@ export async function toonMatrix(id) {
 
         // deelnemer number (1-based) => group index
         const groepVan = new Map();
-        // the current user, placed in the browser with the model
+        // the current deelnemer, placed in the browser with the model
         const jij = analyse ? plaats(analyse.model, mijnAntwoorden ?? {}) : null;
         if (analyse && tekenPlot(plot, analyse, jij)) {
             analyse.deelnemers.forEach(d => groepVan.set(d.deelnemer, d.groep));
@@ -119,12 +119,12 @@ function tijdstip(iso) {
 
 function maakTabel(stellingen, deelnemers, groepVan) {
     const kop = stellingen
-        .map((s, i) => `<th scope="col" tabindex="0" aria-describedby="stelling-tooltip" data-stelling="${escapeHtml(s.content)}">S${i + 1}</th>`)
+        .map((s, i) => `<th scope="col" tabindex="0" aria-describedby="stelling-tooltip" data-stelling="${escapeHtml(s.tekst)}">S${i + 1}</th>`)
         .join('');
 
     // rows grouped: group A first, deelnemers without a group last
     const volgorde = deelnemers
-        .map((antwoorden, r) => ({ antwoorden, nummer: r + 1, groep: groepVan.get(r + 1) ?? null }))
+        .map(({ nummer, antwoorden }) => ({ antwoorden, nummer, groep: groepVan.get(nummer) ?? null }))
         .sort((a, b) => (a.groep ?? Infinity) - (b.groep ?? Infinity) || a.nummer - b.nummer);
 
     const rijen = volgorde.map(({ antwoorden, nummer, groep }) => {

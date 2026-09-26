@@ -75,8 +75,8 @@ export async function vernieuwNa401() {
     return tokens ? (await vernieuw(tokens))?.access_token ?? null : null;
 }
 
-// { id, username, email } of the logged in user, or null
-export async function ingelogdeUser() {
+// { id, gebruikersnaam, email } of the logged in beheerder, or null
+export async function ingelogdeBeheerder() {
     const token = await accessToken();
     if (!token) {
         return null;
@@ -87,7 +87,7 @@ export async function ingelogdeUser() {
         return null;
     }
     const info = await response.json();
-    return { id: info.sub, username: info.preferred_username ?? info.email ?? info.sub, email: info.email ?? '' };
+    return { id: info.sub, gebruikersnaam: info.preferred_username ?? info.email ?? info.sub, email: info.email ?? '' };
 }
 
 // ends the login at the auth service, so all its tokens stop working

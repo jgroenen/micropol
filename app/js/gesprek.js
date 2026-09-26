@@ -1,5 +1,5 @@
 import { getGesprek, getMijnAntwoorden, getMijnStellingen, getAnalyse, postAntwoord, postStelling } from './api.js';
-import { userId } from './user.js';
+import { deelnemerId } from './deelnemer.js';
 import { labels, escapeHtml } from 'cdn/util.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
@@ -26,7 +26,7 @@ function koppel() {
     antwoordKnoppen = knoppen.querySelectorAll('button');
     tabs = document.getElementById('gesprek-tabs');
     tabKnoppen = [...tabs.querySelectorAll('[role="tab"]')];
-    textarea = document.getElementById('stelling-content');
+    textarea = document.getElementById('stelling-tekst');
     indienen = document.getElementById('stelling-indienen');
 
     antwoordKnoppen.forEach(button => {
@@ -66,7 +66,7 @@ function koppel() {
 // state of the opened gesprek
 let huidig = null; // { gesprek, antwoorden: { stelling_id: waarde }, mijnStellingen: [stelling], stelling, analyse, analyseMislukt }
 
-// open one gesprek: load stellingen and this user's antwoorden and stellingen
+// open one gesprek: load stellingen and this deelnemer's antwoorden and stellingen
 export async function toonGesprek(id) {
     huidig = null;
     try {
@@ -82,8 +82,8 @@ export async function toonGesprek(id) {
 
         const [gesprek, antwoorden, eigenStellingen, analyse] = await Promise.all([
             getGesprek(id),
-            getMijnAntwoorden(id, userId),
-            getMijnStellingen(id, userId),
+            getMijnAntwoorden(id, deelnemerId),
+            getMijnStellingen(id, deelnemerId),
             // the groups are extra: answering works without them (e.g. when the math server is down)
             getAnalyse(id).catch(error => {
                 console.error('Error fetching analyse:', error);
@@ -130,7 +130,7 @@ function vulLijst(id, items) {
     document.getElementById(`${id}-leeg`).hidden = items.length > 0;
 }
 
-// the stellingen this user answered, in the order they were answered
+// the stellingen this deelnemer answered, in the order they were answered
 // (the stellingen of the gesprek come in random order)
 function toonMijnAntwoorden() {
     const { gesprek, antwoorden } = huidig;
@@ -141,15 +141,15 @@ function toonMijnAntwoorden() {
             const s = stellingVan.get(id);
             const waarde = antwoorden[s.id];
             const klasse = waarde in labels ? waarde : 'leeg';
-            return `<li><span>${escapeHtml(s.content)}</span><strong><span class="bolletje ${klasse}"></span> ${escapeHtml(labels[waarde] ?? waarde)}</strong></li>`;
+            return `<li><span>${escapeHtml(s.tekst)}</span><strong><span class="bolletje ${klasse}"></span> ${escapeHtml(labels[waarde] ?? waarde)}</strong></li>`;
         }));
 }
 
-// the stellingen this user added, newest first, each with how it was answered,
+// the stellingen this deelnemer added, newest first, each with how it was answered,
 // or why others don't see it
 function toonMijnStellingen() {
     vulLijst('mijn-stellingen', [...huidig.mijnStellingen].reverse()
-        .map(s => `<li class="mijn-stelling"><span>${escapeHtml(s.content)}</span>${s.zichtbaar ? verdeling(s.antwoorden) : moderatieStatus(s)}</li>`));
+        .map(s => `<li class="mijn-stelling"><span>${escapeHtml(s.tekst)}</span>${s.zichtbaar ? verdeling(s.antwoorden) : moderatieStatus(s)}</li>`));
 }
 
 function moderatieStatus(stelling) {
@@ -174,14 +174,14 @@ function verdeling(telling) {
     return `<div class="verdeling" role="img" aria-label="${beschrijving}">${delen}</div>`;
 }
 
-// which group the user belongs to, placed in the browser with the model from the analyse
+// which group the deelnemer belongs to, placed in the browser with the model from the analyse
 function toonGroepen() {
     const analyse = huidig.analyse;
     const status = document.getElementById('groep-status');
     const inhoud = document.getElementById('groepen-inhoud');
     let jij = analyse ? plaats(analyse.model, huidig.antwoorden) : null;
     const nodig = analyse ? analyse.min_antwoorden - (jij ? jij.antwoorden : 0) : 0;
-    // with too few antwoorden the user is in the plot, but not yet in a group
+    // with too few antwoorden the deelnemer is in the plot, but not yet in a group
     if (jij && nodig > 0) {
         jij = { ...jij, groep: null };
     }
@@ -231,7 +231,7 @@ function toonBeantwoorden() {
 
     const aantalBeantwoord = stellingen.filter(s => s.id in antwoorden).length;
     count.textContent = `Stelling ${aantalBeantwoord + 1} van ${stellingen.length}`;
-    text.textContent = stelling.content;
+    text.textContent = stelling.tekst;
     knoppen.hidden = false;
     antwoordKnoppen.forEach(b => b.disabled = false);
 }
@@ -245,7 +245,7 @@ async function beantwoord(waarde) {
     flash.hidden = true;
     antwoordKnoppen.forEach(b => b.disabled = true);
     try {
-        await postAntwoord(gesprek.id, userId, stelling.id, waarde);
+        await postAntwoord(gesprek.id, deelnemerId, stelling.id, waarde);
         antwoorden[stelling.id] = waarde;
         // answering an own stelling changes its bar
         const eigen = huidig.mijnStellingen.find(s => s.id === stelling.id);
@@ -265,17 +265,17 @@ async function dienStellingIn(event) {
     if (!huidig) {
         return;
     }
-    const content = textarea.value.trim();
-    if (!content) {
+    const tekst = textarea.value.trim();
+    if (!tekst) {
         return;
     }
     indienen.disabled = true;
     try {
-        const stelling = await postStelling(huidig.gesprek.id, userId, content);
+        const stelling = await postStelling(huidig.gesprek.id, deelnemerId, tekst);
         textarea.value = '';
         // a stelling waiting for goedkeuring can't be answered yet
         if (stelling.zichtbaar) {
-            huidig.gesprek.stellingen.push({ id: stelling.id, content: stelling.content });
+            huidig.gesprek.stellingen.push({ id: stelling.id, tekst: stelling.tekst });
         }
         huidig.mijnStellingen.push({ ...stelling, antwoorden: { eens: 0, neutraal: 0, oneens: 0 } });
         flash.textContent = stelling.zichtbaar

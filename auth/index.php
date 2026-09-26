@@ -7,7 +7,7 @@
 
 require __DIR__ . '/config.php';
 
-// users, codes, logins and tokens, see lib/Data.php
+// gebruikers, codes, logins and tokens, see lib/Data.php
 define('DATA_DIR', __DIR__ . '/data');
 
 // classes live in handlers/ and lib/, one class per file

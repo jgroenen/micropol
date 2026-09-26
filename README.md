@@ -48,6 +48,7 @@ Open daarna <http://localhost:8000> (app) of <http://localhost:8002> (beheer). D
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [auth/](auth/) | De auth service, zelfde opbouw als `api/`: [index.php](auth/index.php), [config.php](auth/config.php), [openapi.json](auth/openapi.json), [handlers/](auth/handlers/), [lib/](auth/lib/) (de flows in [Tokens](auth/lib/Tokens.php)), [bin/](auth/bin/) en [data/](auth/data/) (gebruikers en tokens) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
+| [deploy/](deploy/) | Uitrollen naar een VPS met Apache: [deploy.sh](deploy/deploy.sh), de Apache-sjablonen en [productie.env.voorbeeld](deploy/productie.env.voorbeeld), zie [docs/livegang.md](docs/livegang.md) |
 | [docs/](docs/) | Achtergronddocumentatie, zoals [analyse.md](docs/analyse.md) |
 
 ## API
@@ -66,6 +67,10 @@ De volledige beschrijving staat in een OpenAPI 3.1-spec, per server:
 - **Swagger UI:** komt van cdn.jsdelivr.net (`swagger-ui-dist@5`). Alleen `/docs` gebruikt het; de API zelf niet.
 - **Onderhoud:** pas de spec aan als je een endpoint toevoegt of verandert. `npx @redocly/cli lint api/openapi.json math/openapi.json auth/openapi.json` controleert of de spec geldig is.
 
+De spec heeft één schema per ding: `Gesprek`, `Stelling`, `Antwoord`, `Beoordeling` en `Deelnemer`. Wat de server invult, is `readOnly`. Welke velden in een antwoord staan, hangt af van de context. Een stelling in een gesprek heeft bijvoorbeeld alleen `id` en `tekst`, en een eigen stelling heeft alles.
+
+De namen zijn Nederlands, behalve waar een standaard de naam vastlegt (OAuth en OpenID Connect bij de auth service: `username`, `sub`, `client_id` en dergelijke) en `error` in foutmeldingen, zodat de drie diensten gelijk blijven.
+
 Het overzicht hieronder is de korte versie:
 
 | Methode en pad | Wat |
@@ -73,12 +78,12 @@ Het overzicht hieronder is de korte versie:
 | `GET /gesprekken` | Alle gesprekken (lokaal <http://localhost:8001/gesprekken>) |
 | `POST /gesprekken` | Gesprek aanmaken, alleen voor ingelogde beheerders: `{ titel, omschrijving, moderatie }` (max. 200 en 1000 tekens; omschrijving optioneel; `moderatie` is `achteraf` (standaard) of `vooraf`, zie [Moderatie](#moderatie)) |
 | `PUT /gesprekken/<id>` | Gesprek aanpassen, alleen voor ingelogde beheerders: `{ titel, omschrijving, moderatie }`, zelfde regels als aanmaken; zonder `moderatie` blijft die gelijk |
-| `GET /gesprekken/<id>` | Eén gesprek met zijn zichtbare stellingen (`{ id, content }`) in willekeurige volgorde |
-| `GET /stellingen?gesprek_id=<id>&user_id=<id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
-| `POST /stellingen` | Stelling toevoegen: `{ gesprek_id, user_id, content }` (max. 500 tekens); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
-| `GET /antwoorden?gesprek_id=<id>&user_id=<id>` | De antwoorden van één deelnemer |
-| `GET /antwoorden?gesprek_id=<id>` | Alle antwoorden als matrix: per deelnemer `{ stelling_id: waarde }`, zonder `user_id` |
-| `POST /antwoorden` | Antwoord geven: `{ gesprek_id, user_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
+| `GET /gesprekken/<id>` | Eén gesprek met zijn zichtbare stellingen (`{ id, tekst }`) in willekeurige volgorde |
+| `GET /stellingen?gesprek_id=<id>&deelnemer_id=<id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
+| `POST /stellingen` | Stelling toevoegen: `{ gesprek_id, deelnemer_id, tekst }` (max. 500 tekens); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
+| `GET /antwoorden?gesprek_id=<id>&deelnemer_id=<id>` | De antwoorden van één deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
+| `GET /antwoorden?gesprek_id=<id>` | Alle antwoorden als matrix: `{ gesprek_id, deelnemers: [{ nummer, antwoorden: { stelling_id: waarde } }] }`, anoniem, zoals in de export |
+| `POST /antwoorden` | Antwoord geven: `{ gesprek_id, deelnemer_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
 | `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor ingelogde beheerders |
 | `POST /beoordelingen` | Stelling beoordelen, alleen voor ingelogde beheerders: `{ gesprek_id, stelling_id, beoordeling, reden }`, met `beoordeling` `goedgekeurd` of `afgekeurd`; bij `afgekeurd` is een `reden` verplicht (max. 500 tekens) |
 | `GET /export?gesprek_id=<id>` | De standaardexport van een gesprek, voor de math server, zie [Math server](#math-server) |
@@ -94,9 +99,9 @@ Alle data staat als csv in [api/data/](api/data/):
 | Bestand | Kolommen |
 |---|---|
 | [gesprekken.csv](api/data/gesprekken.csv) | `id, titel, omschrijving, moderatie` |
-| [stellingen.csv](api/data/stellingen.csv) | `id, gesprek_id, content, user_id` (leeg bij stellingen van vóór die kolom) |
-| [antwoorden/](api/data/antwoorden/)`<gesprek_id>.csv` | `user_id, stelling_id, waarde` |
-| `beoordelingen/<gesprek_id>.csv` | `stelling_id, beoordeling, reden, user_id, tijdstip` (`user_id` is de beheerder) |
+| [stellingen.csv](api/data/stellingen.csv) | `id, gesprek_id, tekst, deelnemer_id` (`deelnemer_id` leeg bij stellingen van vóór die kolom) |
+| [antwoorden/](api/data/antwoorden/)`<gesprek_id>.csv` | `deelnemer_id, stelling_id, waarde` |
+| `beoordelingen/<gesprek_id>.csv` | `stelling_id, beoordeling, reden, beheerder_id, tijdstip` |
 
 De bestanden worden alleen aangevuld, nooit gewijzigd. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord. Zo werkt het ook bij een aangepast gesprek (een nieuwe regel met hetzelfde `id` in `gesprekken.csv`) en bij een nieuwe beoordeling van een stelling: de laatste regel telt. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
 
@@ -106,21 +111,21 @@ Onder Apache blokkeert [api/data/.htaccess](api/data/.htaccess) directe toegang 
 
 ## Deelnemers
 
-Een deelnemer is een willekeurige `user_id` (UUID) die de browser in `localStorage` bewaart. Er is geen login.
+Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `localStorage` bewaart ([app/js/deelnemer.js](app/js/deelnemer.js)). Er is geen login.
 
 ## Beheer
 
-De beheeromgeving staat lokaal op <http://localhost:8002>. Beheerders staan in de auth service, in [auth/data/users.csv](auth/data/users.csv), en worden toegevoegd met [auth/bin/user-toevoegen.php](auth/bin/user-toevoegen.php):
+De beheeromgeving staat lokaal op <http://localhost:8002>. Beheerders staan in de auth service, in [auth/data/gebruikers.csv](auth/data/gebruikers.csv), en worden toegevoegd met [auth/bin/gebruiker-toevoegen.php](auth/bin/gebruiker-toevoegen.php):
 
 ```sh
-php auth/bin/user-toevoegen.php <username> <email>
+php auth/bin/gebruiker-toevoegen.php <gebruikersnaam> <email>
 ```
 
 Het script vraagt het wachtwoord (minstens 12 tekens), zodat het niet in de shell-geschiedenis belandt.
 
-`password_method` zegt hoe `encrypted_password` is gemaakt, zodat er later een andere methode bij kan zonder bestaande gebruikers te breken. Nu is dat altijd `password_hash`: PHP's `password_hash()`. Die hash bevat zelf het algoritme en de salt, dus de kolom `salt` blijft leeg.
+`wachtwoord_methode` zegt hoe `versleuteld_wachtwoord` is gemaakt, zodat er later een andere methode bij kan zonder bestaande gebruikers te breken. Nu is dat altijd `password_hash`: PHP's `password_hash()`. Die hash bevat zelf het algoritme en de salt, dus de kolom `salt` blijft leeg.
 
-Een handler in de API die alleen voor beheerders is, begint met `Sessie::vereisUser()`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
+Een handler in de API die alleen voor beheerders is, begint met `Sessie::vereisBeheerder()`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
 
 ## Inloggen
 
@@ -147,9 +152,9 @@ De auth service slaat alles append-only op in [auth/data/](auth/data/):
 
 | Bestand | Kolommen |
 |---|---|
-| [users.csv](auth/data/users.csv) | `id, username, email, salt, encrypted_password, password_method` |
-| `codes.csv` | `code_hash, client_id, redirect_uri, code_challenge, user_id, verloopt` (`verloopt` 0: ingewisseld) |
-| `sessies.csv` | `id, user_id, client_id, begonnen, verloopt` (`verloopt` 0: uitgelogd of ingetrokken) |
+| [gebruikers.csv](auth/data/gebruikers.csv) | `id, gebruikersnaam, email, salt, versleuteld_wachtwoord, wachtwoord_methode` |
+| `codes.csv` | `code_hash, client_id, redirect_uri, code_challenge, gebruiker_id, verloopt` (`verloopt` 0: ingewisseld) |
+| `sessies.csv` | `id, gebruiker_id, client_id, begonnen, verloopt` (`verloopt` 0: uitgelogd of ingetrokken) |
 | `tokens.csv` | `token_hash, soort, sessie_id, verloopt` (`soort` is `access` of `refresh`; `verloopt` 0: refresh token gebruikt) |
 
 Samen vormen ze ook het logboek van wie wanneer inlogde. De bestanden groeien met elke login en elke vernieuwing; verlopen regels worden (nog) niet opgeruimd.
@@ -193,7 +198,7 @@ Is de math server niet bereikbaar, dan werkt de rest gewoon: beantwoorden en de 
   "versie": 1,
   "gegenereerd": "2026-09-25T16:40:00+02:00",
   "gesprek": { "id": "…", "titel": "…" },
-  "stellingen": [{ "id": "…", "content": "…" }],
+  "stellingen": [{ "id": "…", "tekst": "…" }],
   "deelnemers": [{ "nummer": 1, "antwoorden": { "<stelling_id>": "eens" } }]
 }
 ```
@@ -205,21 +210,23 @@ Is de math server niet bereikbaar, dan werkt de rest gewoon: beantwoorden en de 
 
 ## Losse servers
 
-De app, de admin, de API, de math server, de auth service en de cdn draaien elk op een eigen server en domein. Per omgeving pas je aan:
+De app, de admin, de API, de math server, de auth service en de cdn draaien elk op een eigen server en domein. Hoe je ze live zet op een VPS met Apache, met elk deel op een subdomein, staat in [docs/livegang.md](docs/livegang.md). [deploy/deploy.sh](deploy/deploy.sh) regelt de instellingen per omgeving; met de hand hoef je niets aan te passen.
 
-| Deel | Bestand | Wat |
+Waar de instellingen zitten:
+
+| Deel | Instellingen | Hoe per omgeving |
 |---|---|---|
-| `api/` | [config.php](api/config.php) | `TOEGESTANE_ORIGINS`: de origins van de app en de admin (CORS); `AUTH_INTROSPECTIE_URL`, `AUTH_CLIENT_ID` en het geheim (`MINIPOL_API_SECRET` als omgevingsvariabele) |
-| `app/` | [js/config.js](app/js/config.js) | `API_URL` en `MATH_URL` |
-| `app/` | [index.html](app/index.html) | De url van de cdn: de stylesheet en de import map (`cdn/`) |
-| `admin/` | [js/config.js](admin/js/config.js) | `API_URL`, `APP_URL` (voor de links naar de app), `AUTH_URL` en `CLIENT_ID` |
-| `admin/` | [index.html](admin/index.html) | De url van de cdn, zoals bij de app |
-| `math/` | [config.php](math/config.php) | `TOEGESTANE_ORIGINS`: de origin van de app (CORS); `TOEGESTANE_APIS`: de API's waarvan hij exports mag ophalen |
-| `auth/` | [config.php](auth/config.php) | `ISSUER` (de eigen URL), `CDN_URL`, `TOEGESTANE_ORIGINS` (de admin), `CLIENTS` (met hun redirect-URI's), `RESOURCE_SERVERS` (de API, met hetzelfde geheim) en de geldigheidsduur van tokens |
+| `api/` | [config.php](api/config.php): de URL's van app, admin en auth, en het geheim bij de auth service | Omgevingsvariabelen `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL`, `MINIPOL_AUTH_URL`, `MINIPOL_API_SECRET` (in Apache via `SetEnv`) |
+| `math/` | [config.php](math/config.php): de URL's van app en API | `MINIPOL_APP_URL`, `MINIPOL_API_URL` |
+| `auth/` | [config.php](auth/config.php): de eigen URL, die van admin en cdn, en het geheim; ook de geldigheidsduur van tokens | `MINIPOL_AUTH_URL`, `MINIPOL_ADMIN_URL`, `MINIPOL_CDN_URL`, `MINIPOL_API_SECRET` |
+| `app/` | [js/config.js](app/js/config.js) en de cdn-URL in [index.html](app/index.html) | Geschreven door `deploy/deploy.sh` (een browser kent geen omgevingsvariabelen) |
+| `admin/` | [js/config.js](admin/js/config.js) en de cdn-URL in [index.html](admin/index.html) | Geschreven door `deploy/deploy.sh` |
+
+Zonder omgevingsvariabelen gelden de waarden voor lokaal ontwikkelen (`localhost`), zoals in de repository.
 
 Voor de verschillende servers:
 
-- **API:** handelt de CORS-preflight (`OPTIONS`) zelf af. Alle requests moeten naar [api/index.php](api/index.php), en alleen die: `data/` mag niet publiek zijn. Onder Apache moet de `Authorization`-header PHP bereiken; zet daarvoor `CGIPassAuth On`. Draait de API in een submap `api/`, dan werken de paden ook met die prefix (`/api/gesprekken`).
+- **API:** handelt de CORS-preflight (`OPTIONS`) zelf af. Alle requests moeten naar [api/index.php](api/index.php), en alleen die: `data/` mag niet publiek zijn. Onder Apache moet de `Authorization`-header PHP bereiken: `CGIPassAuth On` (php-fpm) of `SetEnvIf Authorization` (mod_php); de sjablonen in `deploy/` doen beide. Draait de API in een submap `api/`, dan werken de paden ook met die prefix (`/api/gesprekken`).
 - **Auth service:** net als de API: alle requests naar [auth/index.php](auth/index.php), en `data/` en `bin/` mogen niet publiek zijn. Draai hem in productie alleen over HTTPS. De API moet hem kunnen bereiken voor de introspection.
 - **Math server:** net als de API: alle requests naar [math/index.php](math/index.php), en `data/` mag niet publiek zijn. Hij moet de API kunnen bereiken en PHP moet urls kunnen openen (`allow_url_fopen`).
 - **App en admin:** zijn alleen statische bestanden; een eigen server-router is niet nodig.
@@ -230,3 +237,4 @@ De CSS en JS op de cdn gebruiken de app en de admin tegelijk: een wijziging daar
 ## Meer
 
 - [docs/analyse.md](docs/analyse.md): hoe de groepsanalyse werkt, welke keuzes erin zitten en waar je iets aanpast.
+- [docs/livegang.md](docs/livegang.md): live zetten op een VPS met Apache, en nieuwe versies uitrollen.

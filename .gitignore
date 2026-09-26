@@ -6,3 +6,7 @@ math/data/*
 !math/data/.htaccess
 auth/data/*
 !auth/data/.htaccess
+
+# deployment: the settings per environment hold the secret; the build is made by deploy/deploy.sh
+deploy/*.env
+deploy/build/

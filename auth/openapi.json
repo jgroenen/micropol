@@ -186,8 +186,8 @@
                   "redirect_uri",
                   "code_challenge",
                   "code_challenge_method",
-                  "username",
-                  "password"
+                  "gebruikersnaam",
+                  "wachtwoord"
                 ],
                 "properties": {
                   "response_type": {
@@ -209,10 +209,10 @@
                   "code_challenge_method": {
                     "const": "S256"
                   },
-                  "username": {
+                  "gebruikersnaam": {
                     "type": "string"
                   },
-                  "password": {
+                  "wachtwoord": {
                     "type": "string",
                     "format": "password"
                   }

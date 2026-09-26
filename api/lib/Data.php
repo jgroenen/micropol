@@ -4,10 +4,10 @@
 class Data {
     // moderatie: MODERATIE_ACHTERAF or MODERATIE_VOORAF, see zichtbaar()
     const GESPREKKEN = ['id', 'titel', 'omschrijving', 'moderatie'];
-    const STELLINGEN = ['id', 'gesprek_id', 'content', 'user_id'];
-    const ANTWOORDEN = ['user_id', 'stelling_id', 'waarde'];
-    // beoordeling of a stelling by an admin (user_id): BEOORDELING_GOEDGEKEURD or BEOORDELING_AFGEKEURD
-    const BEOORDELINGEN = ['stelling_id', 'beoordeling', 'reden', 'user_id', 'tijdstip'];
+    const STELLINGEN = ['id', 'gesprek_id', 'tekst', 'deelnemer_id'];
+    const ANTWOORDEN = ['deelnemer_id', 'stelling_id', 'waarde'];
+    // beoordeling of a stelling by a beheerder (beheerder_id): BEOORDELING_GOEDGEKEURD or BEOORDELING_AFGEKEURD
+    const BEOORDELINGEN = ['stelling_id', 'beoordeling', 'reden', 'beheerder_id', 'tijdstip'];
 
     // stellingen are shown unless afgekeurd (blacklist), or only once goedgekeurd (whitelist)
     const MODERATIE_ACHTERAF = 'achteraf';
@@ -117,14 +117,30 @@ class Data {
         return Csv::read(self::antwoordenFile($gesprekId));
     }
 
-    // [user_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
+    // [deelnemer_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
     // the file is append only, so a later antwoord overrides an earlier one
     public static function matrix($gesprekId) {
         $rows = [];
         foreach (self::antwoorden($gesprekId) as $antwoord) {
-            $rows[$antwoord['user_id']][$antwoord['stelling_id']] = $antwoord['waarde'];
+            $rows[$antwoord['deelnemer_id']][$antwoord['stelling_id']] = $antwoord['waarde'];
         }
         return $rows;
+    }
+
+    // the deelnemers of a gesprek, anonymous: [{ nummer, antwoorden: { stelling_id: waarde } }], numbered in
+    // order of their first antwoord; with $stellingIds only the antwoorden on those (a deelnemer without any stays,
+    // so the numbers are the same everywhere)
+    public static function deelnemers($gesprekId, ?array $stellingIds = null) {
+        $alleen = $stellingIds === null ? null : array_flip($stellingIds);
+        $deelnemers = [];
+        foreach (array_values(self::matrix($gesprekId)) as $index => $antwoorden) {
+            $deelnemers[] = [
+                'nummer' => $index + 1,
+                // an object, also when empty or with numeric stelling ids
+                'antwoorden' => (object) ($alleen === null ? $antwoorden : array_intersect_key($antwoorden, $alleen)),
+            ];
+        }
+        return $deelnemers;
     }
 
     // [stelling_id => { eens, neutraal, oneens }]: how many deelnemers gave each antwoord,

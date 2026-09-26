@@ -1,19 +1,19 @@
-// the logged in user (from the auth service, see auth.js); main.js shows the right view when it changes
+// the logged in beheerder (from the auth service, see auth.js); main.js shows the right view when it changes
 
-let user = null;
+let beheerder = null;
 let bijWijziging = () => {};
 
-// { id, username, email } or null
-export function ingelogdeUser() {
-    return user;
+// { id, gebruikersnaam, email } or null
+export function ingelogdeBeheerder() {
+    return beheerder;
 }
 
-export function zetUser(nieuw) {
-    user = nieuw;
-    bijWijziging(user);
+export function zetBeheerder(nieuw) {
+    beheerder = nieuw;
+    bijWijziging(beheerder);
 }
 
-export function bijWijzigingVanUser(callback) {
+export function bijWijzigingVanBeheerder(callback) {
     bijWijziging = callback;
 }
 
@@ -21,7 +21,7 @@ export function bijWijzigingVanUser(callback) {
 // otherwise show the melding (an element with the message already in it), if any
 export function verwerkFout(error, melding = null) {
     if (error.status === 401) {
-        zetUser(null);
+        zetBeheerder(null);
         return;
     }
     console.error(error);

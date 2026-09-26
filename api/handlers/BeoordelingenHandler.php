@@ -9,7 +9,7 @@ class BeoordelingenHandler {
     // all stellingen of the gesprek, in the order they were added, with beoordeling (or null),
     // reden, zichtbaar and antwoorden { eens, neutraal, oneens }
     public function GET($id = null) {
-        if (!Sessie::vereisUser()) {
+        if (!Sessie::vereisBeheerder()) {
             return;
         }
         $gesprekId = Http::field($_GET, 'gesprek_id');
@@ -22,9 +22,9 @@ class BeoordelingenHandler {
             return;
         }
 
-        // without user_id, admins don't need to know who added a stelling
+        // without deelnemer_id: beheerders don't need to know who added a stelling
         $stellingen = array_map(function ($stelling) {
-            unset($stelling['gesprek_id'], $stelling['user_id']);
+            unset($stelling['deelnemer_id']);
             return $stelling;
         }, Data::metTellingen($gesprekId, Data::stellingenMetBeoordeling($gesprekId)));
         Http::json(["stellingen" => $stellingen]);
@@ -34,8 +34,8 @@ class BeoordelingenHandler {
     // beoordeling is goedgekeurd or afgekeurd; reden is required for afgekeurd.
     // Returns the stelling with its new state, like GET.
     public function POST($id = null) {
-        $user = Sessie::vereisUser();
-        if (!$user) {
+        $beheerder = Sessie::vereisBeheerder();
+        if (!$beheerder) {
             return;
         }
         $input = Http::body();
@@ -74,11 +74,11 @@ class BeoordelingenHandler {
             return;
         }
 
-        Csv::append(Data::beoordelingenFile($gesprekId), Data::BEOORDELINGEN, [$stellingId, $beoordeling, $reden, $user['id'], date('c')]);
+        Csv::append(Data::beoordelingenFile($gesprekId), Data::BEOORDELINGEN, [$stellingId, $beoordeling, $reden, $beheerder['id'], date('c')]);
 
         foreach (Data::metTellingen($gesprekId, Data::stellingenMetBeoordeling($gesprekId)) as $stelling) {
             if ($stelling['id'] === $stellingId) {
-                unset($stelling['gesprek_id'], $stelling['user_id']);
+                unset($stelling['deelnemer_id']);
                 Http::json($stelling);
                 return;
             }

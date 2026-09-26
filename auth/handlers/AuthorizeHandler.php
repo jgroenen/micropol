@@ -4,7 +4,7 @@
 //   GET  /authorize?response_type=code&client_id&redirect_uri&state&code_challenge&code_challenge_method=S256
 //        shows the login form
 //   POST /authorize   the form: on success back to redirect_uri?code=...&state=...
-// The password is only ever sent to this page, never to the app that asked for the login.
+// The wachtwoord is only ever sent to this page, never to the app that asked for the login.
 class AuthorizeHandler {
     public function GET($id = null) {
         $verzoek = $this->_verzoek($_GET);
@@ -18,21 +18,21 @@ class AuthorizeHandler {
         if ($verzoek === null) {
             return;
         }
-        $username = Http::field($_POST, 'username');
-        // not trimmed: spaces may be part of a password
-        $password = isset($_POST['password']) ? (string) $_POST['password'] : '';
+        $gebruikersnaam = Http::field($_POST, 'gebruikersnaam');
+        // not trimmed: spaces may be part of a wachtwoord
+        $wachtwoord = isset($_POST['wachtwoord']) ? (string) $_POST['wachtwoord'] : '';
 
-        $user = $username === '' ? null : Data::user($username);
-        if ($user === null) {
-            Wachtwoord::doeAlsOf($password);
+        $gebruiker = $gebruikersnaam === '' ? null : Data::gebruiker($gebruikersnaam);
+        if ($gebruiker === null) {
+            Wachtwoord::doeAlsOf($wachtwoord);
         }
-        if ($user === null || !Wachtwoord::klopt($password, $user)) {
+        if ($gebruiker === null || !Wachtwoord::klopt($wachtwoord, $gebruiker)) {
             http_response_code(401);
-            $this->_pagina($verzoek, $username, 'Onjuiste gebruikersnaam of wachtwoord.');
+            $this->_pagina($verzoek, $gebruikersnaam, 'Onjuiste gebruikersnaam of wachtwoord.');
             return;
         }
 
-        $code = Tokens::maakCode($verzoek['client_id'], $verzoek['redirect_uri'], $verzoek['code_challenge'], $user);
+        $code = Tokens::maakCode($verzoek['client_id'], $verzoek['redirect_uri'], $verzoek['code_challenge'], $gebruiker);
         $this->_terug($verzoek, ['code' => $code]);
     }
 
@@ -70,7 +70,7 @@ class AuthorizeHandler {
         header('Location: ' . $verzoek['redirect_uri'] . $scheiding . http_build_query($parameters), true, 302);
     }
 
-    private function _pagina(array $verzoek, $username = '', $fout = null) {
+    private function _pagina(array $verzoek, $gebruikersnaam = '', $fout = null) {
         $e = function ($tekst) {
             return htmlspecialchars($tekst, ENT_QUOTES);
         };
@@ -84,10 +84,10 @@ class AuthorizeHandler {
 <form class="inlog-formulier" method="post" action="authorize">
     <h1 class="pagina-titel">Inloggen</h1>
     $foutHtml
-    <label for="username">Gebruikersnaam</label>
-    <input id="username" name="username" autocomplete="username" required autofocus value="{$e($username)}">
-    <label for="password">Wachtwoord</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <label for="gebruikersnaam">Gebruikersnaam</label>
+    <input id="gebruikersnaam" name="gebruikersnaam" autocomplete="username" required autofocus value="{$e($gebruikersnaam)}">
+    <label for="wachtwoord">Wachtwoord</label>
+    <input id="wachtwoord" name="wachtwoord" type="password" autocomplete="current-password" required>
     $verborgen
     <button type="submit" class="action-button">Inloggen</button>
 </form>
