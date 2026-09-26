@@ -100,6 +100,9 @@ try {
     check('app: oude user_id overgenomen als deelnemer_id', await waarde(`localStorage.getItem('deelnemer_id') === '${data.deelnemer}' && localStorage.getItem('user_id') === null`));
     check('app: eigen antwoorden (alleen zichtbare stellingen)', await waarde(`document.getElementById('mijn-antwoorden-lijst').children.length`) === data.zichtbaar);
     check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
+    // loaded, and (below) nothing from Google: so from the cdn, the only other source
+    check('app: font IBM Plex Sans geladen', await doe(`await document.fonts.ready; return [...document.fonts].some(f => f.family.includes('IBM Plex Sans') && f.status === 'loaded');`));
+    check('app: geen verzoeken naar Google', await waarde(`!performance.getEntriesByType('resource').some(r => /google|gstatic/.test(r.name))`));
 
     await doe(`document.getElementById('tab-stellingen').click(); document.getElementById('open-toevoegen').click();`);
     // with quotes and a tag, which must stay text everywhere

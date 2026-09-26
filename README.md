@@ -61,7 +61,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
 | [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php) met [views/pagina.html](admin/views/pagina.html), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
-| [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
+| [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (het font IBM Plex Sans, reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
 | [Caddyfile](Caddyfile) | De webserver in productie: alle subdomeinen, met FrankenPHP en automatische HTTPS, zie [docs/livegang.md](docs/livegang.md) |
@@ -261,7 +261,7 @@ App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL in `views/
 - **Math server:** moet de API kunnen bereiken, via zijn URL.
 - **CDN:** moet `Access-Control-Allow-Origin` meesturen, anders weigert de browser JS-modules van een ander domein. Lokaal doet [dev/cdn.php](dev/cdn.php) dat.
 
-De cdn gebruiken app en admin tegelijk: een wijziging daar raakt beide.
+De cdn gebruiken app en admin tegelijk: een wijziging daar raakt beide. Ook het font komt van de cdn, zodat app en admin geen andere servers aanspreken (zoals Google Fonts). Alleen de API-documentatie op `/docs` laadt Swagger UI van cdn.jsdelivr.net.
 
 ## Meer
 

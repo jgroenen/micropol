@@ -11,12 +11,14 @@ if (PHP_SAPI !== 'cli-server') {
 $types = [
     'css' => 'text/css; charset=utf-8',
     'js' => 'text/javascript; charset=utf-8',
+    'woff2' => 'font/woff2',
+    'txt' => 'text/plain; charset=utf-8',
 ];
 $root = realpath(__DIR__ . '/../cdn');
 $file = realpath($root . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $extensie = $file ? pathinfo($file, PATHINFO_EXTENSION) : '';
 
-// only css and js files inside cdn/
+// only these kinds of files, inside cdn/
 if ($file === false || !str_starts_with($file, $root . '/') || !isset($types[$extensie]) || !is_file($file)) {
     http_response_code(404);
     return;
