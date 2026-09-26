@@ -1,0 +1,76 @@
+/* deelnemers × stellingen, see js/matrix.js */
+.legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+    font-weight: 300;
+
+    & li {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+}
+
+.matrix-wrapper {
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    margin-block-end: var(--space-5);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+}
+
+.matrix {
+    border-collapse: collapse;
+    font-weight: 300;
+
+    & :is(th, td) {
+        padding: var(--space-1) var(--space-2);
+        border-block-end: 1px solid var(--color-border);
+        text-align: center;
+    }
+
+    & tbody tr:last-child :is(th, td) {
+        border-block-end: none;
+    }
+
+    /* S-numbers, full stelling in the tooltip */
+    & thead th[data-stelling] {
+        font-weight: 600;
+        cursor: help;
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+
+        &:is(:hover, :focus-visible) {
+            color: var(--color-brand-text);
+        }
+    }
+
+    /* deelnemer column stays put while scrolling sideways */
+    & tbody th {
+        position: sticky;
+        inset-inline-start: 0;
+        background: var(--color-surface);
+        font-weight: 400;
+        text-align: start;
+        white-space: nowrap;
+    }
+}
+
+.bolletje {
+    display: inline-block;
+    inline-size: 1rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    vertical-align: middle;
+
+    &.eens { background: var(--color-eens); }
+    &.oneens { background: var(--color-oneens); }
+    &.neutraal { background: var(--color-neutraal); }
+    &.leeg { border: 1px dashed var(--color-border); }
+}

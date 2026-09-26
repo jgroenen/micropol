@@ -1,0 +1,70 @@
+<section id="gesprek" class="view" hidden>
+    <nav class="gesprek-nav">
+        <a class="terug" href="#/">← Alle gesprekken</a>
+        <a class="terug" id="matrix-link" href="#/">Matrix bekijken →</a>
+    </nav>
+    <p class="flash" id="flash" hidden>Je stelling is ingediend!</p>
+
+    <article id="beantwoorden">
+        <p class="gesprek-titel" id="gesprek-titel"></p>
+        <p class="statement-count" id="statement-count"></p>
+        <p class="statement-text" id="statement-text"></p>
+        <div class="button-group" id="antwoord-knoppen">
+            <button class="action-button" data-antwoord="eens">Eens</button>
+            <button class="action-button" data-antwoord="neutraal">Neutraal</button>
+            <button class="action-button" data-antwoord="oneens">Oneens</button>
+        </div>
+    </article>
+
+    <!-- tabs below the stelling, see toonTab() in js/gesprek.js -->
+    <section class="gesprek-tabs" id="gesprek-tabs" hidden>
+        <div class="tab-lijst" role="tablist" aria-label="Over jou in dit gesprek">
+            <button role="tab" id="tab-antwoorden" aria-controls="paneel-antwoorden" data-tab="antwoorden">Mijn antwoorden</button>
+            <button role="tab" id="tab-stellingen" aria-controls="paneel-stellingen" data-tab="stellingen">Mijn stellingen</button>
+            <button role="tab" id="tab-groepen" aria-controls="paneel-groepen" data-tab="groepen">Groepen bekijken</button>
+        </div>
+
+        <div class="tab-paneel" role="tabpanel" id="paneel-antwoorden" aria-labelledby="tab-antwoorden" tabindex="0">
+            <ul class="tab-lijstje" id="mijn-antwoorden-lijst"></ul>
+            <p class="tab-leeg" id="mijn-antwoorden-leeg">Je hebt nog geen stellingen beantwoord.</p>
+        </div>
+
+        <div class="tab-paneel" role="tabpanel" id="paneel-stellingen" aria-labelledby="tab-stellingen" tabindex="0" hidden>
+            <ul class="tab-lijstje" id="mijn-stellingen-lijst"></ul>
+            <p class="tab-leeg" id="mijn-stellingen-leeg">Je hebt nog geen stellingen ingediend.</p>
+            <button class="link-button" id="open-toevoegen">
+                <svg width="27" height="25" viewBox="0 0 27 25" aria-hidden="true"><rect x="1" y="1" width="25" height="23" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13.5 7v11M8 12.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Voeg je eigen stelling toe
+            </button>
+        </div>
+
+        <div class="tab-paneel" role="tabpanel" id="paneel-groepen" aria-labelledby="tab-groepen" tabindex="0" hidden>
+            <p class="groep-status" id="groep-status"></p>
+            <div class="analyse-inhoud" id="groepen-inhoud" hidden>
+                <div class="plot" id="groepen-plot"></div>
+                <ul class="groep-legenda" id="groepen-legenda"></ul>
+            </div>
+            <a id="groepen-link" href="#/">Bekijk wat de groepen onderscheidt, en alle antwoorden →</a>
+        </div>
+    </section>
+
+    <form id="toevoegen" hidden>
+        <header class="toevoegen-header">
+            <svg width="27" height="25" viewBox="0 0 27 25" aria-hidden="true"><rect x="1" y="1" width="25" height="23" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13.5 7v11M8 12.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <h1>Voeg je eigen stelling toe</h1>
+            <button type="button" class="close-button" id="sluit-toevoegen" aria-label="Sluiten">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+        </header>
+        <ul class="richtlijnen">
+            <li>De stelling moet beantwoord kunnen worden met „eens” of „oneens”.</li>
+            <li>Behandel één onderwerp per stelling.</li>
+            <li>De stelling moet gemakkelijk te begrijpen zijn.</li>
+        </ul>
+        <p class="moderatie-hint" id="moderatie-hint" hidden>In dit gesprek worden stellingen eerst beoordeeld. Andere deelnemers zien je stelling pas als die is goedgekeurd.</p>
+        <textarea id="stelling-content" rows="3" maxlength="500" required placeholder="Jouw eigen stelling"></textarea>
+        <div class="button-group">
+            <button type="submit" class="action-button" id="stelling-indienen">Stelling indienen</button>
+        </div>
+    </form>
+</section>

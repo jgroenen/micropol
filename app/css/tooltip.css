@@ -1,0 +1,26 @@
+/* positioned by js/tooltip.js */
+.stelling-tooltip {
+    position: fixed;
+    z-index: 10;
+    max-inline-size: min(20rem, 100vw - 2rem);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--color-tooltip);
+    color: var(--color-on-tooltip);
+    font-size: var(--font-size-small);
+    line-height: 1.43;
+    font-weight: 300;
+    box-shadow: var(--shadow-raised);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.12s;
+
+    /* fade in when it becomes visible */
+    @starting-style {
+        opacity: 0;
+    }
+
+    & strong {
+        font-weight: 600;
+    }
+}

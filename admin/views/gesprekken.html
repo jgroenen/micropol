@@ -1,0 +1,32 @@
+<section id="gesprekken" class="view" hidden>
+    <h1 class="pagina-titel">Gesprekken</h1>
+    <p class="flash" id="gesprekken-flash" role="status" hidden></p>
+    <div id="gesprekken-overzicht">
+        <ul class="beheer-lijst gesprekken-lijst" id="gesprekken-lijst"></ul>
+        <button class="link-button" id="open-nieuw">
+            <svg width="27" height="25" viewBox="0 0 27 25" aria-hidden="true"><rect x="1" y="1" width="25" height="23" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13.5 7v11M8 12.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Nieuw gesprek
+        </button>
+    </div>
+
+    <form class="beheer-formulier" id="nieuw-formulier" hidden>
+        <header class="toevoegen-header">
+            <svg width="27" height="25" viewBox="0 0 27 25" aria-hidden="true"><rect x="1" y="1" width="25" height="23" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13.5 7v11M8 12.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <h2>Nieuw gesprek</h2>
+            <button type="button" class="close-button" id="sluit-nieuw" aria-label="Sluiten">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+        </header>
+        <p class="flash fout" id="nieuw-fout" role="alert" hidden></p>
+        <label for="nieuw-titel">Titel</label>
+        <input id="nieuw-titel" name="titel" maxlength="200" required>
+        <label for="nieuw-omschrijving">Omschrijving <span>(optioneel)</span></label>
+        <textarea id="nieuw-omschrijving" name="omschrijving" rows="3" maxlength="1000"></textarea>
+        <fieldset class="keuze">
+            <legend>Stellingen van deelnemers</legend>
+            <label><input type="radio" name="moderatie" value="achteraf" checked> Direct tonen, achteraf afkeuren</label>
+            <label><input type="radio" name="moderatie" value="vooraf"> Pas tonen na goedkeuring</label>
+        </fieldset>
+        <button type="submit" class="action-button" id="nieuw-knop">Gesprek aanmaken</button>
+    </form>
+</section>

@@ -1,0 +1,150 @@
+/* developer tool: API calls of the current page, see js/apilog.js */
+.api-log-knop {
+    position: fixed;
+    inset: auto var(--space-3) var(--space-3) auto;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+    color: var(--color-muted);
+    font: 600 var(--font-size-small) / 1 ui-monospace, "SF Mono", Menlo, monospace;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--color-text);
+    }
+
+    & .api-log-teller {
+        min-inline-size: 1.5em;
+        padding: 2px 5px;
+        border-radius: 999px;
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+        text-align: center;
+    }
+}
+
+.api-log {
+    position: fixed;
+    inset: auto var(--space-3) calc(var(--space-3) + 2.75rem) auto;
+    inline-size: min(46rem, 100vw - 2 * var(--space-3));
+    max-block-size: min(75vh, 100dvh - 6rem);
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-raised);
+    color: var(--color-text);
+
+    & > header {
+        position: sticky;
+        inset-block-start: 0;
+        display: flex;
+        align-items: center;
+        padding: var(--space-2) var(--space-3);
+        border-block-end: 1px solid var(--color-border);
+        background: var(--color-surface);
+
+        & h2 {
+            margin: 0;
+            font-size: var(--font-size-base);
+            font-weight: 600;
+        }
+    }
+
+    & .api-log-leeg {
+        margin: 0;
+        padding: var(--space-3);
+        color: var(--color-muted);
+        font-weight: 300;
+    }
+
+    & .api-log-lijst {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+
+        & > li + li {
+            border-block-start: 1px solid var(--color-border);
+        }
+    }
+
+    & summary {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        font: var(--font-size-small) / 1.4 ui-monospace, "SF Mono", Menlo, monospace;
+        cursor: pointer;
+
+        &:hover {
+            background: var(--color-brand-surface);
+        }
+
+        & .methode {
+            font-weight: 600;
+        }
+
+        & .url {
+            flex: 1;
+            min-inline-size: 0;
+            overflow-wrap: anywhere;
+        }
+
+        & .status {
+            font-weight: 600;
+
+            &.ok { color: var(--color-eens); }
+            &.fout { color: var(--color-oneens); }
+        }
+
+        & .meta {
+            color: var(--color-muted);
+            white-space: nowrap;
+        }
+    }
+
+    & .inhoud {
+        padding: 0 var(--space-3) var(--space-3);
+
+        & h3 {
+            margin: var(--space-2) 0 var(--space-1);
+            color: var(--color-muted);
+            font-size: var(--font-size-small);
+            font-weight: 600;
+        }
+
+        & pre {
+            max-block-size: 50vh;
+            margin: 0;
+            padding: var(--space-2);
+            overflow: auto;
+            border-radius: var(--radius);
+            background: var(--color-page);
+            font: 12px / 1.5 ui-monospace, "SF Mono", Menlo, monospace;
+            tab-size: 2;
+        }
+
+        & .sleutel { color: var(--color-brand-text); }
+        & .tekst { color: light-dark(#1a7f37, #7ee2a8); }
+        & .getal { color: light-dark(#0550ae, #79c0ff); }
+        & .woord { color: light-dark(#8250df, #d2a8ff); }
+
+        & .kopieer {
+            margin-block-start: var(--space-2);
+            padding: var(--space-1) var(--space-2);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            background: transparent;
+            font-size: var(--font-size-small);
+            cursor: pointer;
+        }
+    }
+}

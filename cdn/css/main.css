@@ -1,0 +1,12 @@
+/*
+ * Shared styles of the app and the admin: load this before the main.css of the interface.
+ * Layer order decides which styles win, not file order: later layers override earlier ones.
+ * Look & feel based on the Voxit frontend of praatmeemetdeoverheid.nl
+ */
+@layer reset, tokens, base, layout, components;
+
+@import url("reset.css") layer(reset);
+@import url("tokens.css") layer(tokens);
+@import url("base.css") layer(base);
+@import url("layout.css") layer(layout);
+@import url("apilog.css") layer(components);

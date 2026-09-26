@@ -1,0 +1,139 @@
+/* one gesprek: its details and its stellingen, see js/gesprek.js and js/stellingen.js */
+/* directly below the info line, which has its own margin */
+#gesprek-formulier {
+    margin-block-start: 0;
+}
+
+.gesprek-info {
+    margin: 0 0 var(--space-5);
+    color: var(--color-muted);
+    font-weight: 300;
+}
+
+/* stellingen of a gesprek, to approve or reject */
+.beheer-stellingen {
+    margin-block-start: var(--space-6);
+}
+
+.stellingen-kop {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    margin-block-end: var(--space-3);
+
+    & h2 {
+        margin: 0;
+        font-size: var(--font-size-h2);
+        font-weight: 600;
+    }
+
+    & label {
+        font-weight: 300;
+    }
+
+    & select {
+        margin-inline-start: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+    }
+}
+
+.stelling-tekst {
+    margin: 0 0 var(--space-1);
+}
+
+.stelling-meta {
+    margin: 0 0 var(--space-2);
+    color: var(--color-muted);
+    font-size: var(--font-size-small);
+    font-weight: 300;
+}
+
+/* label of the moderatie state */
+.beoordeling-label {
+    display: inline-block;
+    margin-inline-end: var(--space-1);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius);
+    background: var(--color-brand-surface);
+    color: var(--color-text);
+    font-weight: 600;
+
+    &.goedgekeurd { background: var(--color-eens); color: var(--color-on-brand); }
+    &.afgekeurd { background: var(--color-oneens); color: var(--color-on-brand); }
+    &.wacht { background: var(--color-neutraal); color: oklch(0% 0 0); }
+}
+
+.stelling-acties {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.knop-klein {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-brand-text);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-brand-text);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: var(--color-brand);
+        border-color: var(--color-brand);
+        color: var(--color-on-brand);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+}
+
+.afkeur-formulier {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-2) var(--space-3);
+    margin-block-start: var(--space-2);
+
+    & label {
+        display: grid;
+        flex: 1 1 16rem;
+        gap: var(--space-1);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+
+        & span {
+            color: var(--color-muted);
+            font-weight: 300;
+        }
+    }
+
+    & input {
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+        font-weight: 300;
+    }
+
+    & .link-button {
+        font-size: var(--font-size-small);
+    }
+}
+
+.leeg-tekst {
+    margin: 0;
+    color: var(--color-muted);
+    font-weight: 300;
+}

@@ -1,0 +1,40 @@
+/* overview of the gesprekken, see js/gesprekken.js */
+.gesprekken-lijst {
+    & li {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0 var(--space-3);
+    }
+
+    & .beheer-titel {
+        justify-self: start;
+        font-weight: 600;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    & li > span {
+        grid-column: 1;
+        color: var(--color-muted);
+        font-weight: 300;
+    }
+
+    & a:not(.beheer-titel) {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        font-weight: 300;
+    }
+}
+
+#open-nieuw {
+    margin-block-start: var(--space-4);
+}
+
+/* the form has the place of the list */
+#nieuw-formulier {
+    margin-block-start: 0;
+}

@@ -1,0 +1,10 @@
+/*
+ * Styles of the admin, on top of the shared styles of the cdn (css/main.css there, see index.html).
+ * Layer order decides which styles win, not file order.
+ */
+@layer reset, tokens, base, layout, components;
+
+@import url("admin.css") layer(components);
+@import url("inloggen.css") layer(components);
+@import url("gesprekken.css") layer(components);
+@import url("gesprek.css") layer(components);

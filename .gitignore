@@ -1,0 +1,6 @@
+# Data is not part of the code: every server has its own. The files are created on first use
+# (see Csv::append), so an empty data directory works. Only the .htaccess that blocks direct access stays.
+api/data/*
+!api/data/.htaccess
+math/data/*
+!math/data/.htaccess

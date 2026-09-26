@@ -1,0 +1,11 @@
+/*
+ * Styles of the app, on top of the shared styles of the cdn (css/main.css there, see index.html).
+ * Layer order decides which styles win, not file order: later layers override earlier ones.
+ */
+@layer reset, tokens, base, layout, components;
+
+@import url("gesprekken.css") layer(components);
+@import url("gesprek.css") layer(components);
+@import url("matrix.css") layer(components);
+@import url("analyse.css") layer(components);
+@import url("tooltip.css") layer(components);

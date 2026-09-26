@@ -1,0 +1,52 @@
+.site-header {
+    display: flex;
+    align-items: center;
+    padding: var(--space-4) var(--space-4) 0;
+}
+
+.site-titel {
+    color: var(--color-brand-text);
+    font-size: var(--font-size-h2);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* main area with the rounded brand background */
+main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin: var(--space-3) 0 0;
+    padding: clamp(var(--space-5), 4vw, var(--space-6)) clamp(var(--space-4), 4vw, var(--space-6));
+    background-color: var(--color-brand-surface);
+    border-start-end-radius: clamp(5rem, 12vw, 9rem);
+
+    @media (width >= 40rem) {
+        margin: var(--space-4);
+    }
+}
+
+/* one <section class="view"> is visible at a time, see js/views.js */
+.view {
+    container: view / inline-size;
+    inline-size: 100%;
+    max-inline-size: 60rem;
+    margin-inline: auto;
+
+    &.breed {
+        max-inline-size: 90rem;
+    }
+}
+
+.pagina-titel {
+    margin: 0 0 var(--space-5);
+    font-size: var(--font-size-h1);
+    line-height: 1.33;
+    font-weight: 600;
+}
+
+.terug {
+    display: inline-block;
+    margin-block-end: var(--space-4);
+    font-weight: 300;
+}

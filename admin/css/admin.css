@@ -1,0 +1,142 @@
+/* shared by the views of the admin environment: header, forms, lists */
+.site-header {
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.beheer-label {
+    color: var(--color-muted);
+    font-weight: 300;
+}
+
+.ingelogd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-weight: 300;
+
+    & .link-button {
+        text-decoration: underline;
+    }
+}
+
+/* forms */
+.inlog-formulier,
+.beheer-formulier {
+    display: grid;
+    gap: var(--space-2);
+
+    & label {
+        font-weight: 600;
+
+        & span {
+            color: var(--color-muted);
+            font-weight: 300;
+        }
+    }
+
+    & :is(input, textarea) {
+        margin-block-end: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+        font-weight: 300;
+
+        &:focus-visible {
+            outline: medium solid var(--color-brand-text);
+            outline-offset: 2px;
+        }
+    }
+
+    & textarea {
+        field-sizing: content; /* grows with the text */
+        min-block-size: 3lh;
+        resize: vertical;
+    }
+
+    & .action-button {
+        justify-self: start;
+    }
+}
+
+.beheer-formulier {
+    max-inline-size: 40rem;
+    margin-block-start: var(--space-5);
+
+    & h2 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-h2);
+        font-weight: 600;
+    }
+}
+
+.flash.fout {
+    background: var(--color-oneens);
+}
+
+/* white list with rows, for gesprekken and stellingen */
+.beheer-lijst {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+
+    & li {
+        padding: var(--space-3) var(--space-4);
+
+        & + li {
+            border-block-start: 1px solid var(--color-border);
+        }
+    }
+}
+
+/* choice between radio buttons, e.g. the moderatie of a gesprek */
+.keuze {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    border: none;
+
+    & legend {
+        margin-block-end: var(--space-1);
+        padding: 0;
+        font-weight: 600;
+    }
+
+    & label {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-weight: 300;
+    }
+
+    & input {
+        margin: 0;
+    }
+}
+
+/* header of a form that takes the place of a list, with an icon and a close button (like the app) */
+.toevoegen-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-block-end: var(--space-3);
+
+    & > svg {
+        flex-shrink: 0;
+        color: var(--color-brand-text);
+    }
+
+    & h2 {
+        margin: 0;
+        font-size: var(--font-size-h2);
+        line-height: 1.33;
+        font-weight: 600;
+    }
+}

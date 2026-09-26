@@ -1,0 +1,276 @@
+/* groups plot on the matrix page, see js/analyse.js */
+.analyse {
+    margin-block-end: var(--space-5);
+
+    & h2 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-h2);
+        font-weight: 600;
+    }
+}
+
+.sectie-titel {
+    margin: 0 0 var(--space-3);
+    font-size: var(--font-size-h2);
+    font-weight: 600;
+}
+
+.analyse-uitleg {
+    margin: 0 0 var(--space-4);
+    max-inline-size: 60ch;
+    color: var(--color-muted);
+    font-weight: 300;
+}
+
+/* plot and legend side by side when there is room */
+.analyse-inhoud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: var(--space-4);
+    margin-block-end: var(--space-5);
+}
+
+.plot {
+    flex: 1 1 24rem;
+    max-inline-size: 40rem;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+
+    & svg {
+        inline-size: 100%;
+        block-size: auto;
+    }
+
+    & .as {
+        stroke: var(--color-grid);
+        stroke-width: 1;
+    }
+
+    & .as-label {
+        fill: var(--color-muted);
+        font-size: 12px;
+        font-weight: 300;
+    }
+
+    & .punt {
+        cursor: default;
+        outline: none;
+
+        & .raakvlak {
+            fill: transparent;
+        }
+
+        & .vorm {
+            fill: var(--groep-kleur);
+            stroke: var(--color-surface);
+            stroke-width: 2;
+            paint-order: stroke;
+        }
+
+        &:is(:hover, :focus-visible) .vorm {
+            stroke: var(--color-text);
+        }
+    }
+
+    /* the current user: a ring and a label, drawn on top */
+    & .jij {
+        & .jij-ring {
+            fill: none;
+            stroke: var(--color-text);
+            stroke-width: 2;
+        }
+
+        & .jij-label {
+            fill: var(--color-text);
+            stroke: var(--color-surface);
+            stroke-width: 4px;
+            paint-order: stroke;
+            font-size: 13px;
+            font-weight: 600;
+            text-anchor: middle;
+        }
+    }
+
+    & .zonder-groep {
+        --groep-kleur: var(--color-muted);
+    }
+
+    & .groep-letter {
+        fill: var(--color-text);
+        stroke: var(--color-surface);
+        stroke-width: 4px;
+        paint-order: stroke;
+        font-size: 15px;
+        font-weight: 600;
+        text-anchor: middle;
+        pointer-events: none;
+    }
+}
+
+.groep-1 { --groep-kleur: var(--groep-1); }
+.groep-2 { --groep-kleur: var(--groep-2); }
+.groep-3 { --groep-kleur: var(--groep-3); }
+.groep-4 { --groep-kleur: var(--groep-4); }
+.groep-5 { --groep-kleur: var(--groep-5); }
+
+.groep-marker {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -2px;
+    fill: var(--groep-kleur);
+}
+
+.groep-legenda {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-weight: 300;
+
+    & li {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+
+    & strong {
+        font-weight: 600;
+    }
+
+    & span {
+        color: var(--color-muted);
+    }
+}
+
+.jij-regel .jij-ring {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 2;
+}
+
+/* after answering: which group you belong to, see js/gesprek.js */
+.groep-status {
+    margin: 0 0 var(--space-4);
+    font-weight: 300;
+
+    & .groep-marker {
+        margin-inline: 2px;
+    }
+
+    & strong {
+        font-weight: 600;
+    }
+
+    & a {
+        margin-inline-start: var(--space-1);
+    }
+}
+
+/* group marker + letter in front of each row of the matrix */
+.groep-cel {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-inline-size: 2.5em;
+    font-weight: 600;
+}
+
+/* per group what is kenmerkend and what it mostly agrees on, and what all groups share; see js/analyse.js */
+.groep-kaarten {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+    gap: var(--space-4);
+    margin-block-end: var(--space-5);
+}
+
+.groep-kaart,
+.consensus {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+
+    & h4 {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-h3);
+        font-weight: 600;
+
+        & span {
+            color: var(--color-muted);
+            font-size: var(--font-size-small);
+            font-weight: 300;
+        }
+    }
+
+    & h5 {
+        margin: var(--space-3) 0 var(--space-1);
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+    }
+
+    & ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    /* dot, share, S-number, text */
+    & li {
+        display: grid;
+        grid-template-columns: 0.625rem 2.75em 2.5em 1fr;
+        align-items: baseline;
+        gap: var(--space-1);
+        padding-block: 3px;
+        font-weight: 300;
+
+        & .bolletje {
+            inline-size: 0.625rem;
+        }
+    }
+
+    & .aandeel {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-align: end;
+    }
+
+    & .nummer,
+    & .rest {
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+    }
+
+    & .rest {
+        white-space: nowrap;
+    }
+
+    & .geen {
+        margin: 0;
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+        font-weight: 300;
+    }
+
+    & details {
+        margin-block-start: var(--space-3);
+        padding-block-start: var(--space-2);
+        border-block-start: 1px solid var(--color-border);
+    }
+
+    & summary {
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+        cursor: pointer;
+    }
+}
+
+.consensus {
+    max-inline-size: 60rem;
+}

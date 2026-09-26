@@ -1,0 +1,2 @@
+# never serve the csv files directly (Apache)
+Require all denied
