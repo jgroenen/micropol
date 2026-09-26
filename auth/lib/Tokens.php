@@ -15,7 +15,7 @@ class Tokens {
     // an authorization code for a gebruiker who just logged in at /authorize
     public static function maakCode($clientId, $redirectUri, $codeChallenge, array $gebruiker) {
         $code = self::willekeurig();
-        Data::append('codes', Data::CODES, [
+        Data::voegToe('codes', Data::CODES, [
             self::hash($code), $clientId, $redirectUri, $codeChallenge, $gebruiker['id'], time() + CODE_GELDIG,
         ]);
         return $code;
@@ -25,20 +25,20 @@ class Tokens {
     public static function wisselCode($code, $clientId, $redirectUri, $codeVerifier) {
         $rij = Data::laatste('codes', 'code_hash', self::hash($code));
         if ($rij === null || (int) $rij['verloopt'] < time()) {
-            throw new OAuthFout('invalid_grant', 'The code is invalid, expired or already used.');
+            throw new OAuthFout(400, 'invalid_grant', 'The code is invalid, expired or already used.');
         }
         // once only, also when the rest is wrong
-        Data::append('codes', Data::CODES, array_merge(array_values(array_slice($rij, 0, 5)), [0]));
+        Data::voegToe('codes', Data::CODES, array_merge(array_values(array_slice($rij, 0, 5)), [0]));
 
         if (!hash_equals($rij['client_id'], $clientId) || !hash_equals($rij['redirect_uri'], $redirectUri)) {
-            throw new OAuthFout('invalid_grant', 'The code was issued for another client or redirect_uri.');
+            throw new OAuthFout(400, 'invalid_grant', 'The code was issued for another client or redirect_uri.');
         }
         if (!hash_equals($rij['code_challenge'], self::challenge($codeVerifier))) {
-            throw new OAuthFout('invalid_grant', 'The code_verifier does not match the code_challenge.');
+            throw new OAuthFout(400, 'invalid_grant', 'The code_verifier does not match the code_challenge.');
         }
 
         $sessieId = Data::uuid();
-        Data::append('sessies', Data::SESSIES, [$sessieId, $rij['gebruiker_id'], $clientId, time(), time() + SESSIE_MAX]);
+        Data::voegToe('sessies', Data::SESSIES, [$sessieId, $rij['gebruiker_id'], $clientId, time(), time() + SESSIE_MAX]);
         return self::geefUit($sessieId);
     }
 
@@ -46,21 +46,21 @@ class Tokens {
     public static function vernieuw($refreshToken, $clientId) {
         $rij = Data::laatste('tokens', 'token_hash', self::hash($refreshToken));
         if ($rij === null || $rij['soort'] !== 'refresh') {
-            throw new OAuthFout('invalid_grant', 'Unknown refresh token.');
+            throw new OAuthFout(400, 'invalid_grant', 'Unknown refresh token.');
         }
         if ((int) $rij['verloopt'] === 0) {
             // used before: someone else has (had) it too, so nobody keeps this login
             self::beeindig($rij['sessie_id']);
-            throw new OAuthFout('invalid_grant', 'The refresh token was already used; the login has been ended.');
+            throw new OAuthFout(400, 'invalid_grant', 'The refresh token was already used; the login has been ended.');
         }
         $sessie = self::actieveSessie($rij['sessie_id']);
         if ((int) $rij['verloopt'] < time() || $sessie === null) {
-            throw new OAuthFout('invalid_grant', 'The refresh token or the login has expired.');
+            throw new OAuthFout(400, 'invalid_grant', 'The refresh token or the login has expired.');
         }
         if (!hash_equals($sessie['client_id'], $clientId)) {
-            throw new OAuthFout('invalid_grant', 'The refresh token was issued for another client.');
+            throw new OAuthFout(400, 'invalid_grant', 'The refresh token was issued for another client.');
         }
-        Data::append('tokens', Data::TOKENS, [$rij['token_hash'], 'refresh', $rij['sessie_id'], 0]);
+        Data::voegToe('tokens', Data::TOKENS, [$rij['token_hash'], 'refresh', $rij['sessie_id'], 0]);
         return self::geefUit($rij['sessie_id']);
     }
 
@@ -72,7 +72,7 @@ class Tokens {
             return ['active' => false];
         }
         $sessie = self::actieveSessie($rij['sessie_id']);
-        $gebruiker = $sessie ? Data::gebruikerById($sessie['gebruiker_id']) : null;
+        $gebruiker = $sessie ? Data::gebruikerMetId($sessie['gebruiker_id']) : null;
         if ($gebruiker === null) {
             return ['active' => false];
         }
@@ -105,8 +105,8 @@ class Tokens {
         $access = self::willekeurig();
         $refresh = self::willekeurig();
         $accessVerloopt = min(time() + ACCESS_TOKEN_GELDIG, $einde);
-        Data::append('tokens', Data::TOKENS, [self::hash($access), 'access', $sessieId, $accessVerloopt]);
-        Data::append('tokens', Data::TOKENS, [self::hash($refresh), 'refresh', $sessieId, min(time() + REFRESH_TOKEN_GELDIG, $einde)]);
+        Data::voegToe('tokens', Data::TOKENS, [self::hash($access), 'access', $sessieId, $accessVerloopt]);
+        Data::voegToe('tokens', Data::TOKENS, [self::hash($refresh), 'refresh', $sessieId, min(time() + REFRESH_TOKEN_GELDIG, $einde)]);
         return [
             'access_token' => $access,
             'token_type' => 'Bearer',
@@ -124,7 +124,7 @@ class Tokens {
     private static function beeindig($sessieId) {
         $sessie = Data::laatste('sessies', 'id', $sessieId);
         if ($sessie !== null && (int) $sessie['verloopt'] !== 0) {
-            Data::append('sessies', Data::SESSIES, [$sessie['id'], $sessie['gebruiker_id'], $sessie['client_id'], $sessie['begonnen'], 0]);
+            Data::voegToe('sessies', Data::SESSIES, [$sessie['id'], $sessie['gebruiker_id'], $sessie['client_id'], $sessie['begonnen'], 0]);
         }
     }
 

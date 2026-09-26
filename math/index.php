@@ -38,20 +38,22 @@ $id = $segments[1] ?? null;
 $method = $_SERVER['REQUEST_METHOD'];
 
 if (!isset($handlers[$resource])) {
-    Http::error(404, "Unknown resource.");
+    Http::error(404, 'Unknown resource.');
     return;
 }
 
 $handler = new $handlers[$resource]();
 
 if (!method_exists($handler, $method)) {
-    Http::error(405, "Method not allowed.");
+    Http::error(405, 'Method not allowed.');
     return;
 }
 
 try {
     $handler->{$method}($id);
+} catch (HttpFout $fout) {
+    Http::error($fout->getCode(), $fout->getMessage());
 } catch (Throwable $e) {
     error_log($e);
-    Http::error(500, "Internal server error.");
+    Http::error(500, 'Internal server error.');
 }

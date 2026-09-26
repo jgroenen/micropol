@@ -1,6 +1,6 @@
 // The deelnemer: a random id, kept in localStorage (for now). There is no login.
 // It used to be kept as 'user_id'; that id is taken over, so a deelnemer keeps his antwoorden.
-function getDeelnemerId() {
+function leesOfMaakDeelnemerId() {
     let id = null;
     try {
         id = localStorage.getItem('deelnemer_id') || localStorage.getItem('user_id');
@@ -17,4 +17,4 @@ function getDeelnemerId() {
     return id;
 }
 
-export const deelnemerId = getDeelnemerId();
+export const deelnemerId = leesOfMaakDeelnemerId();

@@ -1,11 +1,12 @@
 import { getGesprekken, postGesprek } from './api.js';
-import { verwerkFout } from './sessie.js';
-import { escapeHtml, gesprekVelden } from './util.js';
+import { verwerkFout } from './toegang.js';
+import { escapeHtml } from 'cdn/util.js';
+import { gesprekVelden } from './util.js';
 import { APP_URL } from './config.js';
 import { toonView } from './views.js';
 
 // elements of views/gesprekken.html, set by koppel() once the view is in the page
-let overzicht, lijst, flash, formulier, fout, knop;
+let overzicht, lijst, melding, formulier, fout, knop;
 let gekoppeld = false;
 
 function koppel() {
@@ -14,7 +15,7 @@ function koppel() {
     }
     overzicht = document.getElementById('gesprekken-overzicht');
     lijst = document.getElementById('gesprekken-lijst');
-    flash = document.getElementById('gesprekken-flash');
+    melding = document.getElementById('gesprekken-melding');
     formulier = document.getElementById('nieuw-formulier');
     fout = document.getElementById('nieuw-fout');
     knop = document.getElementById('nieuw-knop');
@@ -26,7 +27,7 @@ function koppel() {
 
 // the form for a new gesprek takes the place of the list, like adding a stelling in the app
 function toonFormulier() {
-    flash.hidden = true;
+    melding.hidden = true;
     fout.hidden = true;
     overzicht.hidden = true;
     formulier.hidden = false;
@@ -43,7 +44,7 @@ export async function toonGesprekken() {
     try {
         await toonView('gesprekken');
         koppel();
-        flash.hidden = true;
+        melding.hidden = true;
         toonLijst();
         const gesprekken = await getGesprekken();
         lijst.innerHTML = gesprekken.map(gesprekRegel).join('');
@@ -66,15 +67,15 @@ function gesprekRegel(g) {
 async function maakGesprek(event) {
     event.preventDefault();
     fout.hidden = true;
-    flash.hidden = true;
+    melding.hidden = true;
     knop.disabled = true;
     try {
         const gesprek = await postGesprek(gesprekVelden(formulier));
         formulier.reset();
         lijst.insertAdjacentHTML('beforeend', gesprekRegel(gesprek));
         toonLijst();
-        flash.textContent = `Gesprek „${gesprek.titel}” is aangemaakt.`;
-        flash.hidden = false;
+        melding.textContent = `Gesprek „${gesprek.titel}” is aangemaakt.`;
+        melding.hidden = false;
     } catch (error) {
         fout.textContent = 'Het gesprek kon niet worden aangemaakt. Probeer het opnieuw.';
         verwerkFout(error, fout);

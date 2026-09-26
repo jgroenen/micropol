@@ -30,11 +30,11 @@
     }
 }
 
-#open-nieuw {
+.open-nieuw {
     margin-block-start: var(--space-4);
 }
 
 /* the form has the place of the list */
-#nieuw-formulier {
+.nieuw-formulier {
     margin-block-start: 0;
 }

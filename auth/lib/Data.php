@@ -1,7 +1,8 @@
 <?php
 
-// Where the data of the auth service lives. Every file is append only: a change is a new row
-// with the same key, and the last row counts. Tokens and codes are stored as their sha256 only.
+// Where the data of the auth service lives, like Data of the api. Every file is append only: a change
+// is a new row with the same key, and the last row counts (Csv::lastPer). Tokens and codes are stored as
+// their sha256 only.
 class Data {
     // accounts, see Wachtwoord for salt, versleuteld_wachtwoord and wachtwoord_methode
     const GEBRUIKERS = ['id', 'gebruikersnaam', 'email', 'salt', 'versleuteld_wachtwoord', 'wachtwoord_methode'];
@@ -12,28 +13,24 @@ class Data {
     // access and refresh tokens (soort); verloopt 0 for a refresh token that was used (rotation)
     const TOKENS = ['token_hash', 'soort', 'sessie_id', 'verloopt'];
 
-    public static function file($naam) {
+    // the file with this name, like 'tokens'
+    public static function bestand($naam) {
         return DATA_DIR . "/$naam.csv";
     }
 
-    public static function append($naam, array $headers, array $row) {
-        return Csv::append(self::file($naam), $headers, $row);
+    // adds a row (values in the order of $kolommen) and returns it as an associative array
+    public static function voegToe($naam, array $kolommen, array $rij) {
+        return Csv::append(self::bestand($naam), $kolommen, $rij);
     }
 
     // the last row with $waarde in column $kolom, or null
     public static function laatste($naam, $kolom, $waarde) {
-        $gevonden = null;
-        foreach (Csv::read(self::file($naam)) as $row) {
-            if (hash_equals($row[$kolom], $waarde)) {
-                $gevonden = $row;
-            }
-        }
-        return $gevonden;
+        return Csv::lastPer(self::bestand($naam), $kolom)[$waarde] ?? null;
     }
 
     // gebruiker by gebruikersnaam (not case sensitive), or null
     public static function gebruiker($gebruikersnaam) {
-        foreach (Csv::read(self::file('gebruikers')) as $gebruiker) {
+        foreach (Csv::read(self::bestand('gebruikers')) as $gebruiker) {
             if (strcasecmp($gebruiker['gebruikersnaam'], $gebruikersnaam) === 0) {
                 return $gebruiker;
             }
@@ -41,7 +38,7 @@ class Data {
         return null;
     }
 
-    public static function gebruikerById($id) {
+    public static function gebruikerMetId($id) {
         return self::laatste('gebruikers', 'id', $id);
     }
 

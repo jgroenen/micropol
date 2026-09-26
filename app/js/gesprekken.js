@@ -6,7 +6,7 @@ import { toonView } from './views.js';
 export async function toonGesprekken() {
     try {
         await toonView('gesprekken');
-        const gesprekkenList = document.getElementById('gesprekken-list');
+        const gesprekkenList = document.getElementById('gesprekken-lijst');
         const gesprekken = await getGesprekken();
         gesprekkenList.innerHTML = '';
         gesprekken.forEach(gesprek => {

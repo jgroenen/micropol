@@ -14,12 +14,10 @@ class ExportHandler {
     public function GET($id = null) {
         $gesprekId = Http::field($_GET, 'gesprek_id');
         if ($gesprekId === '') {
-            Http::error(400, "gesprek_id is required.");
-            return;
+            throw new HttpFout(400, 'gesprek_id is required.');
         }
-        if (!Data::gesprekExists($gesprekId)) {
-            Http::error(404, "Gesprek not found.");
-            return;
+        if (!Data::gesprekBestaat($gesprekId)) {
+            throw new HttpFout(404, 'Gesprek not found.');
         }
 
         $gesprek = Data::gesprek($gesprekId);

@@ -1,6 +1,6 @@
 /* one gesprek: its details and its stellingen, see js/gesprek.js and js/stellingen.js */
 /* directly below the info line, which has its own margin */
-#gesprek-formulier {
+.gesprek-formulier {
     margin-block-start: 0;
 }
 
@@ -127,7 +127,7 @@
         font-weight: 300;
     }
 
-    & .link-button {
+    & .link-knop {
         font-size: var(--font-size-small);
     }
 }

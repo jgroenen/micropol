@@ -1,12 +1,12 @@
 <section id="gesprek" class="view" hidden>
     <a class="terug" href="#/">← Alle gesprekken</a>
     <h1 class="pagina-titel" id="gesprek-titel"></h1>
-    <p class="flash" id="gesprek-flash" role="status" hidden></p>
+    <p class="melding" id="gesprek-melding" role="status" hidden></p>
     <p class="gesprek-info" id="gesprek-info"></p>
 
-    <form class="beheer-formulier" id="gesprek-formulier" hidden>
+    <form class="beheer-formulier gesprek-formulier" id="gesprek-formulier" hidden>
         <h2>Gegevens</h2>
-        <p class="flash fout" id="gesprek-fout" role="alert" hidden></p>
+        <p class="melding fout" id="gesprek-fout" role="alert" hidden></p>
         <label for="gesprek-titel-veld">Titel</label>
         <input id="gesprek-titel-veld" name="titel" maxlength="200" required>
         <label for="gesprek-omschrijving">Omschrijving <span>(optioneel)</span></label>
@@ -16,7 +16,7 @@
             <label><input type="radio" name="moderatie" value="achteraf"> Direct tonen, achteraf afkeuren</label>
             <label><input type="radio" name="moderatie" value="vooraf"> Pas tonen na goedkeuring</label>
         </fieldset>
-        <button type="submit" class="action-button" id="gesprek-knop">Opslaan</button>
+        <button type="submit" class="knop" id="gesprek-knop">Opslaan</button>
     </form>
 
     <!-- see js/stellingen.js -->
@@ -32,7 +32,7 @@
                 </select>
             </label>
         </div>
-        <p class="flash fout" id="stellingen-fout" role="alert" hidden></p>
+        <p class="melding fout" id="stellingen-fout" role="alert" hidden></p>
         <ul class="beheer-lijst" id="stellingen-lijst"></ul>
         <p class="leeg-tekst" id="stellingen-leeg" hidden>Geen stellingen.</p>
     </section>

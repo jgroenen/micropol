@@ -413,7 +413,14 @@
             "$ref": "#/components/responses/Fout"
           },
           "404": {
-            "$ref": "#/components/responses/NietGevonden"
+            "description": "Gesprek niet gevonden, of de stelling hoort er niet bij of is niet zichtbaar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
           }
         }
       }

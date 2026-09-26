@@ -51,10 +51,10 @@ CDN_HOST=$(host "$CDN_URL")
 MATH_HOST=$(host "$MATH_URL")
 export APP_HOST ADMIN_HOST API_HOST AUTH_HOST CDN_HOST MATH_HOST
 
-# root needs no sudo
+# root needs no sudo; running as www-data then goes with runuser
 case $SERVER in
-    root@*) SUDO= ;;
-    *) SUDO=sudo ;;
+    root@*) SUDO= ; ALS_WWW_DATA='runuser -u www-data --' ;;
+    *) SUDO=sudo ; ALS_WWW_DATA='sudo -u www-data' ;;
 esac
 GEBRUIKER=${SERVER%@*}
 BUILD=deploy/build/$OMGEVING
@@ -169,7 +169,7 @@ case $ACTIE in
         ;;
     beheerder)
         [ $# -eq 2 ] || fout "gebruik: deploy/deploy.sh beheerder <naam> <email>"
-        ssh -t "$SERVER" "$SUDO -u www-data php '$DOEL/auth/bin/gebruiker-toevoegen.php' '$1' '$2'"
+        ssh -t "$SERVER" "$ALS_WWW_DATA php '$DOEL/auth/bin/gebruiker-toevoegen.php' '$1' '$2'"
         ;;
     *)
         fout "onbekende actie $ACTIE; kies bouw, installeer, uitrollen, controleer of beheerder."

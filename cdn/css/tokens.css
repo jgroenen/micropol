@@ -49,5 +49,5 @@
     --font-size-h3: 1.125rem;
     --font-size-h2: 1.3125rem;
     --font-size-h1: clamp(1.5rem, 1.3rem + 0.9vw, 1.875rem);
-    --font-size-statement: clamp(1.5rem, 1.15rem + 1.5vw, 2rem);
+    --font-size-stelling: clamp(1.5rem, 1.15rem + 1.5vw, 2rem);
 }

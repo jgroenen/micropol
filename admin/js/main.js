@@ -1,6 +1,6 @@
 import { nieuwePagina } from 'cdn/apilog.js';
 import { verwerkTerugkeer, ingelogdeBeheerder as haalBeheerder, uitloggen } from './auth.js';
-import { ingelogdeBeheerder, zetBeheerder, bijWijzigingVanBeheerder } from './sessie.js';
+import { ingelogdeBeheerder, zetBeheerder, bijWijzigingVanBeheerder } from './toegang.js';
 import { toonInloggen } from './inloggen.js';
 import { toonGesprekken } from './gesprekken.js';
 import { toonGesprek } from './gesprek.js';

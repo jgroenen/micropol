@@ -1,5 +1,3 @@
-export { escapeHtml } from 'cdn/util.js';
-
 // { titel, omschrijving, moderatie } from the form of a new or an existing gesprek
 export function gesprekVelden(form) {
     return {

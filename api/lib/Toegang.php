@@ -1,13 +1,14 @@
 <?php
 
-// Who is calling: the admin sends an access token of the auth service as "Authorization: Bearer <token>".
+// Who has access to the beheer endpoints: the admin sends an access token of the auth service as
+// "Authorization: Bearer <token>".
 // The api asks the auth service whether it is valid (introspection, RFC 7662), with its own id and secret,
 // see config.php. That works with any OAuth server with introspection, like Keycloak.
 // The answer is kept INTROSPECTIE_CACHE seconds, so logging out takes at most that long to reach the api.
-class Sessie {
+class Toegang {
     // the logged in beheerder { id, gebruikersnaam, email }, or null
     public static function beheerder() {
-        $token = self::token();
+        $token = Http::bearer();
         if ($token === null) {
             return null;
         }
@@ -22,13 +23,12 @@ class Sessie {
         ];
     }
 
-    // for handlers of the admin environment: the logged in beheerder, or false after sending a 401
+    // for the beheer endpoints: the logged in beheerder; without one a 401
     public static function vereisBeheerder() {
         $beheerder = self::beheerder();
         if ($beheerder === null) {
             header('WWW-Authenticate: Bearer');
-            Http::error(401, "Not logged in.");
-            return false;
+            throw new HttpFout(401, 'Not logged in.');
         }
         return $beheerder;
     }
@@ -70,12 +70,5 @@ class Sessie {
             return null;
         }
         return $info;
-    }
-
-    // the token from "Authorization: Bearer <token>", or null
-    // (under Apache the header only reaches PHP with CGIPassAuth On, see README)
-    private static function token() {
-        $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-        return preg_match('/^Bearer\s+(\S+)$/i', $header, $match) === 1 ? $match[1] : null;
     }
 }

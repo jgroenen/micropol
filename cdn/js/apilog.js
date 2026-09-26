@@ -23,7 +23,7 @@ paneel.popover = 'auto';
 paneel.innerHTML = `
     <header>
         <h2>API-verzoeken op deze pagina</h2>
-        <button type="button" class="close-button" popovertarget="api-log" popovertargetaction="hide" aria-label="Sluiten">
+        <button type="button" class="sluit-knop" popovertarget="api-log" popovertargetaction="hide" aria-label="Sluiten">
             <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
     </header>

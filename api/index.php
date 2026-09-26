@@ -37,32 +37,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     return;
 }
 
-// the path segments; after /api/ when the api is served from a subdirectory of that name
 $segments = explode('/', trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/'));
-$apiIndex = array_search('api', $segments, true);
-if ($apiIndex !== false) {
-    $segments = array_slice($segments, $apiIndex + 1);
-}
-
 $resource = $segments[0] ?? null;
 $id = $segments[1] ?? null;
 $method = $_SERVER['REQUEST_METHOD'];
 
 if (!isset($handlers[$resource])) {
-    Http::error(404, "Unknown resource.");
+    Http::error(404, 'Unknown resource.');
     return;
 }
 
 $handler = new $handlers[$resource]();
 
 if (!method_exists($handler, $method)) {
-    Http::error(405, "Method not allowed.");
+    Http::error(405, 'Method not allowed.');
     return;
 }
 
 try {
     $handler->{$method}($id);
+} catch (HttpFout $fout) {
+    Http::error($fout->getCode(), $fout->getMessage());
 } catch (Throwable $e) {
     error_log($e);
-    Http::error(500, "Internal server error.");
+    Http::error(500, 'Internal server error.');
 }

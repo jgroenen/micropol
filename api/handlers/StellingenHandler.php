@@ -1,7 +1,8 @@
 <?php
 
+// stellingen that deelnemers add; whether others see them depends on the moderatie, see Data::zichtbaar()
 class StellingenHandler {
-    private $maxLength = 500;
+    const MAX_TEKST = 500;
 
     // GET /stellingen?gesprek_id=<id>&deelnemer_id=<id>   stellingen added by one deelnemer,
     // with their moderatie state (beoordeling, reden, zichtbaar) and antwoorden { eens, neutraal, oneens }
@@ -9,48 +10,35 @@ class StellingenHandler {
         $gesprekId = Http::field($_GET, 'gesprek_id');
         $deelnemerId = Http::field($_GET, 'deelnemer_id');
         if ($gesprekId === '' || $deelnemerId === '') {
-            Http::error(400, "gesprek_id and deelnemer_id are required.");
-            return;
+            throw new HttpFout(400, 'gesprek_id and deelnemer_id are required.');
         }
-        if (!Data::gesprekExists($gesprekId)) {
-            Http::error(404, "Gesprek not found.");
-            return;
+        if (!Data::gesprekBestaat($gesprekId)) {
+            throw new HttpFout(404, 'Gesprek not found.');
         }
-
         $stellingen = array_values(array_filter(Data::stellingenMetBeoordeling($gesprekId), function ($stelling) use ($deelnemerId) {
             return $stelling['deelnemer_id'] === $deelnemerId;
         }));
-        Http::json(["stellingen" => Data::metTellingen($gesprekId, $stellingen)]);
+        Http::json(['stellingen' => Data::metTellingen($gesprekId, $stellingen)]);
     }
 
     // POST /stellingen  { gesprek_id, deelnemer_id, tekst }
     // returns the new stelling with its moderatie state, like GET
     public function POST($id = null) {
         $input = Http::body();
-        if ($input === null) {
-            Http::error(400, "Invalid JSON body.");
-            return;
-        }
-
         $gesprekId = Http::field($input, 'gesprek_id');
         $deelnemerId = Http::field($input, 'deelnemer_id');
-        // keep stellingen on a single line
-        $tekst = trim(preg_replace('/\s+/', ' ', Http::field($input, 'tekst')));
-
+        $tekst = Http::line($input, 'tekst');
         if ($gesprekId === '' || $deelnemerId === '' || $tekst === '') {
-            Http::error(400, "gesprek_id, deelnemer_id and tekst are required.");
-            return;
+            throw new HttpFout(400, 'gesprek_id, deelnemer_id and tekst are required.');
         }
-        if (mb_strlen($tekst) > $this->maxLength) {
-            Http::error(400, "tekst may be at most {$this->maxLength} characters.");
-            return;
+        if (mb_strlen($tekst) > self::MAX_TEKST) {
+            throw new HttpFout(400, 'tekst may be at most ' . self::MAX_TEKST . ' characters.');
         }
-        if (!Data::gesprekExists($gesprekId)) {
-            Http::error(404, "Gesprek not found.");
-            return;
+        if (!Data::gesprekBestaat($gesprekId)) {
+            throw new HttpFout(404, 'Gesprek not found.');
         }
 
-        $stelling = Csv::append(Data::stellingenFile(), Data::STELLINGEN, [Data::uuid(), $gesprekId, $tekst, $deelnemerId]);
+        $stelling = Data::voegToe('stellingen', Data::STELLINGEN, [Data::uuid(), $gesprekId, $tekst, $deelnemerId]);
         $stelling['beoordeling'] = null;
         $stelling['reden'] = '';
         $stelling['zichtbaar'] = Data::zichtbaar(Data::gesprek($gesprekId)['moderatie'], null);

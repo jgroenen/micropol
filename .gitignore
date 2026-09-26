@@ -10,3 +10,6 @@ auth/data/*
 # deployment: the settings per environment hold the secret; the build is made by deploy/deploy.sh
 deploy/*.env
 deploy/build/
+
+# the python environment of the tests (jsonschema), made by tests/run.sh
+tests/.venv/

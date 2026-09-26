@@ -6,8 +6,7 @@
 class WellKnownHandler {
     public function GET($id = null) {
         if (!in_array($id, ['openid-configuration', 'oauth-authorization-server'], true)) {
-            Http::error(404, "Unknown resource.");
-            return;
+            throw new HttpFout(404, 'Unknown resource.');
         }
         Http::json([
             'issuer' => ISSUER,

@@ -1,12 +1,12 @@
 import { getGesprek, putGesprek } from './api.js';
-import { verwerkFout } from './sessie.js';
+import { verwerkFout } from './toegang.js';
 import { toonStellingen, verbergStellingen } from './stellingen.js';
 import { gesprekVelden } from './util.js';
 import { APP_URL } from './config.js';
 import { toonView } from './views.js';
 
 // elements of views/gesprek.html, set by koppel() once the view is in the page
-let titel, flash, info, formulier, fout, knop;
+let titel, melding, info, formulier, fout, knop;
 let gekoppeld = false;
 
 function koppel() {
@@ -14,7 +14,7 @@ function koppel() {
         return;
     }
     titel = document.getElementById('gesprek-titel');
-    flash = document.getElementById('gesprek-flash');
+    melding = document.getElementById('gesprek-melding');
     info = document.getElementById('gesprek-info');
     formulier = document.getElementById('gesprek-formulier');
     fout = document.getElementById('gesprek-fout');
@@ -31,7 +31,7 @@ export async function toonGesprek(id) {
     try {
         await toonView('gesprek');
         koppel();
-        flash.hidden = true;
+        melding.hidden = true;
         fout.hidden = true;
         formulier.hidden = true;
         verbergStellingen();
@@ -42,6 +42,10 @@ export async function toonGesprek(id) {
         if (huidigId !== id) {
             return; // another gesprek was opened in the meantime
         }
+        if (!gesprek) {
+            titel.textContent = 'Gesprek niet gevonden';
+            return;
+        }
         titel.textContent = gesprek.titel;
         const aantal = gesprek.stellingen.length;
         info.innerHTML = `${aantal} ${aantal === 1 ? 'zichtbare stelling' : 'zichtbare stellingen'} · <a target="_blank" rel="noopener" href="${APP_URL}/#/gesprekken/${encodeURIComponent(id)}">Bekijken in de app →</a>`;
@@ -49,10 +53,6 @@ export async function toonGesprek(id) {
         formulier.hidden = false;
         await toonStellingen(id);
     } catch (error) {
-        if (error.status === 404) {
-            titel.textContent = 'Gesprek niet gevonden';
-            return;
-        }
         verwerkFout(error);
     }
 }
@@ -66,14 +66,14 @@ function vulFormulier(gesprek) {
 async function slaOp(event) {
     event.preventDefault();
     fout.hidden = true;
-    flash.hidden = true;
+    melding.hidden = true;
     knop.disabled = true;
     try {
         const gesprek = await putGesprek(huidigId, gesprekVelden(formulier));
         titel.textContent = gesprek.titel;
         vulFormulier(gesprek);
-        flash.textContent = 'De wijzigingen zijn opgeslagen.';
-        flash.hidden = false;
+        melding.textContent = 'De wijzigingen zijn opgeslagen.';
+        melding.hidden = false;
         // the moderatie decides which stellingen are zichtbaar
         await toonStellingen(huidigId);
     } catch (error) {

@@ -1,6 +1,6 @@
 import { getBeoordelingen, postBeoordeling } from './api.js';
-import { verwerkFout } from './sessie.js';
-import { escapeHtml } from './util.js';
+import { verwerkFout } from './toegang.js';
+import { escapeHtml } from 'cdn/util.js';
 
 // the stellingen of a gesprek on its page (views/gesprek.html), newest first, to approve or reject
 
@@ -91,7 +91,7 @@ function stellingRegel(s) {
                     <input name="reden" maxlength="500" required>
                 </label>
                 <button type="submit" class="knop-klein">Afkeuren</button>
-                <button type="button" class="link-button" data-actie="annuleren">Annuleren</button>
+                <button type="button" class="link-knop" data-actie="annuleren">Annuleren</button>
             </form>
         </li>
     `;
@@ -124,7 +124,7 @@ async function beoordeel(li, beoordeling, reden = '') {
     fout.hidden = true;
     li.querySelectorAll('button').forEach(b => b.disabled = true);
     try {
-        const nieuw = await postBeoordeling(gesprekId, li.dataset.id, beoordeling, reden);
+        const nieuw = await postBeoordeling({ gesprek_id: gesprekId, stelling_id: li.dataset.id, beoordeling, reden });
         stellingen = stellingen.map(s => s.id === nieuw.id ? nieuw : s);
         tekenLijst();
     } catch (error) {

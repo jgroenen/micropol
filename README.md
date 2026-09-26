@@ -32,6 +32,23 @@ Vereist PHP 8 of hoger. Start de zes servers met [dev/start.sh](dev/start.sh):
 
 Open daarna <http://localhost:8000> (app) of <http://localhost:8002> (beheer). De API-documentatie staat op <http://localhost:8001/docs>, <http://localhost:8004/docs> en <http://localhost:8005/docs>. Ctrl-C stopt alle servers.
 
+## Testen
+
+Start eerst de servers (`./dev/start.sh`), en dan:
+
+```sh
+./tests/run.sh
+```
+
+| Test | Wat |
+|---|---|
+| [tests/api.py](tests/api.py) | Elke call van API, math en auth tegen de OpenAPI-spec: status, request en response. Elke operatie in de specs wordt minstens één keer aangeroepen. |
+| [tests/oauth.py](tests/oauth.py) | De OAuth-flows van de auth service, en hoe de API de tokens gebruikt |
+| [tests/browser.mjs](tests/browser.mjs) | De app en de admin in Chrome (headless) |
+
+- **Testdata:** de tests maken hun eigen data aan, met een eigen testgebruiker. Daarna zet `run.sh` de data van API, math en auth terug. Gebruik de app niet terwijl de tests draaien.
+- **Nodig:** python3, node (18 of nieuwer) en Chrome. `jsonschema` komt bij de eerste run in `tests/.venv`.
+
 ## Structuur
 
 | Pad | Wat |
@@ -40,16 +57,17 @@ Open daarna <http://localhost:8000> (app) of <http://localhost:8002> (beheer). D
 | [api/openapi.json](api/openapi.json) | De OpenAPI-spec van de API, live op <http://localhost:8001/docs>, zie [API](#api) |
 | [api/config.php](api/config.php) | Instellingen per omgeving: welke origins de API mogen aanroepen, en waar de auth service is, zie [Losse servers](#losse-servers) |
 | [api/handlers/](api/handlers/) | Eén handler per resource |
-| [api/lib/](api/lib/) | Gedeelde code: csv-opslag ([Csv](api/lib/Csv.php), [Data](api/lib/Data.php)), HTTP ([Http](api/lib/Http.php)) en wie er ingelogd is ([Sessie](api/lib/Sessie.php)) |
+| [api/lib/](api/lib/) | Gedeelde code: csv-opslag ([Csv](api/lib/Csv.php), [Data](api/lib/Data.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en wie toegang heeft tot beheer ([Toegang](api/lib/Toegang.php)) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [app/](app/) | Frontend: [index.html](app/index.html), [js/](app/js/), [css/](app/css/) en [views/](app/views/); [js/config.js](app/js/config.js) zegt waar de API en de math server zijn |
 | [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.html](admin/index.html), [js/](admin/js/), [css/](admin/css/) en [views/](admin/views/); [js/config.js](admin/js/config.js) zegt waar de API, de app en de auth service zijn; [js/auth.js](admin/js/auth.js) doet het inloggen |
-| [cdn/](cdn/) | Gedeeld door app en admin: de basisstijlen ([css/main.css](cdn/css/main.css) en wat die importeert), [js/util.js](cdn/js/util.js) en de API-popup ([js/apilog.js](cdn/js/apilog.js), [css/apilog.css](cdn/css/apilog.css)) |
+| [cdn/](cdn/) | Gedeeld door app en admin: de basisstijlen ([css/main.css](cdn/css/main.css) en wat die importeert), het laden van views ([js/views.js](cdn/js/views.js)), de calls naar de servers ([js/verzoek.js](cdn/js/verzoek.js)), [js/util.js](cdn/js/util.js) en de API-popup ([js/apilog.js](cdn/js/apilog.js), [css/apilog.css](cdn/css/apilog.css)) |
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [auth/](auth/) | De auth service, zelfde opbouw als `api/`: [index.php](auth/index.php), [config.php](auth/config.php), [openapi.json](auth/openapi.json), [handlers/](auth/handlers/), [lib/](auth/lib/) (de flows in [Tokens](auth/lib/Tokens.php)), [bin/](auth/bin/) en [data/](auth/data/) (gebruikers en tokens) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
 | [deploy/](deploy/) | Uitrollen naar een VPS met Apache: [deploy.sh](deploy/deploy.sh), de Apache-sjablonen en [productie.env.voorbeeld](deploy/productie.env.voorbeeld), zie [docs/livegang.md](docs/livegang.md) |
 | [docs/](docs/) | Achtergronddocumentatie, zoals [analyse.md](docs/analyse.md) |
+| [tests/](tests/) | De tests, zie [Testen](#testen) |
 
 ## API
 
@@ -92,6 +110,30 @@ Het overzicht hieronder is de korte versie:
 
 In de app en de admin toont de knop **{ } API** de API-calls van de huidige pagina, met request en response. Tokens, codes en het wachtwoord staan daar niet in.
 
+## Opbouw van de code
+
+De drie PHP-diensten (api, math, auth) zijn op dezelfde manier opgebouwd:
+
+- **`index.php`** is de router: `/<resource>[/<id>]` gaat naar `handlers/<Resource>Handler-><METHOD>($id)`.
+- **Fouten:** een handler gooit een `HttpFout($status, $melding)`, en `index.php` antwoordt dan met `{ "error": "..." }`. De auth service heeft daarnaast `OAuthFout`, voor fouten in het OAuth-formaat.
+- **Data:** handlers lezen en schrijven alleen via `Data`: `bestand()`, `voegToe()` en `laatste()`. De bestanden worden alleen aangevuld; „de laatste regel telt” zit in `Csv::lastPer()`.
+- **Gedeelde bestanden:** `Csv.php`, `Http.php`, `HttpFout.php` en `DocsHandler.php` staan in elk project als gelijke kopie. De projecten zijn los, dus ze delen geen code. De auth-versie van `Http.php` heeft een paar extra's voor OAuth.
+
+App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per view met `koppel()`, een hash-router in `main.js`, en `api.js` voor de calls. Het laden van views en de calls zelf komen van de cdn (`views.js` en `verzoek.js`). Een call die mislukt, gooit een `Error` met `status`; opzoekfuncties geven `null` als er niets is.
+
+### Namen
+
+- **Nederlands:** alle namen die we zelf bedenken: functies, variabelen, klassen, CSS-klassen, ids en velden in de API en de data. Bijvoorbeeld `gesprekBestaat()`, `voegToe()`, `.huidige-stelling`, `deelnemer_id`.
+- **Engels, waar een standaard of het platform de naam vastlegt:**
+  - HTTP-methodes, zoals de handlermethodes `GET()`/`POST()` en `get`/`post` in `api.js`
+  - OAuth- en OpenID-velden (`username`, `sub`, `client_id`)
+  - `error` in foutmeldingen
+  - CSS-eigenschappen in design tokens (`--font-size-…`)
+  - begrippen uit de DOM en fetch (`response`, `options`)
+- **Engels, voor de dunne wrappers rond PHP:** `Csv` en `Http`. Hun methodes spiegelen PHP- en HTTP-begrippen (`read`, `append`, `json`, `bearer`, `noCache`).
+- **Engels, voor structuurnamen:** mappen (`handlers`, `lib`, `views`, `data`), `…Handler`, en „view”.
+- **Taal van teksten:** commentaar is Engels. Teksten voor mensen (schermen, meldingen, het aanmaakscript) zijn Nederlands. Foutmeldingen van de API zijn Engels, want die zijn voor ontwikkelaars.
+
 ## Opslag
 
 Alle data staat als csv in [api/data/](api/data/):
@@ -101,7 +143,7 @@ Alle data staat als csv in [api/data/](api/data/):
 | [gesprekken.csv](api/data/gesprekken.csv) | `id, titel, omschrijving, moderatie` |
 | [stellingen.csv](api/data/stellingen.csv) | `id, gesprek_id, tekst, deelnemer_id` (`deelnemer_id` leeg bij stellingen van vóór die kolom) |
 | [antwoorden/](api/data/antwoorden/)`<gesprek_id>.csv` | `deelnemer_id, stelling_id, waarde` |
-| `beoordelingen/<gesprek_id>.csv` | `stelling_id, beoordeling, reden, beheerder_id, tijdstip` |
+| `beoordelingen/<gesprek_id>.csv` | `stelling_id, beoordeling, reden, beheerder_id, tijdstip` (`tijdstip` als unix-tijd, zoals alle tijden in de data) |
 
 De bestanden worden alleen aangevuld, nooit gewijzigd. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord. Zo werkt het ook bij een aangepast gesprek (een nieuwe regel met hetzelfde `id` in `gesprekken.csv`) en bij een nieuwe beoordeling van een stelling: de laatste regel telt. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
 
@@ -125,7 +167,7 @@ Het script vraagt het wachtwoord (minstens 12 tekens), zodat het niet in de shel
 
 `wachtwoord_methode` zegt hoe `versleuteld_wachtwoord` is gemaakt, zodat er later een andere methode bij kan zonder bestaande gebruikers te breken. Nu is dat altijd `password_hash`: PHP's `password_hash()`. Die hash bevat zelf het algoritme en de salt, dus de kolom `salt` blijft leeg.
 
-Een handler in de API die alleen voor beheerders is, begint met `Sessie::vereisBeheerder()`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
+Een handler in de API die alleen voor beheerders is, begint met `Toegang::vereisBeheerder()`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
 
 ## Inloggen
 
@@ -226,7 +268,7 @@ Zonder omgevingsvariabelen gelden de waarden voor lokaal ontwikkelen (`localhost
 
 Voor de verschillende servers:
 
-- **API:** handelt de CORS-preflight (`OPTIONS`) zelf af. Alle requests moeten naar [api/index.php](api/index.php), en alleen die: `data/` mag niet publiek zijn. Onder Apache moet de `Authorization`-header PHP bereiken: `CGIPassAuth On` (php-fpm) of `SetEnvIf Authorization` (mod_php); de sjablonen in `deploy/` doen beide. Draait de API in een submap `api/`, dan werken de paden ook met die prefix (`/api/gesprekken`).
+- **API:** handelt de CORS-preflight (`OPTIONS`) zelf af. Alle requests moeten naar [api/index.php](api/index.php), en alleen die: `data/` mag niet publiek zijn. Onder Apache moet de `Authorization`-header PHP bereiken: `CGIPassAuth On` (php-fpm) of `SetEnvIf Authorization` (mod_php); de sjablonen in `deploy/` doen beide.
 - **Auth service:** net als de API: alle requests naar [auth/index.php](auth/index.php), en `data/` en `bin/` mogen niet publiek zijn. Draai hem in productie alleen over HTTPS. De API moet hem kunnen bereiken voor de introspection.
 - **Math server:** net als de API: alle requests naar [math/index.php](math/index.php), en `data/` mag niet publiek zijn. Hij moet de API kunnen bereiken en PHP moet urls kunnen openen (`allow_url_fopen`).
 - **App en admin:** zijn alleen statische bestanden; een eigen server-router is niet nodig.

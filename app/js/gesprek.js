@@ -6,7 +6,7 @@ import { koppelTooltip } from './tooltip.js';
 import { plaats, groepMarker, groepNaam, tekenPlot, tekenLegenda } from './analyse.js';
 
 // elements of views/gesprek.html, set by koppel() once the view is in the page
-let beantwoorden, toevoegen, flash, titel, count, text, knoppen, antwoordKnoppen, tabs, tabKnoppen, textarea, indienen;
+let beantwoorden, toevoegen, melding, titel, teller, huidigeStelling, knoppen, antwoordKnoppen, tabs, tabKnoppen, textarea, indienen;
 let gekoppeld = false;
 
 // the tab shown below the stelling, kept when switching gesprekken
@@ -18,10 +18,10 @@ function koppel() {
     }
     beantwoorden = document.getElementById('beantwoorden');
     toevoegen = document.getElementById('toevoegen');
-    flash = document.getElementById('flash');
+    melding = document.getElementById('melding');
     titel = document.getElementById('gesprek-titel');
-    count = document.getElementById('statement-count');
-    text = document.getElementById('statement-text');
+    teller = document.getElementById('stelling-teller');
+    huidigeStelling = document.getElementById('huidige-stelling');
     knoppen = document.getElementById('antwoord-knoppen');
     antwoordKnoppen = knoppen.querySelectorAll('button');
     tabs = document.getElementById('gesprek-tabs');
@@ -50,7 +50,7 @@ function koppel() {
     koppelTooltip(document.getElementById('groepen-plot'));
 
     document.getElementById('open-toevoegen').addEventListener('click', () => {
-        flash.hidden = true;
+        melding.hidden = true;
         beantwoorden.hidden = true;
         tabs.hidden = true;
         toevoegen.hidden = false;
@@ -75,7 +75,7 @@ export async function toonGesprek(id) {
         const matrixUrl = `#/gesprekken/${encodeURIComponent(id)}/matrix`;
         document.getElementById('matrix-link').href = matrixUrl;
         document.getElementById('groepen-link').href = matrixUrl;
-        flash.hidden = true;
+        melding.hidden = true;
         beantwoorden.hidden = true;
         tabs.hidden = true;
         toevoegen.hidden = true;
@@ -106,8 +106,8 @@ export async function toonGesprek(id) {
 function toonNietGevonden() {
     beantwoorden.hidden = false;
     titel.textContent = '';
-    count.textContent = '';
-    text.textContent = 'Gesprek niet gevonden.';
+    teller.textContent = '';
+    huidigeStelling.textContent = 'Gesprek niet gevonden.';
     knoppen.hidden = true;
     tabs.hidden = true;
 }
@@ -223,15 +223,15 @@ function toonBeantwoorden() {
     huidig.stelling = stelling || null;
 
     if (!stelling) {
-        count.textContent = '';
-        text.textContent = 'Dit waren alle stellingen voor nu. Dien zelf stellingen in. Of kom later terug, dan zijn er nieuwe stellingen van andere deelnemers.';
+        teller.textContent = '';
+        huidigeStelling.textContent = 'Dit waren alle stellingen voor nu. Dien zelf stellingen in. Of kom later terug, dan zijn er nieuwe stellingen van andere deelnemers.';
         knoppen.hidden = true;
         return;
     }
 
     const aantalBeantwoord = stellingen.filter(s => s.id in antwoorden).length;
-    count.textContent = `Stelling ${aantalBeantwoord + 1} van ${stellingen.length}`;
-    text.textContent = stelling.tekst;
+    teller.textContent = `Stelling ${aantalBeantwoord + 1} van ${stellingen.length}`;
+    huidigeStelling.textContent = stelling.tekst;
     knoppen.hidden = false;
     antwoordKnoppen.forEach(b => b.disabled = false);
 }
@@ -242,10 +242,10 @@ async function beantwoord(waarde) {
         return;
     }
     const { gesprek, antwoorden, stelling } = huidig;
-    flash.hidden = true;
+    melding.hidden = true;
     antwoordKnoppen.forEach(b => b.disabled = true);
     try {
-        await postAntwoord(gesprek.id, deelnemerId, stelling.id, waarde);
+        await postAntwoord({ gesprek_id: gesprek.id, deelnemer_id: deelnemerId, stelling_id: stelling.id, waarde });
         antwoorden[stelling.id] = waarde;
         // answering an own stelling changes its bar
         const eigen = huidig.mijnStellingen.find(s => s.id === stelling.id);
@@ -271,20 +271,20 @@ async function dienStellingIn(event) {
     }
     indienen.disabled = true;
     try {
-        const stelling = await postStelling(huidig.gesprek.id, deelnemerId, tekst);
+        const stelling = await postStelling({ gesprek_id: huidig.gesprek.id, deelnemer_id: deelnemerId, tekst });
         textarea.value = '';
         // a stelling waiting for goedkeuring can't be answered yet
         if (stelling.zichtbaar) {
             huidig.gesprek.stellingen.push({ id: stelling.id, tekst: stelling.tekst });
         }
         huidig.mijnStellingen.push({ ...stelling, antwoorden: { eens: 0, neutraal: 0, oneens: 0 } });
-        flash.textContent = stelling.zichtbaar
+        melding.textContent = stelling.zichtbaar
             ? 'Je stelling is ingediend!'
             : 'Je stelling is ingediend! Andere deelnemers zien hem zodra hij is goedgekeurd.';
         // show the new stelling in its list
         actieveTab = 'stellingen';
         toonBeantwoorden();
-        flash.hidden = false;
+        melding.hidden = false;
     } catch (error) {
         console.error('Error adding stelling:', error);
         alert('De stelling kon niet worden toegevoegd. Probeer het opnieuw.');

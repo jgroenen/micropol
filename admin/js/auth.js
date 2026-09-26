@@ -1,4 +1,4 @@
-import { registreer, huidigePagina } from 'cdn/apilog.js';
+import { gelogdeFetch } from 'cdn/verzoek.js';
 import { AUTH_URL, CLIENT_ID } from './config.js';
 
 // Logging in with the auth service (OAuth 2: authorization code with PKCE, refresh tokens, revocation).
@@ -160,48 +160,11 @@ async function discovery() {
     return configuratie;
 }
 
-// fetch, registered in the API popover (apilog.js on the cdn) with tokens and codes hidden
-async function registreerFetch(url, options = {}) {
-    const verzoek = {
-        pagina: huidigePagina(),
-        methode: options.method ?? 'GET',
-        url,
-        verzonden: options.body ? verberg(Object.fromEntries(options.body)) : undefined,
-        status: 0,
-        duur: 0,
-        tekst: '',
-    };
-    const start = performance.now();
-    try {
-        const response = await fetch(url, options);
-        verzoek.status = response.status;
-        verzoek.duur = performance.now() - start;
-        verzoek.tekst = verberg(await response.clone().text());
-        return response;
-    } catch (error) {
-        verzoek.duur = performance.now() - start;
-        verzoek.tekst = String(error);
-        throw error;
-    } finally {
-        registreer(verzoek);
-    }
-}
-
+// fetch, registered in the API popover (verzoek.js on the cdn), with tokens and codes hidden there
 const GEHEIM = ['code', 'code_verifier', 'token', 'access_token', 'refresh_token'];
 
-// JSON (or an object) with the values of GEHEIM replaced
-function verberg(invoer) {
-    try {
-        const data = typeof invoer === 'string' ? JSON.parse(invoer) : invoer;
-        for (const sleutel of GEHEIM) {
-            if (sleutel in data) {
-                data[sleutel] = '••••••••';
-            }
-        }
-        return JSON.stringify(data);
-    } catch (error) {
-        return typeof invoer === 'string' ? invoer : '';
-    }
+function registreerFetch(url, options = {}) {
+    return gelogdeFetch(url, options, GEHEIM);
 }
 
 // PKCE S256: base64url(sha256(verifier))

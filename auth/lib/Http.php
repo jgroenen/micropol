@@ -1,16 +1,25 @@
 <?php
 
-// Requests and responses of the auth service; OAuth endpoints take form data (application/x-www-form-urlencoded)
+// JSON requests and responses, like the api; plus what OAuth needs (basic, noCache).
+// OAuth endpoints take form data (application/x-www-form-urlencoded).
 class Http {
-    // the decoded JSON request body, or null if it is not a JSON object
+    // the decoded JSON request body; a body that is not a JSON object is a 400
     public static function body() {
         $input = json_decode(file_get_contents('php://input'), true);
-        return is_array($input) ? $input : null;
+        if (!is_array($input)) {
+            throw new HttpFout(400, 'Invalid JSON body.');
+        }
+        return $input;
     }
 
     // a trimmed string field from the body or query, '' if missing
     public static function field(?array $source, $name) {
         return isset($source[$name]) ? trim((string) $source[$name]) : '';
+    }
+
+    // like field(), on a single line: every run of whitespace (also newlines) becomes one space
+    public static function line(?array $source, $name) {
+        return trim(preg_replace('/\s+/', ' ', self::field($source, $name)));
     }
 
     // CORS headers when the request comes from one of the allowed origins; no cookies are used
@@ -26,6 +35,13 @@ class Http {
         header('Access-Control-Max-Age: 600');
     }
 
+    // the token from "Authorization: Bearer <token>", or null
+    // (under Apache the header only reaches PHP with CGIPassAuth or SetEnvIf, see deploy/)
+    public static function bearer() {
+        $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+        return preg_match('/^Bearer\s+(\S+)$/i', $header, $match) === 1 ? $match[1] : null;
+    }
+
     public static function json($data, $code = 200) {
         http_response_code($code);
         header('Content-Type: application/json');
@@ -33,12 +49,7 @@ class Http {
     }
 
     public static function error($code, $message) {
-        self::json(["error" => $message], $code);
-    }
-
-    // an OAuth error response: { error, error_description }
-    public static function oauthFout(OAuthFout $fout) {
-        self::json(['error' => $fout->error, 'error_description' => $fout->getMessage()], $fout->getCode());
+        self::json(['error' => $message], $code);
     }
 
     // [id, secret] from "Authorization: Basic ...", or null
@@ -54,14 +65,8 @@ class Http {
         return count($delen) === 2 ? array_map('urldecode', $delen) : null;
     }
 
-    // the token from "Authorization: Bearer <token>", or null
-    public static function bearer() {
-        $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-        return preg_match('/^Bearer\s+(\S+)$/i', $header, $match) === 1 ? $match[1] : null;
-    }
-
     // responses with tokens must not be stored anywhere (RFC 6749 5.1)
-    public static function geenCache() {
+    public static function noCache() {
         header('Cache-Control: no-store');
         header('Pragma: no-cache');
     }

@@ -1,4 +1,5 @@
-// the logged in beheerder (from the auth service, see auth.js); main.js shows the right view when it changes
+// who has access: the logged in beheerder (from the auth service, see auth.js), like Toegang in the api;
+// main.js shows the right view when it changes
 
 let beheerder = null;
 let bijWijziging = () => {};

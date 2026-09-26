@@ -28,6 +28,16 @@ class Csv {
         return $rows;
     }
 
+    // the files are append only: a change is a new row with the same key, and the last row counts.
+    // [key => row] with the last row of every value in $column, in the order the keys first appeared
+    public static function lastPer($file, $column) {
+        $rows = [];
+        foreach (self::read($file) as $row) {
+            $rows[$row[$column]] = $row;
+        }
+        return $rows;
+    }
+
     // appends one row (values in header order), writes the header row if the file is new;
     // returns the row as an associative array
     public static function append($file, array $headers, array $row) {

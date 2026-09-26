@@ -1,0 +1,164 @@
+// The app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
+// answering, adding a stelling, the tabs, the matrix, and in the admin logging in with the auth service,
+// changing a gesprek, rejecting a stelling, refreshing the token and logging out.
+// Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const APP = 'http://localhost:8000';
+const ADMIN = 'http://localhost:8002';
+const GEBRUIKER = process.env.TEST_GEBRUIKER ?? 'minipol-test';
+const WACHTWOORD = process.env.TEST_WACHTWOORD ?? 'testwachtwoord123';
+const data = JSON.parse(readFileSync(process.env.TEST_UITVOER, 'utf8'));
+
+let fouten = 0;
+function check(naam, goed, info = '') {
+    fouten += goed ? 0 : 1;
+    console.log(`${goed ? 'ok  ' : 'FOUT'} ${naam}${goed ? '' : ` ${info}`}`);
+}
+
+// ---- Chrome
+
+function chromePad() {
+    const kandidaten = [
+        process.env.CHROME,
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+    ];
+    return kandidaten.find(pad => pad && existsSync(pad));
+}
+
+const profiel = mkdtempSync(join(tmpdir(), 'minipol-chrome-'));
+const chrome = spawn(chromePad(), ['--headless=new', '--remote-debugging-port=9333', `--user-data-dir=${profiel}`, '--window-size=1000,900', 'about:blank'], { stdio: 'ignore' });
+const slaap = ms => new Promise(r => setTimeout(r, ms));
+let pagina;
+for (let i = 0; i < 50 && !pagina; i++) {
+    await slaap(200);
+    pagina = await fetch('http://localhost:9333/json').then(r => r.json()).then(l => l.find(t => t.type === 'page')).catch(() => null);
+}
+const ws = new WebSocket(pagina.webSocketDebuggerUrl);
+await new Promise(r => ws.onopen = r);
+
+let volgnummer = 0;
+const wacht = new Map();
+ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.id && wacht.has(m.id)) {
+        wacht.get(m.id)(m);
+        wacht.delete(m.id);
+    }
+    if (m.method === 'Runtime.exceptionThrown') {
+        check('geen JavaScript-fout op de pagina', false, JSON.stringify(m.params.exceptionDetails).slice(0, 300));
+    }
+};
+const cmd = (method, params = {}) => new Promise(r => {
+    const id = ++volgnummer;
+    wacht.set(id, r);
+    ws.send(JSON.stringify({ id, method, params }));
+});
+// runs a function body in the page, returns its value
+async function doe(body) {
+    const r = await cmd('Runtime.evaluate', { expression: `(async () => { ${body} })()`, awaitPromise: true, returnByValue: true });
+    return r.result.result?.value;
+}
+const waarde = expr => doe(`return ${expr};`);
+async function wachtOp(expr, max = 8000) {
+    const start = Date.now();
+    while (Date.now() - start < max) {
+        if (await waarde(`(() => { try { return ${expr}; } catch { return false; } })()`)) {
+            return true;
+        }
+        await slaap(100);
+    }
+    return false;
+}
+const zichtbaar = id => `document.getElementById('${id}') && !document.getElementById('${id}').hidden`;
+async function naar(url) {
+    await cmd('Page.navigate', { url });
+    await slaap(300);
+}
+
+await cmd('Runtime.enable');
+await cmd('Page.enable');
+await cmd('Network.enable');
+await cmd('Network.setCacheDisabled', { cacheDisabled: true });
+
+try {
+    // ---- app: a deelnemer with the old localStorage key keeps its antwoorden
+    await naar(`${APP}/`);
+    await doe(`localStorage.clear(); localStorage.setItem('user_id', '${data.deelnemer}');`);
+    await naar(`${APP}/#/gesprekken/${data.gesprek}`);
+    await cmd('Page.reload');
+    check('app: gesprek geladen', await wachtOp(`document.getElementById('mijn-antwoorden-lijst')?.children.length > 0`));
+    check('app: oude user_id overgenomen als deelnemer_id', await waarde(`localStorage.getItem('deelnemer_id') === '${data.deelnemer}' && localStorage.getItem('user_id') === null`));
+    check('app: eigen antwoorden (alleen zichtbare stellingen)', await waarde(`document.getElementById('mijn-antwoorden-lijst').children.length`) === data.zichtbaar);
+    check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
+
+    await doe(`document.getElementById('tab-stellingen').click(); document.getElementById('open-toevoegen').click();`);
+    await doe(`document.getElementById('stelling-tekst').value = 'Een stelling uit de browsertest.'; document.getElementById('stelling-indienen').click();`);
+    check('app: stelling toegevoegd', await wachtOp(`${zichtbaar('melding')} && document.getElementById('mijn-stellingen-lijst').textContent.includes('uit de browsertest')`));
+    await doe(`document.getElementById('tab-groepen').click();`);
+    check('app: tab groepen', await wachtOp(`document.getElementById('groep-status').textContent.length > 0`));
+    check('app: API-popup telt de calls', Number(await waarde(`document.querySelector('.api-log-teller').textContent`)) > 0);
+
+    // ---- app: the matrix
+    await naar(`${APP}/#/gesprekken/${data.gesprek}/matrix`);
+    check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers}`));
+    check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
+
+    // ---- admin: logging in with the auth service
+    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
+    check('admin: zonder login de inlogpagina', await wachtOp(zichtbaar('inloggen')));
+    await doe(`document.getElementById('inlog-knop').click();`);
+    check('admin: naar de inlogpagina van auth', await wachtOp(`location.port === '8005' && !!document.querySelector('[name=wachtwoord]')`));
+    await doe(`document.querySelector('[name=gebruikersnaam]').value = '${GEBRUIKER}'; document.querySelector('[name=wachtwoord]').value = 'fout'; document.querySelector('form').submit();`);
+    check('admin: fout wachtwoord gemeld', await wachtOp(`!!document.querySelector('.melding.fout')`));
+    await doe(`document.querySelector('[name=wachtwoord]').value = '${WACHTWOORD}'; document.querySelector('form').submit();`);
+    check('admin: terug op het gesprek, ingelogd', await wachtOp(`location.port === '8002' && document.getElementById('stellingen-lijst')?.children.length > 0`));
+    check('admin: naam in de kop', await waarde(`document.getElementById('ingelogd-als').textContent`) === GEBRUIKER);
+    check('admin: geen tokens in de API-popup', await doe(`
+        const tokens = JSON.parse(localStorage.getItem('minipol_admin_tokens'));
+        document.querySelector('.api-log-knop').click();
+        document.querySelectorAll('.api-log-lijst details').forEach(d => d.open = true);
+        await new Promise(r => setTimeout(r, 200));
+        const tekst = document.querySelector('.api-log-lijst').textContent;
+        document.getElementById('api-log').hidePopover();
+        return !tekst.includes(tokens.access_token) && !tekst.includes(tokens.refresh_token);`));
+
+    // ---- admin: changing
+    await doe(`document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
+    check('admin: gesprek opgeslagen', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Testgesprek (browser)'`));
+    await doe(`document.querySelector('#stellingen-lijst [data-actie=afkeuren]').click();`);
+    await doe(`const f = document.querySelector('#stellingen-lijst .afkeur-formulier:not([hidden])'); f.reden.value = 'Browsertest'; f.querySelector('button[type=submit]').click();`);
+    check('admin: stelling afgekeurd', await wachtOp(`[...document.querySelectorAll('.stelling-meta')].some(m => m.textContent.includes('Browsertest'))`));
+    await naar(`${ADMIN}/#/`);
+    await wachtOp(zichtbaar('gesprekken'));
+    await doe(`document.getElementById('open-nieuw').click(); const f = document.getElementById('nieuw-formulier'); f.titel.value = 'Uit de browsertest'; document.getElementById('nieuw-knop').click();`);
+    check('admin: nieuw gesprek', await wachtOp(`${zichtbaar('gesprekken-melding')} && document.getElementById('gesprekken-lijst').textContent.includes('Uit de browsertest')`));
+    await naar(`${ADMIN}/#/gesprekken/bestaatniet`);
+    check('admin: onbekend gesprek', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Gesprek niet gevonden'`));
+
+    // ---- admin: an expired access token is refreshed, a reload stays logged in, logging out ends it all
+    const voor = await waarde(`JSON.parse(localStorage.getItem('minipol_admin_tokens'))`);
+    await doe(`const t = JSON.parse(localStorage.getItem('minipol_admin_tokens')); t.verloopt = Date.now(); localStorage.setItem('minipol_admin_tokens', JSON.stringify(t));`);
+    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
+    await wachtOp(`document.getElementById('stellingen-lijst')?.children.length > 0`);
+    const na = await waarde(`JSON.parse(localStorage.getItem('minipol_admin_tokens'))`);
+    check('admin: token vernieuwd', na.refresh_token !== voor.refresh_token);
+    await cmd('Page.reload');
+    check('admin: na herladen nog ingelogd', await wachtOp(`document.getElementById('ingelogd-als')?.textContent === '${GEBRUIKER}'`));
+    await doe(`document.getElementById('uitloggen').click();`);
+    check('admin: uitgelogd', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_tokens') === null`));
+} finally {
+    ws.close();
+    chrome.kill();
+    await slaap(300);
+    rmSync(profiel, { recursive: true, force: true });
+}
+
+console.log(`browser.mjs: ${fouten} fouten`);
+process.exit(fouten ? 1 : 0);

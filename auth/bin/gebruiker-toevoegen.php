@@ -35,7 +35,7 @@ if (vraagWachtwoord('Wachtwoord nogmaals: ') !== $wachtwoord) {
     exit(1);
 }
 
-Data::append('gebruikers', Data::GEBRUIKERS, array_merge([Data::uuid(), $gebruikersnaam, $email], Wachtwoord::versleutel($wachtwoord)));
+Data::voegToe('gebruikers', Data::GEBRUIKERS, array_merge([Data::uuid(), $gebruikersnaam, $email], Wachtwoord::versleutel($wachtwoord)));
 echo "Gebruiker $gebruikersnaam toegevoegd.\n";
 
 // reads a line without showing it, when the terminal allows that

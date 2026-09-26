@@ -9,30 +9,30 @@ class DocsHandler {
 
     public function GET($id = null) {
         if ($id === 'openapi.json') {
-            $this->_spec();
+            $this->spec();
         } elseif ($id === null) {
-            $this->_pagina();
+            $this->pagina();
         } else {
-            Http::error(404, "Unknown resource.");
+            throw new HttpFout(404, 'Unknown resource.');
         }
     }
 
-    private function _spec() {
+    private function spec() {
         $spec = json_decode(file_get_contents(self::SPEC), true);
-        $spec['servers'] = [['url' => $this->_basis()]];
+        $spec['servers'] = [['url' => $this->basis()]];
         header('Content-Type: application/json');
         echo json_encode($spec, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 
     // the url of this server as the client reached it, with a subdirectory like /api/ if any
-    private function _basis() {
+    private function basis() {
         $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
         $pad = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $voorDocs = substr($pad, 0, (int) strrpos($pad, '/docs'));
         return ($https ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $voorDocs;
     }
 
-    private function _pagina() {
+    private function pagina() {
         $titel = htmlspecialchars(json_decode(file_get_contents(self::SPEC), true)['info']['title']);
         $ui = self::SWAGGER_UI;
         header('Content-Type: text/html; charset=utf-8');

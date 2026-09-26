@@ -1,79 +1,68 @@
 <?php
 
-// Where the data lives and the lookups the handlers share.
+// Where the data lives and the lookups the handlers share. Every file is append only: a change is a
+// new row with the same key, and the last row counts (Csv::lastPer). Handlers read and write through here.
 class Data {
-    // moderatie: MODERATIE_ACHTERAF or MODERATIE_VOORAF, see zichtbaar()
+    // the columns of each file
     const GESPREKKEN = ['id', 'titel', 'omschrijving', 'moderatie'];
     const STELLINGEN = ['id', 'gesprek_id', 'tekst', 'deelnemer_id'];
     const ANTWOORDEN = ['deelnemer_id', 'stelling_id', 'waarde'];
-    // beoordeling of a stelling by a beheerder (beheerder_id): BEOORDELING_GOEDGEKEURD or BEOORDELING_AFGEKEURD
+    // tijdstip is unix time, like every time in the data
     const BEOORDELINGEN = ['stelling_id', 'beoordeling', 'reden', 'beheerder_id', 'tijdstip'];
 
-    // stellingen are shown unless afgekeurd (blacklist), or only once goedgekeurd (whitelist)
+    // the values the data allows
+    const WAARDEN = ['eens', 'neutraal', 'oneens'];
+    // stellingen are shown unless afgekeurd (blacklist), or only once goedgekeurd (whitelist), see zichtbaar()
     const MODERATIE_ACHTERAF = 'achteraf';
     const MODERATIE_VOORAF = 'vooraf';
+    const MODERATIES = [self::MODERATIE_ACHTERAF, self::MODERATIE_VOORAF];
     const BEOORDELING_GOEDGEKEURD = 'goedgekeurd';
     const BEOORDELING_AFGEKEURD = 'afgekeurd';
+    const BEOORDELING_WAARDEN = [self::BEOORDELING_GOEDGEKEURD, self::BEOORDELING_AFGEKEURD];
 
-    public static function gesprekkenFile() {
-        return DATA_DIR . '/gesprekken.csv';
+    // the file with this name, like 'gesprekken' or 'antwoorden/<gesprek_id>';
+    // a gesprek id in the name must have passed gesprekBestaat()
+    public static function bestand($naam) {
+        return DATA_DIR . "/$naam.csv";
     }
 
-    public static function stellingenFile() {
-        return DATA_DIR . '/stellingen.csv';
+    // adds a row (values in the order of $kolommen) and returns it as an associative array
+    public static function voegToe($naam, array $kolommen, array $rij) {
+        return Csv::append(self::bestand($naam), $kolommen, $rij);
     }
 
-    // one file per gesprek; only call with an id that passed gesprekExists()
-    public static function antwoordenFile($gesprekId) {
-        return DATA_DIR . '/antwoorden/' . $gesprekId . '.csv';
+    // the last row with $waarde in column $kolom, or null
+    public static function laatste($naam, $kolom, $waarde) {
+        return Csv::lastPer(self::bestand($naam), $kolom)[$waarde] ?? null;
     }
 
-    // one file per gesprek; only call with an id that passed gesprekExists()
-    public static function beoordelingenFile($gesprekId) {
-        return DATA_DIR . '/beoordelingen/' . $gesprekId . '.csv';
-    }
-
-    // the file is append only: a changed gesprek is a new row with the same id, the last row counts;
-    // gesprekken stay in the order they were created
+    // all gesprekken, in the order they were created
     public static function gesprekken() {
-        $gesprekken = [];
-        foreach (Csv::read(self::gesprekkenFile()) as $gesprek) {
-            $gesprekken[$gesprek['id']] = $gesprek;
-        }
-        return array_values($gesprekken);
+        return array_values(Csv::lastPer(self::bestand('gesprekken'), 'id'));
     }
 
     public static function gesprek($id) {
-        foreach (self::gesprekken() as $gesprek) {
-            if ($gesprek['id'] === $id) {
-                return $gesprek;
-            }
-        }
-        return null;
+        return self::laatste('gesprekken', 'id', $id);
     }
 
-    // also guards the file name, since a gesprek id ends up in a path
-    public static function gesprekExists($id) {
+    // also guards the file names, since a gesprek id ends up in a path
+    public static function gesprekBestaat($id) {
         return preg_match('/^[A-Za-z0-9-]+$/', $id) === 1 && self::gesprek($id) !== null;
     }
 
     // stellingen of one gesprek, in the order they were added
     public static function stellingen($gesprekId) {
         return array_values(array_filter(
-            Csv::read(self::stellingenFile()),
+            Csv::read(self::bestand('stellingen')),
             function ($stelling) use ($gesprekId) {
                 return $stelling['gesprek_id'] === $gesprekId;
             }
         ));
     }
 
-    // [stelling_id => beoordeling row]; the file is append only, the last beoordeling counts
+    // [stelling_id => the last beoordeling]
     public static function beoordelingen($gesprekId) {
-        $beoordelingen = [];
-        foreach (Csv::read(self::beoordelingenFile($gesprekId)) as $beoordeling) {
-            $beoordelingen[$beoordeling['stelling_id']] = $beoordeling;
-        }
-        return $beoordelingen;
+        return Csv::lastPer(self::bestand("beoordelingen/$gesprekId"), 'stelling_id');
     }
 
     // whether a stelling is shown to deelnemers, given the moderatie of its gesprek and its beoordeling (or null)
@@ -104,21 +93,16 @@ class Data {
     }
 
     public static function stellingZichtbaar($stellingId, $gesprekId) {
-        foreach (self::zichtbareStellingen($gesprekId) as $stelling) {
-            if ($stelling['id'] === $stellingId) {
-                return true;
-            }
-        }
-        return false;
+        return in_array($stellingId, array_column(self::zichtbareStellingen($gesprekId), 'id'), true);
     }
 
     // all antwoorden of a gesprek, oldest first
     public static function antwoorden($gesprekId) {
-        return Csv::read(self::antwoordenFile($gesprekId));
+        return Csv::read(self::bestand("antwoorden/$gesprekId"));
     }
 
     // [deelnemer_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
-    // the file is append only, so a later antwoord overrides an earlier one
+    // the last antwoord of a deelnemer on a stelling counts
     public static function matrix($gesprekId) {
         $rows = [];
         foreach (self::antwoorden($gesprekId) as $antwoord) {
@@ -149,7 +133,7 @@ class Data {
         $tellingen = [];
         foreach (self::matrix($gesprekId) as $antwoorden) {
             foreach ($antwoorden as $stellingId => $waarde) {
-                $tellingen[$stellingId] ??= ['eens' => 0, 'neutraal' => 0, 'oneens' => 0];
+                $tellingen[$stellingId] ??= array_fill_keys(self::WAARDEN, 0);
                 if (isset($tellingen[$stellingId][$waarde])) {
                     $tellingen[$stellingId][$waarde]++;
                 }
@@ -162,7 +146,7 @@ class Data {
     public static function metTellingen($gesprekId, array $stellingen) {
         $tellingen = self::tellingen($gesprekId);
         return array_map(function ($stelling) use ($tellingen) {
-            $stelling['antwoorden'] = $tellingen[$stelling['id']] ?? ['eens' => 0, 'neutraal' => 0, 'oneens' => 0];
+            $stelling['antwoorden'] = $tellingen[$stelling['id']] ?? array_fill_keys(self::WAARDEN, 0);
             return $stelling;
         }, $stellingen);
     }
