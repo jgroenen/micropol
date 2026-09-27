@@ -1,0 +1,29 @@
+<section id="uitnodiging" class="view" hidden>
+    <div class="smal-formulier">
+        <h1 class="pagina-titel">Uitnodiging</h1>
+        <p class="uitleg" id="uitnodiging-tekst"></p>
+        <p class="melding fout" id="uitnodiging-fout" role="alert" hidden></p>
+
+        <!-- logged in: accept for this account -->
+        <div id="uitnodiging-ingelogd" hidden>
+            <button type="button" class="knop" id="uitnodiging-aannemen">Aannemen</button>
+        </div>
+
+        <!-- not logged in: a new account, or log in first -->
+        <div id="uitnodiging-uitgelogd" hidden>
+            <form class="beheer-formulier" id="uitnodiging-nieuw">
+                <h2>Nieuw account</h2>
+                <div class="velden" id="uitnodiging-velden"></div>
+                <button type="submit" class="knop" id="uitnodiging-nieuw-knop">Account maken en aannemen</button>
+            </form>
+            <form class="beheer-formulier" id="uitnodiging-inloggen">
+                <h2>Ik heb al een account</h2>
+                <label for="uitnodiging-login-naam">Gebruikersnaam</label>
+                <input id="uitnodiging-login-naam" name="gebruikersnaam" autocomplete="username" required>
+                <label for="uitnodiging-login-wachtwoord">Wachtwoord</label>
+                <input id="uitnodiging-login-wachtwoord" name="wachtwoord" type="password" autocomplete="current-password" required>
+                <button type="submit" class="knop" id="uitnodiging-inloggen-knop">Inloggen en aannemen</button>
+            </form>
+        </div>
+    </div>
+</section>

@@ -1,5 +1,25 @@
-/* login, see js/inloggen.js */
+/* login, see js/inloggen.js; and the other pages with only a form */
 .inlog-formulier {
     max-inline-size: 24rem;
     margin-inline: auto;
+}
+
+/* a narrow page with a form: installatie and uitnodiging, see js/installatie.js and js/uitnodiging.js */
+.smal-formulier {
+    max-inline-size: 28rem;
+    margin-inline: auto;
+
+    & .uitleg {
+        margin: 0 0 var(--space-4);
+        font-weight: 300;
+    }
+
+    & .velden {
+        display: grid;
+        gap: var(--space-2);
+    }
+
+    & .beheer-formulier + .beheer-formulier {
+        margin-block-start: var(--space-6);
+    }
 }

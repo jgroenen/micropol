@@ -2,12 +2,16 @@
 
 // logging in and out of the admin, with a token in "Authorization: Bearer <token>", see Toegang
 class SessieHandler {
-    // GET /sessie   { beheerder: { id, gebruikersnaam, email } } for a valid token, otherwise { beheerder: null }
+    // GET /sessie   { account, installatie } for the token: account is { id, gebruikersnaam, email,
+    // superbeheerder, rollen } or null; installatie is true for the login of admin/admin right after installing
     public function GET($id = null) {
-        Http::json(['beheerder' => Toegang::beheerder()]);
+        $account = Toegang::account();
+        Http::json(['account' => $account === null ? null : Beheer::metRollen($account), 'installatie' => Toegang::installatie()]);
     }
 
-    // POST /sessie  { gebruikersnaam, wachtwoord } => { beheerder, token, verloopt }
+    // POST /sessie  { gebruikersnaam, wachtwoord } => { account, installatie, token, verloopt }
+    // Right after installing, while there is no superbeheerder, admin/admin logs in too, with account null
+    // and installatie true: that login can only make the first superbeheerder (POST /installatie).
     public function POST($id = null) {
         $input = Http::body();
         $gebruikersnaam = Http::field($input, 'gebruikersnaam');
@@ -17,20 +21,19 @@ class SessieHandler {
             throw new HttpFout(400, 'gebruikersnaam and wachtwoord are required.');
         }
 
-        $beheerder = Data::beheerder($gebruikersnaam);
-        if ($beheerder === null) {
-            Wachtwoord::doeAlsOf($wachtwoord);
-        }
-        if ($beheerder === null || !Wachtwoord::klopt($wachtwoord, $beheerder)) {
-            throw new HttpFout(401, 'Wrong gebruikersnaam or wachtwoord.');
+        if ($gebruikersnaam === Beheer::INSTALLATIE_GEBRUIKERSNAAM && $wachtwoord === Beheer::INSTALLATIE_WACHTWOORD && Beheer::installatieNodig()) {
+            Http::json(['account' => null, 'installatie' => true] + Toegang::login(Beheer::INSTALLATIE));
+            return;
         }
 
-        $sessie = Toegang::login($beheerder);
-        Http::json([
-            'beheerder' => ['id' => $beheerder['id'], 'gebruikersnaam' => $beheerder['gebruikersnaam'], 'email' => $beheerder['email']],
-            'token' => $sessie['token'],
-            'verloopt' => $sessie['verloopt'],
-        ]);
+        $account = Beheer::accountMetNaam($gebruikersnaam);
+        if ($account === null) {
+            Wachtwoord::doeAlsOf($wachtwoord);
+        }
+        if ($account === null || !Wachtwoord::klopt($wachtwoord, $account)) {
+            throw new HttpFout(401, 'Wrong gebruikersnaam or wachtwoord.');
+        }
+        Http::json(['account' => Beheer::metRollen($account), 'installatie' => false] + Toegang::login($account['id']));
     }
 
     // DELETE /sessie   ends the login of the token

@@ -11,12 +11,26 @@
 
 .ingelogd {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-3);
+    justify-content: flex-end;
+    gap: var(--space-2) var(--space-3);
     font-weight: 300;
 
     & .link-knop {
         text-decoration: underline;
+    }
+}
+
+/* the pages of the admin, in the header; the current one is not underlined, but bold */
+.beheer-menu {
+    display: flex;
+    gap: var(--space-3);
+    margin-inline-end: var(--space-3);
+
+    & a[aria-current] {
+        font-weight: 600;
+        text-decoration: none;
     }
 }
 
@@ -138,4 +152,174 @@
         line-height: 1.33;
         font-weight: 600;
     }
+}
+
+/* a label with a state: the beoordeling of a stelling, the status of a gesprek or someone */
+.label {
+    display: inline-block;
+    margin-inline-end: var(--space-1);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius);
+    background: var(--color-brand-surface);
+    color: var(--color-text);
+    font-weight: 600;
+
+    &.goedgekeurd { background: var(--color-eens); color: var(--color-on-brand); }
+    &.afgekeurd { background: var(--color-oneens); color: var(--color-on-brand); }
+    &.wacht, &.opgeschort { background: var(--color-neutraal); color: oklch(0% 0 0); }
+    &.verwijderd { background: var(--color-oneens); color: var(--color-on-brand); }
+    &.beeindigd { background: var(--color-muted); color: var(--color-on-brand); }
+}
+
+/* buttons of a row in a list */
+.acties {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* a small button, in the rows of a list */
+.knop-klein {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-brand-text);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-brand-text);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: var(--color-brand);
+        border-color: var(--color-brand);
+        color: var(--color-on-brand);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+}
+
+/* the reden, for afkeuren, opschorten or verwijderen, below the buttons of a row */
+.reden-formulier {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-2) var(--space-3);
+    margin-block-start: var(--space-2);
+
+    & label {
+        display: grid;
+        flex: 1 1 16rem;
+        gap: var(--space-1);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+
+        & span {
+            color: var(--color-muted);
+            font-weight: 300;
+        }
+    }
+
+    & input {
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+        font-weight: 300;
+    }
+
+    & .link-knop {
+        font-size: var(--font-size-small);
+    }
+}
+
+.leeg-tekst {
+    margin: 0;
+    color: var(--color-muted);
+    font-weight: 300;
+}
+
+/* making an uitnodiging, and the link to send on, see js/uitnodigen.js; below a list, with a line between */
+.uitnodigen {
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border);
+
+    & h2 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-h3);
+        font-weight: 600;
+    }
+
+    & .uitleg-tekst {
+        margin-block-end: var(--space-3);
+    }
+
+    & .uitnodigen-kop {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        font-weight: 300;
+    }
+
+    & select {
+        margin-inline-start: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+    }
+
+    & .uitnodiging-link {
+        margin-block-start: var(--space-3);
+    }
+
+    & .uitnodiging-regel {
+        display: flex;
+        gap: var(--space-2);
+    }
+
+    & input {
+        flex: 1;
+        min-inline-size: 0;
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+        font-size: var(--font-size-small);
+    }
+
+    & .geldig {
+        margin: var(--space-1) 0 0;
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+        font-weight: 300;
+    }
+}
+
+/* the first line of a row: name, details and labels; below it the buttons */
+.rij-kop {
+    margin: 0 0 var(--space-2);
+
+    & strong {
+        margin-inline-end: var(--space-1);
+    }
+}
+
+.rij-noot,
+.uitleg-tekst {
+    color: var(--color-muted);
+    font-weight: 300;
+}
+
+.uitleg-tekst {
+    margin: 0 0 var(--space-4);
 }

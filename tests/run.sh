@@ -2,8 +2,9 @@
 # Runs all tests against the servers of dev/start.sh, which must be running:
 #   tests/api.py       every call of api and math checked against their OpenAPI spec, logging in included
 #   tests/browser.mjs  the app and the admin in Chrome
-# The tests make their own data (and a beheerder to log in with); the data of api and math is
-# copied first and put back afterwards, so nothing is left behind. Don't use the app while they run.
+# The tests start on an empty api: they install it (admin/admin makes the first superbeheerder) and make
+# their own data. The data of api and math is copied first and put back afterwards, so nothing is left
+# behind. Don't use the app while they run.
 # Needs python3, node (18 or newer) and Chrome; jsonschema is installed in tests/.venv the first time.
 set -eu
 cd "$(dirname "$0")/.."
@@ -32,9 +33,10 @@ terugzetten() {
 }
 trap terugzetten EXIT
 
-# a beheerder of its own for every run, so it never clashes with an existing one
-export TEST_GEBRUIKER="minipol-test-$$" TEST_WACHTWOORD=testwachtwoord123 TEST_UITVOER="$UITVOER"
-printf '%s\n%s\n' "$TEST_WACHTWOORD" "$TEST_WACHTWOORD" | php api/bin/beheerder-toevoegen.php "$TEST_GEBRUIKER" test@example.org > /dev/null
+# an empty api, as right after installing
+rm -rf api/data
+mkdir api/data
+export TEST_GEBRUIKER="minipol-test" TEST_WACHTWOORD=testwachtwoord123 TEST_UITVOER="$UITVOER"
 
 # runs one test; shows everything but the "ok" lines, and remembers when it failed
 mislukt=0
@@ -48,6 +50,14 @@ draai() {
 }
 draai tests/.venv/bin/python tests/api.py
 draai node tests/browser.mjs
+
+# the script for a superbeheerder when nobody can log in anymore
+if printf '%s\n%s\n' "$TEST_WACHTWOORD" "$TEST_WACHTWOORD" | php api/bin/superbeheerder-toevoegen.php minipol-cli cli@example.org | grep -q toegevoegd; then
+    echo "ok   superbeheerder-toevoegen.php"
+else
+    echo "FOUT superbeheerder-toevoegen.php voegt geen superbeheerder toe"
+    mislukt=1
+fi
 
 if [ $mislukt -eq 0 ]; then
     echo "Alle tests geslaagd."

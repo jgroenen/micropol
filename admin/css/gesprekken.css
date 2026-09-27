@@ -38,3 +38,14 @@
 .nieuw-formulier {
     margin-block-start: 0;
 }
+
+.gesprek-labels:not(:empty) {
+    margin-block-start: var(--space-1);
+}
+
+/* the link for the first gespreksbeheerder of a new gesprek, below the melding: no line above */
+.eerste-uitnodiging {
+    margin-block: 0 var(--space-4);
+    padding-block-start: 0;
+    border-block-start: none;
+}

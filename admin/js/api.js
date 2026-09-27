@@ -53,23 +53,21 @@ function stuur(methode, url, data) {
     });
 }
 
-// { id, gebruikersnaam, email } of the logged in beheerder, or null
-export async function getBeheerder() {
+// who is logged in: { account, installatie }, see Sessie in the api schema; account null when not logged in
+export async function getSessie() {
     if (!leesToken()) {
-        return null;
+        return { account: null, installatie: false };
     }
-    const { beheerder } = await verzoek('/sessie');
-    if (!beheerder) {
+    const sessie = await verzoek('/sessie');
+    if (!sessie.account && !sessie.installatie) {
         bewaarToken(null); // expired or logged out elsewhere
     }
-    return beheerder;
+    return sessie;
 }
 
-// the beheerder; throws with status 401 for a wrong gebruikersnaam or wachtwoord
+// { account, installatie }; throws with status 401 for a wrong gebruikersnaam or wachtwoord
 export async function login(gebruikersnaam, wachtwoord) {
-    const { beheerder, token } = await stuur('POST', '/sessie', { gebruikersnaam, wachtwoord });
-    bewaarToken(token);
-    return beheerder;
+    return bewaarSessie(await stuur('POST', '/sessie', { gebruikersnaam, wachtwoord }));
 }
 
 export async function logout() {
@@ -80,17 +78,72 @@ export async function logout() {
     }
 }
 
-// [{ id, titel, omschrijving, moderatie }]
+// keeps the token of a new login, if the response has one; returns { account, installatie }
+function bewaarSessie({ token, verloopt, ...sessie }) {
+    if (token) {
+        bewaarToken(token);
+    }
+    return sessie;
+}
+
+// right after installing, logged in as admin: { gebruikersnaam, email, wachtwoord } of the first superbeheerder
+// => { account, installatie }, logged in as that superbeheerder
+export async function postInstallatie(account) {
+    return bewaarSessie(await stuur('POST', '/installatie', account));
+}
+
+// { rol, gesprek_id } => { token, rol, gesprek_id, verloopt }: the token is for the link
+export function postUitnodiging(uitnodiging) {
+    return stuur('POST', '/uitnodigingen', uitnodiging);
+}
+
+// what an uitnodiging is for: { rol, gesprek: { id, titel } or null, verloopt }, or null when used or expired
+export function getUitnodiging(token) {
+    return ofNull(verzoek(`/uitnodigingen/${encodeURIComponent(token)}`));
+}
+
+// uses an uitnodiging: logged in for that account (nieuwAccount null), otherwise for a new account
+// { gebruikersnaam, email, wachtwoord }, which is logged in right away => { account, installatie }
+export async function neemUitnodigingAan(token, nieuwAccount = null) {
+    return bewaarSessie(await stuur('POST', `/uitnodigingen/${encodeURIComponent(token)}`, nieuwAccount ?? {}));
+}
+
+// the team of a gesprek: [{ account_id, gebruikersnaam, email, rol, status }]
+export async function getTeam(gesprekId) {
+    return (await verzoek(`/team?gesprek_id=${encodeURIComponent(gesprekId)}`)).leden;
+}
+
+// { gesprek_id, account_id, status, reden } => the lid
+export function postTeamstatus(wijziging) {
+    return stuur('POST', '/team', wijziging);
+}
+
+// [{ id, gebruikersnaam, email, status }]
+export async function getSuperbeheerders() {
+    return (await verzoek('/superbeheerders')).superbeheerders;
+}
+
+// { account_id, status, reden } => the superbeheerder
+export function postSuperbeheerderstatus(wijziging) {
+    return stuur('POST', '/superbeheerders', wijziging);
+}
+
+// { gesprek_id, status, reden } => the gesprek
+export function postGespreksstatus(wijziging) {
+    return stuur('POST', '/gespreksstatus', wijziging);
+}
+
+// the gesprekken of the logged in account: [{ id, titel, omschrijving, moderatie, status, rol }]
 export async function getGesprekken() {
     return (await verzoek('/gesprekken')).gesprekken;
 }
 
-// { id, titel, omschrijving, moderatie, stellingen: [{ id, tekst }] } or null
+// { id, titel, omschrijving, moderatie, status, stellingen: [{ id, tekst }] } or null
 export function getGesprek(id) {
     return ofNull(verzoek(`/gesprekken/${encodeURIComponent(id)}`));
 }
 
-// { titel, omschrijving, moderatie } => the new gesprek { id, titel, omschrijving, moderatie }
+// { titel, omschrijving, moderatie } => the new gesprek { id, titel, omschrijving, moderatie, status }
 export function postGesprek(gesprek) {
     return stuur('POST', '/gesprekken', gesprek);
 }

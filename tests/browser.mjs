@@ -1,6 +1,7 @@
 // The product page, the app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
-// answering, adding a stelling, the tabs, the matrix, and in the admin logging in,
-// changing a gesprek, rejecting a stelling, the tabs with the logboek, and logging in and out.
+// answering, adding a stelling, the tabs, the matrix, a paused gesprek, and in the admin the roles:
+// a gespreksbeheerder moderates and sees the logboek and the team, a superbeheerder makes a gesprek with
+// an uitnodiging, which a new account accepts; and logging in and out.
 // Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -145,15 +146,26 @@ try {
     check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
     check('app: aanhalingstekens en tags blijven tekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling === 'Een "stelling" <b>uit</b> de browsertest.') && !document.querySelector('.matrix b')`));
 
-    // ---- admin: logging in
+    // ---- app: a paused or an ended gesprek shows a notice instead
+    await naar(`${APP}/#/gesprekken/${data.gepauzeerd}`);
+    check('app: gepauzeerd gesprek met een melding over de hele pagina', await wachtOp(`${zichtbaar('gesloten')} && document.getElementById('gesloten-titel').textContent.includes('tijdelijk gepauzeerd')`));
+    await naar(`${APP}/#/gesprekken/${data.beeindigd}/matrix`);
+    check('app: beëindigd gesprek, ook de matrix: dit gesprek is voorbij', await wachtOp(`${zichtbaar('gesloten')} && document.getElementById('gesloten-titel').textContent === 'Dit gesprek is voorbij' && document.querySelector('#gesloten .icoon-gepauzeerd').getBoundingClientRect().width === 0`));
+
+    // ---- admin: logging in, as the gespreksbeheerder of the test gesprek
+    const inloggen = (naam, wachtwoord) => doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${naam}'; f.wachtwoord.value = '${wachtwoord}'; document.getElementById('inlog-knop').click();`);
+    const uitloggen = async () => {
+        await doe(`document.getElementById('uitloggen').click();`);
+        await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`);
+    };
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: zonder login het inlogformulier', await wachtOp(zichtbaar('inloggen')));
     check('admin: met Content-Security-Policy', (await fetch(`${ADMIN}/`)).headers.get('content-security-policy')?.includes("frame-ancestors 'none'"));
-    await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = 'fout'; document.getElementById('inlog-knop').click();`);
+    await inloggen(data.gespreksbeheerder, 'fout');
     check('admin: fout wachtwoord gemeld', await wachtOp(zichtbaar('inlog-fout')));
-    await doe(`const f = document.getElementById('inlog-formulier'); f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);
+    await inloggen(data.gespreksbeheerder, WACHTWOORD);
     check('admin: ingelogd, op het gesprek', await wachtOp(`document.getElementById('stellingen-lijst')?.children.length > 0`));
-    check('admin: naam in de kop', await waarde(`document.getElementById('ingelogd-als').textContent`) === GEBRUIKER);
+    check('admin: naam in de kop', await waarde(`document.getElementById('ingelogd-als').textContent`) === data.gespreksbeheerder);
     check('admin: geen wachtwoord of token in de API-popup', await doe(`
         const token = localStorage.getItem('minipol_admin_token');
         document.querySelector('.api-log-knop').click();
@@ -163,36 +175,66 @@ try {
         document.getElementById('api-log').hidePopover();
         return !tekst.includes(token) && !tekst.includes('${WACHTWOORD}');`));
 
-    // ---- admin: changing
-    check('admin: tabs, met stellingen eerst', await waarde(`${zichtbaar('paneel-stellingen')} && document.getElementById('paneel-logboek').hidden && document.getElementById('paneel-gegevens').hidden`));
+    // ---- admin: the gespreksbeheerder changes the gesprek, moderates, and sees the logboek and the team
+    check('admin: tabs van een gespreksbeheerder, met stellingen eerst', await waarde(`${zichtbaar('paneel-stellingen')} && !document.getElementById('tab-team').hidden && document.getElementById('tab-status').hidden`));
     await doe(`document.getElementById('tab-gegevens').click(); document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
     check('admin: gesprek opgeslagen', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Testgesprek (browser)' && document.title === 'MiniPol beheer | Testgesprek (browser)'`));
     await doe(`document.getElementById('tab-stellingen').click(); document.querySelector('#stellingen-lijst [data-actie=afkeuren]').click();`);
-    await doe(`const f = document.querySelector('#stellingen-lijst .afkeur-formulier:not([hidden])'); f.reden.value = 'Browsertest'; f.querySelector('button[type=submit]').click();`);
+    await doe(`const f = document.querySelector('#stellingen-lijst .reden-formulier:not([hidden])'); f.reden.value = 'Browsertest'; f.querySelector('button[type=submit]').click();`);
     check('admin: stelling afgekeurd', await wachtOp(`[...document.querySelectorAll('.stelling-meta')].some(m => m.textContent.includes('Browsertest'))`));
     await doe(`document.getElementById('tab-logboek').click();`);
     check('admin: afkeuren in het logboek', await wachtOp(`document.querySelector('#gesprek-logboek li')?.textContent.includes('keurde af') && document.querySelector('#gesprek-logboek li').textContent.includes('Browsertest')`));
-    check('admin: logboek met aanpassing, antwoorden per deelnemer samen, zonder deelnemer-ids', await waarde(`(() => {
+    check('admin: logboek met aanpassing, team, antwoorden per deelnemer samen, zonder deelnemer-ids', await waarde(`(() => {
         const tekst = document.querySelector('#gesprek-logboek .logboek-lijst').textContent;
-        return tekst.includes('paste het gesprek aan') && /Deelnemer \\d+\\s+gaf \\d+ antwoorden/.test(tekst) && !tekst.includes('${data.deelnemer}');
+        return tekst.includes('paste het gesprek aan') && tekst.includes('kwam in het team als moderator') && /Deelnemer \\d+\\s+gaf \\d+ antwoorden/.test(tekst) && !tekst.includes('${data.deelnemer}');
     })()`));
+    await doe(`document.getElementById('tab-team').click();`);
+    check('admin: team met de moderator', await wachtOp(`document.getElementById('team-lijst').textContent.includes('${data.moderator}')`));
+    await doe(`document.querySelector('#team-uitnodigen [type=submit]').click();`);
+    check('admin: uitnodigingslink voor het team', await wachtOp(`document.querySelector('#team-uitnodigen .uitnodiging-link input')?.value.includes('#/uitnodiging/')`));
     await naar(`${ADMIN}/#/`);
-    await wachtOp(zichtbaar('gesprekken'));
-    await doe(`document.getElementById('open-nieuw').click(); const f = document.getElementById('nieuw-formulier'); f.titel.value = 'Uit de browsertest'; document.getElementById('nieuw-knop').click();`);
-    check('admin: nieuw gesprek', await wachtOp(`${zichtbaar('gesprekken-melding')} && document.getElementById('gesprekken-lijst').textContent.includes('Uit de browsertest')`));
+    check('admin: gespreksbeheerder ziet zijn gesprekken, zonder knop voor een nieuw', await wachtOp(`document.getElementById('gesprekken-lijst').textContent.includes('Testgesprek (browser)') && document.getElementById('open-nieuw').hidden`));
     await naar(`${ADMIN}/#/gesprekken/bestaatniet`);
     check('admin: onbekend gesprek', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Gesprek niet gevonden'`));
 
     // ---- admin: a reload stays logged in; a token that ended elsewhere means logging in again
     await cmd('Page.reload');
-    check('admin: na herladen nog ingelogd', await wachtOp(`document.getElementById('ingelogd-als')?.textContent === '${GEBRUIKER}'`));
+    check('admin: na herladen nog ingelogd', await wachtOp(`document.getElementById('ingelogd-als')?.textContent === '${data.gespreksbeheerder}'`));
     await doe(`await fetch('${API}/sessie', { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('minipol_admin_token') } });`);
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: token elders beëindigd, dan het inlogformulier', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`));
-    await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);
-    await wachtOp(`!document.getElementById('ingelogd').hidden`);
-    await doe(`document.getElementById('uitloggen').click();`);
-    check('admin: uitgelogd', await wachtOp(`${zichtbaar('inloggen')} && localStorage.getItem('minipol_admin_token') === null`));
+
+    // ---- admin: the superbeheerder makes a gesprek, with the link for its first gespreksbeheerder
+    await naar(`${ADMIN}/#/`);
+    await inloggen(GEBRUIKER, WACHTWOORD);
+    check('admin: superbeheerder ziet de knop voor een nieuw gesprek', await wachtOp(`${zichtbaar('gesprekken')} && !document.getElementById('open-nieuw').hidden && !document.getElementById('menu-superbeheerders').hidden`));
+    await doe(`document.getElementById('open-nieuw').click(); const f = document.getElementById('nieuw-formulier'); f.titel.value = 'Uit de browsertest'; document.getElementById('nieuw-knop').click();`);
+    check('admin: nieuw gesprek, met de link voor de eerste gespreksbeheerder', await wachtOp(`document.getElementById('gesprekken-lijst').textContent.includes('Uit de browsertest') && document.querySelector('#nieuw-uitnodigen .uitnodiging-link input')?.value.includes('#/uitnodiging/')`));
+    const link = await waarde(`document.querySelector('#nieuw-uitnodigen .uitnodiging-link input').value`);
+    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
+    check('admin: superbeheerder ziet bij een gesprek alleen team en status', await wachtOp(`${zichtbaar('gesprek-tabs')} && document.getElementById('tab-stellingen').hidden && !document.getElementById('tab-team').hidden && !document.getElementById('tab-status').hidden`));
+    // the reden form: clicking in it keeps the button as it is
+    await doe(`document.getElementById('tab-status').click(); document.querySelector('#status-rij button[data-status=beeindigd]').click();`);
+    await doe(`const f = document.querySelector('#status-rij .reden-formulier'); f.reden.click(); f.reden.click(); f.querySelector('label').click();`);
+    check('admin: redenformulier blijft gelijk bij klikken erin', await waarde(`document.querySelector('#status-rij .reden-formulier [type=submit]').textContent === 'Beëindigen'`));
+    await doe(`document.querySelector('#status-rij [data-annuleren]').click();`);
+    await naar(`${ADMIN}/#/superbeheerders`);
+    check('admin: superbeheerders', await wachtOp(`document.getElementById('superbeheerders-lijst').textContent.includes('${GEBRUIKER}')`));
+    check('admin: menu met gesprekken en superbeheerders, de huidige gemarkeerd', await waarde(`!document.getElementById('beheer-menu').hidden && document.getElementById('menu-superbeheerders').hasAttribute('aria-current') && !document.getElementById('menu-gesprekken').hasAttribute('aria-current')`));
+    await doe(`document.getElementById('menu-gesprekken').click();`);
+    check('admin: menu-item gesprekken naar het overzicht', await wachtOp(`${zichtbaar('gesprekken')} && document.getElementById('menu-gesprekken').hasAttribute('aria-current')`));
+    await uitloggen();
+
+    // ---- admin: the link: a new account, then on the gesprek as its gespreksbeheerder
+    await naar(link);
+    check('admin: uitnodiging zonder login', await wachtOp(`${zichtbaar('uitnodiging')} && document.getElementById('uitnodiging-tekst').textContent.includes('gespreksbeheerder')`));
+    await doe(`const f = document.getElementById('uitnodiging-nieuw'); f.gebruikersnaam.value = '${GEBRUIKER}-browser'; f.email.value = 'browser@example.org'; f.wachtwoord.value = '${WACHTWOORD}'; f.herhaal.value = '${WACHTWOORD}'; document.getElementById('uitnodiging-nieuw-knop').click();`);
+    check('admin: uitnodiging aangenomen, op het nieuwe gesprek', await wachtOp(`document.getElementById('gesprek-titel')?.textContent === 'Uit de browsertest' && !document.getElementById('tab-gegevens').hidden`));
+    await naar(link);
+    check('admin: een gebruikte link werkt niet meer', await wachtOp(`document.getElementById('uitnodiging-tekst').textContent.includes('al gebruikt of verlopen')`));
+    await naar(`${ADMIN}/#/`);
+    await uitloggen();
+    check('admin: uitgelogd', await waarde(zichtbaar('inloggen')));
 } finally {
     ws.close();
     chrome.kill();

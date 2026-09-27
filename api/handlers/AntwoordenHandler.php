@@ -43,6 +43,9 @@ class AntwoordenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
+        if (!Data::gesprekActief($gesprekId)) {
+            throw new HttpFout(409, 'This gesprek is paused or over.');
+        }
         // only stellingen deelnemers can see, not those afgekeurd or waiting for goedkeuring
         if (!Data::stellingZichtbaar($stellingId, $gesprekId)) {
             throw new HttpFout(404, 'Stelling not found in this gesprek.');

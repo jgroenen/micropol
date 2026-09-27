@@ -67,13 +67,11 @@ git clone <url van de repository> /srv/minipol
 
 Bij de eerste requests haalt Caddy de certificaten. Opnieuw draaien kan geen kwaad.
 
-### 5. De eerste beheerder
+### 5. De eerste superbeheerder
 
-```sh
-sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/beheerder-toevoegen.php <gebruikersnaam> <email>
-```
+Ga naar `https://admin.<domein>` en log in met **admin/admin**. Je maakt dan meteen je eigen account: de eerste superbeheerder, met gebruikersnaam, e-mailadres en wachtwoord. Daarna werkt admin/admin niet meer.
 
-Het script vraagt het wachtwoord. Log daarna in op `https://admin.<domein>`.
+Doe dit direct na het installeren: tot die tijd kan iedereen die admin/admin probeert, de eerste superbeheerder maken.
 
 ### 6. Bestaande data meenemen (optioneel)
 
@@ -86,10 +84,13 @@ ssh root@<vps> 'chown -R minipol:minipol /srv/minipol/api/data'
 
 Met `math/data` gaat het net zo, maar dat hoeft niet: de analysemodellen worden vanzelf opnieuw berekend.
 
-Is de data van vóór de events (met `gesprekken.csv` in plaats van `gesprekken.jsonl`), zet hem dan eenmalig om. Zie [Opslag](../README.md#opslag) in de README.
+Is de data ouder, zet hem dan eenmalig om, in deze volgorde (zie [Opslag](../README.md#opslag) in de README):
+- met `gesprekken.csv` in plaats van `gesprekken.jsonl`: `naar-events.php`;
+- met `beheerders.csv` in plaats van `beheer.jsonl`: `naar-teams.php`. De beheerders worden dan superbeheerder, dus stap 5 is niet nodig.
 
 ```sh
 sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/naar-events.php
+sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/naar-teams.php
 ```
 
 ## Een nieuwe versie uitrollen
@@ -129,7 +130,7 @@ Pas op de server niets aan in `/srv/minipol`: de volgende pull verwacht een scho
 
 ## Back-ups
 
-Alle data staat in `api/data`: de events van de gesprekken, en de beheerders en logins. De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg. Twee opties:
+Alle data staat in `api/data`: de events van de gesprekken en het beheer (accounts, teams, uitnodigingen), en de logins. De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg. Twee opties:
 
 - **Snapshots van de VPS** bij je provider.
 - **Zelf ophalen**, bijvoorbeeld dagelijks vanaf een andere machine:

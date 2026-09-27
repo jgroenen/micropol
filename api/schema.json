@@ -54,7 +54,7 @@
       }
     },
     "Gesprek": {
-      "description": "Een gesprek. `stellingen` staat er alleen in bij `GET /gesprekken/{id}`.",
+      "description": "Een gesprek. `stellingen` staat er alleen in bij `GET /gesprekken/{id}`; `rol` alleen in de lijst voor een ingelogd account.",
       "type": "object",
       "required": [
         "titel"
@@ -88,6 +88,28 @@
             "$ref": "#/$defs/Stelling"
           },
           "description": "De zichtbare stellingen, in willekeurige volgorde (alleen `id` en `tekst`)"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Gespreksstatus"
+            }
+          ],
+          "readOnly": true,
+          "description": "Niet `actief`: deelnemers zien een melding in plaats van het gesprek."
+        },
+        "rol": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "gespreksbeheerder",
+            "moderator",
+            null
+          ],
+          "readOnly": true,
+          "description": "De rol van het ingelogde account in het team, of null"
         }
       }
     },
@@ -208,11 +230,18 @@
         "stelling.toegevoegd",
         "stelling.goedgekeurd",
         "stelling.afgekeurd",
-        "antwoord.gegeven"
+        "antwoord.gegeven",
+        "gesprek.opgeschort",
+        "gesprek.hersteld",
+        "gesprek.beeindigd",
+        "lid.toegevoegd",
+        "lid.opgeschort",
+        "lid.hersteld",
+        "lid.verwijderd"
       ]
     },
     "Event": {
-      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
+      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `gesprek.opgeschort`, `gesprek.beeindigd`: `reden`; `gesprek.hersteld`: niets\n- `lid.toegevoegd`: `account_id`, `gebruikersnaam`, `rol`\n- `lid.opgeschort`, `lid.verwijderd`: `account_id`, `gebruikersnaam`, `reden`; `lid.hersteld`: `account_id`, `gebruikersnaam`\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
       "type": "object",
       "required": [
         "id",
@@ -239,7 +268,7 @@
           "$ref": "#/$defs/EventType"
         },
         "door": {
-          "description": "Wie het deed: een beheerder, of een deelnemer, anoniem met het nummer uit de matrix (wie alleen stellingen toevoegde, krijgt een nummer daarna). null als het onbekend is.",
+          "description": "Wie het deed: iemand met een account in de beheeromgeving, of een deelnemer, anoniem met het nummer uit de matrix (wie alleen stellingen toevoegde, krijgt een nummer daarna). null als het onbekend is.",
           "oneOf": [
             {
               "title": "Beheerder",
@@ -307,6 +336,21 @@
         },
         "waarde": {
           "$ref": "#/$defs/Waarde"
+        },
+        "account_id": {
+          "type": "string",
+          "description": "Het account waar een event van het team over gaat"
+        },
+        "gebruikersnaam": {
+          "type": "string",
+          "description": "De gebruikersnaam van dat account"
+        },
+        "rol": {
+          "type": "string",
+          "enum": [
+            "gespreksbeheerder",
+            "moderator"
+          ]
         }
       }
     },
@@ -382,13 +426,33 @@
         }
       }
     },
-    "Beheerder": {
-      "description": "Wie kan inloggen in de beheeromgeving",
+    "Status": {
+      "type": "string",
+      "enum": [
+        "actief",
+        "opgeschort",
+        "verwijderd"
+      ],
+      "description": "De status van een lid van een team of van een superbeheerder. `opgeschort`: tijdelijk, met een reden; `verwijderd`: de toegang is voorgoed weg, met een reden (de events blijven bewaard)."
+    },
+    "Rol": {
+      "type": "string",
+      "enum": [
+        "superbeheerder",
+        "gespreksbeheerder",
+        "moderator"
+      ],
+      "description": "`superbeheerder`: van de hele server; maakt gesprekken en beheert gesprekken, teams en superbeheerders, maar leest en modereert zelf geen inhoud. `gespreksbeheerder`: van één gesprek; past het aan, beheert het team en modereert. `moderator`: van één gesprek; keurt stellingen goed of af."
+    },
+    "Account": {
+      "description": "Een account in de beheeromgeving, met zijn rollen",
       "type": "object",
       "required": [
         "id",
         "gebruikersnaam",
-        "email"
+        "email",
+        "superbeheerder",
+        "rollen"
       ],
       "properties": {
         "id": {
@@ -400,8 +464,224 @@
         "email": {
           "type": "string",
           "format": "email"
+        },
+        "superbeheerder": {
+          "type": "boolean",
+          "description": "Of het een actieve superbeheerder is"
+        },
+        "rollen": {
+          "type": "object",
+          "description": "gesprek_id => rol in het team van dat gesprek",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "gespreksbeheerder",
+              "moderator"
+            ]
+          }
         }
       }
+    },
+    "NieuwAccount": {
+      "description": "De gegevens van een nieuw account",
+      "type": "object",
+      "required": [
+        "gebruikersnaam",
+        "email",
+        "wachtwoord"
+      ],
+      "properties": {
+        "gebruikersnaam": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "wachtwoord": {
+          "type": "string",
+          "format": "password",
+          "minLength": 12
+        }
+      }
+    },
+    "Sessie": {
+      "description": "Wie er is ingelogd. `token` en `verloopt` alleen direct na inloggen.",
+      "type": "object",
+      "required": [
+        "account",
+        "installatie"
+      ],
+      "properties": {
+        "account": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Account"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "installatie": {
+          "type": "boolean",
+          "description": "true voor de login met admin/admin direct na installatie: die kan alleen de eerste superbeheerder maken"
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "verloopt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Als het token niet gebruikt wordt"
+        }
+      }
+    },
+    "Lid": {
+      "description": "Een lid van het team van een gesprek",
+      "type": "object",
+      "required": [
+        "account_id",
+        "gebruikersnaam",
+        "email",
+        "rol",
+        "status"
+      ],
+      "properties": {
+        "account_id": {
+          "type": "string"
+        },
+        "gebruikersnaam": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "rol": {
+          "type": "string",
+          "enum": [
+            "gespreksbeheerder",
+            "moderator"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        }
+      }
+    },
+    "Superbeheerder": {
+      "description": "Een superbeheerder",
+      "type": "object",
+      "required": [
+        "id",
+        "gebruikersnaam",
+        "email",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "gebruikersnaam": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        }
+      }
+    },
+    "Statuswijziging": {
+      "description": "Een nieuwe status, met een reden bij alles behalve `actief`",
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "actief",
+            "opgeschort",
+            "verwijderd",
+            "beeindigd"
+          ],
+          "description": "Voor een lid of een superbeheerder een `Status`, voor een gesprek een `Gespreksstatus`"
+        },
+        "reden": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "Uitnodiging": {
+      "description": "Een uitnodiging: een eenmalige link, 48 uur geldig. `token` staat er alleen in direct na aanmaken; de API bewaart alleen de sha256 ervan.",
+      "type": "object",
+      "required": [
+        "rol"
+      ],
+      "properties": {
+        "token": {
+          "type": "string",
+          "readOnly": true,
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "uitnodiging_id": {
+          "type": "string",
+          "readOnly": true
+        },
+        "rol": {
+          "$ref": "#/$defs/Rol"
+        },
+        "gesprek_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Voor een rol in een team; null voor superbeheerder"
+        },
+        "gesprek": {
+          "readOnly": true,
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "id",
+                "titel"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "titel": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verloopt": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "Gespreksstatus": {
+      "type": "string",
+      "enum": [
+        "actief",
+        "opgeschort",
+        "beeindigd"
+      ],
+      "description": "`opgeschort`: gepauzeerd; `beeindigd`: voorbij. Beide met een reden: deelnemers zien een melding, er kunnen geen antwoorden of stellingen bij, en het team kan er niet bij. Een superbeheerder kan het gesprek weer openen (`actief`). Een gesprek wordt nooit verwijderd."
     }
   }
 }

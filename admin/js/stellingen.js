@@ -66,14 +66,14 @@ function tekenLijst() {
 
 function status(s) {
     if (s.beoordeling === 'goedgekeurd') {
-        return '<span class="beoordeling-label goedgekeurd">Goedgekeurd</span>';
+        return '<span class="label goedgekeurd">Goedgekeurd</span>';
     }
     if (s.beoordeling === 'afgekeurd') {
-        return `<span class="beoordeling-label afgekeurd">Afgekeurd</span> ${escapeHtml(s.reden)}`;
+        return `<span class="label afgekeurd">Afgekeurd</span> ${escapeHtml(s.reden)}`;
     }
     return s.zichtbaar
-        ? '<span class="beoordeling-label">Niet beoordeeld</span> zichtbaar voor deelnemers'
-        : '<span class="beoordeling-label wacht">Wacht op goedkeuring</span> nog niet zichtbaar';
+        ? '<span class="label">Niet beoordeeld</span> zichtbaar voor deelnemers'
+        : '<span class="label wacht">Wacht op goedkeuring</span> nog niet zichtbaar';
 }
 
 function stellingRegel(s) {
@@ -82,11 +82,11 @@ function stellingRegel(s) {
         <li data-id="${escapeHtml(s.id)}">
             <p class="stelling-tekst">${escapeHtml(s.tekst)}</p>
             <p class="stelling-meta">${status(s)} · ${aantal} ${aantal === 1 ? 'antwoord' : 'antwoorden'}</p>
-            <div class="stelling-acties">
+            <div class="acties">
                 ${s.beoordeling !== 'goedgekeurd' ? '<button type="button" class="knop-klein" data-actie="goedkeuren">Goedkeuren</button>' : ''}
                 ${s.beoordeling !== 'afgekeurd' ? '<button type="button" class="knop-klein" data-actie="afkeuren">Afkeuren</button>' : ''}
             </div>
-            <form class="afkeur-formulier" hidden>
+            <form class="reden-formulier" hidden>
                 <label>Reden <span>(ziet de indiener)</span>
                     <input name="reden" maxlength="500" required>
                 </label>
@@ -103,7 +103,7 @@ function klik(event) {
         return;
     }
     const li = knop.closest('li');
-    const afkeurFormulier = li.querySelector('.afkeur-formulier');
+    const afkeurFormulier = li.querySelector('.reden-formulier');
     if (knop.dataset.actie === 'goedkeuren') {
         beoordeel(li, 'goedgekeurd');
     } else if (knop.dataset.actie === 'afkeuren') {

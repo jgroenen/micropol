@@ -6,6 +6,7 @@ import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
 import { tekenPlot, tekenLegenda, tekenGroepKaarten, tekenConsensus, uitlegOnderscheid, uitlegConsensus, groepMarker, groepNaam, plaats } from './analyse.js';
 import { zetGesprekTitel } from './kop.js';
+import { isGesloten, toonGesloten } from './gesloten.js';
 
 // elements of views/matrix.html, set by koppel() once the view is in the page
 let wrapper, leeg, titel, analyseSectie, plot;
@@ -50,6 +51,10 @@ export async function toonMatrix(id) {
         ]);
         if (!gesprek) {
             titel.textContent = 'Gesprek niet gevonden';
+            return;
+        }
+        if (isGesloten(gesprek)) {
+            await toonGesloten(gesprek);
             return;
         }
         zetGesprekTitel(gesprek.titel);

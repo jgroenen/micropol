@@ -3,7 +3,7 @@
   "info": {
     "title": "MiniPol API",
     "version": "1.0.0",
-    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie, het logboek (events) en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor ingelogde beheerders: log in met `POST /sessie` en vul het token in bij **Authorize**. Een token blijft geldig zolang het gebruikt wordt: het verloopt na een uur zonder gebruik, en na 12 uur altijd."
+    "description": "De API van MiniPol: gesprekken, stellingen, antwoorden, moderatie, het logboek (events) en de standaardexport voor de math server.\n\nAlle requests en responses zijn JSON. Fouten komen terug als `{ \"error\": \"...\" }` met een passende statuscode.\n\nEndpoints met een slotje zijn alleen voor de beheeromgeving: log in met `POST /sessie` en vul het token in bij **Authorize**. Wat een account mag, hangt af van zijn rollen: superbeheerder, of gespreksbeheerder of moderator in het team van een gesprek (zie `Rol`). Direct na installatie log je in met admin/admin, alleen om de eerste superbeheerder te maken (`POST /installatie`). Een token blijft geldig zolang het gebruikt wordt: het verloopt na een uur zonder gebruik, en na 12 uur altijd."
   },
   "servers": [
     {
@@ -46,6 +46,10 @@
     {
       "name": "Sessie",
       "description": "Inloggen in de beheeromgeving"
+    },
+    {
+      "name": "Beheer",
+      "description": "Accounts, rollen, teams en uitnodigingen; zie de beschrijving van de rollen bij `Rol`"
     }
   ],
   "paths": {
@@ -78,13 +82,20 @@
               }
             }
           }
-        }
+        },
+        "description": "Zonder token: de gesprekken waar deelnemers aan mee kunnen doen (status `actief`). Met een token: de gesprekken voor de beheeromgeving, elk met de `rol` van het account: een superbeheerder ziet ze allemaal, ook gepauzeerde en beëindigde; de anderen de gesprekken van hun team.",
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
           "Gesprekken"
         ],
-        "summary": "Gesprek aanmaken",
+        "summary": "Gesprek aanmaken (superbeheerders)",
         "operationId": "postGesprek",
         "security": [
           {
@@ -117,8 +128,12 @@
           },
           "401": {
             "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
           }
-        }
+        },
+        "description": "Het team komt erbij met uitnodigingen (`POST /uitnodigingen`)."
       }
     },
     "/gesprekken/{id}": {
@@ -137,7 +152,7 @@
           "Gesprekken"
         ],
         "summary": "Eén gesprek met zijn zichtbare stellingen",
-        "description": "De stellingen komen in willekeurige volgorde; alleen de zichtbare, zie Moderatie.",
+        "description": "De stellingen komen in willekeurige volgorde; alleen de zichtbare, zie Moderatie. Een gepauzeerd of beëindigd gesprek (`status` `opgeschort` of `beeindigd`) heeft geen stellingen: de app toont dan een melding.",
         "operationId": "getGesprek",
         "responses": {
           "200": {
@@ -159,7 +174,7 @@
         "tags": [
           "Gesprekken"
         ],
-        "summary": "Gesprek aanpassen",
+        "summary": "Gesprek aanpassen (gespreksbeheerders)",
         "description": "Zonder `moderatie` blijft die gelijk.",
         "operationId": "putGesprek",
         "security": [
@@ -196,6 +211,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
           }
         }
       }
@@ -258,7 +276,7 @@
           "Stellingen"
         ],
         "summary": "Stelling toevoegen",
-        "description": "Witruimte wordt één spatie. Of de stelling direct zichtbaar is, hangt af van de moderatie van het gesprek.",
+        "description": "Witruimte wordt één spatie. Of de stelling direct zichtbaar is, hangt af van de moderatie van het gesprek. Niet als het gesprek gepauzeerd of beëindigd is (409).",
         "operationId": "postStelling",
         "requestBody": {
           "required": true,
@@ -298,6 +316,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -383,7 +404,7 @@
           "Antwoorden"
         ],
         "summary": "Antwoord geven",
-        "description": "Alleen op zichtbare stellingen. Opnieuw antwoorden mag; het laatste antwoord telt.",
+        "description": "Alleen op zichtbare stellingen. Opnieuw antwoorden mag; het laatste antwoord telt. Niet als het gesprek gepauzeerd of beëindigd is (409).",
         "operationId": "postAntwoord",
         "requestBody": {
           "required": true,
@@ -431,6 +452,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -441,7 +465,7 @@
           "Moderatie"
         ],
         "summary": "Alle stellingen van een gesprek met hun moderatiestatus",
-        "description": "Ook de onzichtbare, op volgorde van toevoegen, zonder wie ze toevoegde.",
+        "description": "Ook de onzichtbare, op volgorde van toevoegen, zonder wie ze toevoegde. Alleen voor het team van het gesprek (gespreksbeheerders en moderators).",
         "operationId": "getBeoordelingen",
         "security": [
           {
@@ -483,6 +507,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
           }
         }
       },
@@ -491,7 +518,7 @@
           "Moderatie"
         ],
         "summary": "Stelling goedkeuren of afkeuren",
-        "description": "Bij `afgekeurd` is een reden verplicht; die ziet de indiener. Een beoordeling is altijd te herzien: de laatste telt.",
+        "description": "Bij `afgekeurd` is een reden verplicht; die ziet de indiener. Een beoordeling is altijd te herzien: de laatste telt. Alleen voor het team van het gesprek (gespreksbeheerders en moderators).",
         "operationId": "postBeoordeling",
         "security": [
           {
@@ -539,6 +566,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
           }
         }
       }
@@ -549,7 +579,7 @@
           "Events"
         ],
         "summary": "Wat er in een gesprek gebeurde, nieuwste eerst",
-        "description": "De events van het gesprek: aangemaakt en aangepast, stellingen toegevoegd, goedgekeurd en afgekeurd, en antwoorden. Deelnemers staan erin met hun nummer uit de matrix, nooit met hun id. Events over een stelling hebben de `tekst` ervan. Oudere events haal je op met `voor`: het id van het oudste event dat je al hebt.",
+        "description": "De events van het gesprek: aangemaakt en aangepast, stellingen toegevoegd, goedgekeurd en afgekeurd, en antwoorden. Deelnemers staan erin met hun nummer uit de matrix, nooit met hun id. Events over een stelling hebben de `tekst` ervan. Oudere events haal je op met `voor`: het id van het oudste event dat je al hebt. Alleen voor het team van het gesprek (gespreksbeheerders en moderators).",
         "operationId": "getEvents",
         "security": [
           {
@@ -617,6 +647,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
           }
         }
       }
@@ -654,13 +687,496 @@
         }
       }
     },
+    "/installatie": {
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "De eerste superbeheerder maken",
+        "description": "Alleen met de login van admin/admin, direct na installatie. Daarna werkt admin/admin niet meer, en ben je ingelogd als de nieuwe superbeheerder.",
+        "operationId": "postInstallatie",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NieuwAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "De superbeheerder, ingelogd",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sessie"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/uitnodigingen": {
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Iemand uitnodigen",
+        "description": "Superbeheerders nodigen uit voor elke rol; gespreksbeheerders voor het team van hun gesprek. Je krijgt een `token`: stuur de link `<admin>/#/uitnodiging/<token>` zelf door. Hij is 48 uur geldig en werkt één keer.",
+        "operationId": "postUitnodiging",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Uitnodiging"
+                  },
+                  {
+                    "required": [
+                      "rol"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "De uitnodiging, met het token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Uitnodiging"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/uitnodigingen/{token}": {
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Waarvoor een uitnodiging is",
+        "operationId": "getUitnodiging",
+        "responses": {
+          "200": {
+            "description": "De rol, en het gesprek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Uitnodiging"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Een uitnodiging aannemen",
+        "description": "Ingelogd: voor dat account (geen body nodig). Anders voor een nieuw account met deze gegevens, dat meteen is ingelogd (`token` en `verloopt`).",
+        "operationId": "postUitnodigingAannemen",
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NieuwAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het account met zijn nieuwe rol",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sessie"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/team": {
+      "get": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Het team van een gesprek",
+        "description": "Voor superbeheerders en de gespreksbeheerders van het gesprek; ook opgeschorte en verwijderde leden.",
+        "operationId": "getTeam",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De leden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "leden"
+                  ],
+                  "properties": {
+                    "leden": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Lid"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Een lid opschorten, herstellen of verwijderen",
+        "description": "Voor superbeheerders en de gespreksbeheerders van het gesprek, met een reden bij opschorten en verwijderen. Een gespreksbeheerder verandert zijn eigen status niet (409); een superbeheerder wel, bijvoorbeeld om zichzelf te herstellen. Nieuwe leden komen erbij met een uitnodiging.",
+        "operationId": "postTeam",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Statuswijziging"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "gesprek_id",
+                      "account_id"
+                    ],
+                    "properties": {
+                      "gesprek_id": {
+                        "type": "string"
+                      },
+                      "account_id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het lid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/superbeheerders": {
+      "get": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "De superbeheerders",
+        "description": "Alleen voor superbeheerders; ook opgeschorte en verwijderde.",
+        "operationId": "getSuperbeheerders",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De superbeheerders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "superbeheerders"
+                  ],
+                  "properties": {
+                    "superbeheerders": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Superbeheerder"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Een superbeheerder opschorten, herstellen of verwijderen",
+        "description": "Alleen voor superbeheerders, met een reden bij opschorten en verwijderen. Je eigen status verander je niet (409), zodat er altijd een superbeheerder over blijft.",
+        "operationId": "postSuperbeheerder",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Statuswijziging"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "account_id"
+                    ],
+                    "properties": {
+                      "account_id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "De superbeheerder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Superbeheerder"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/gespreksstatus": {
+      "post": {
+        "tags": [
+          "Beheer"
+        ],
+        "summary": "Een gesprek pauzeren, beëindigen of weer openen",
+        "description": "Alleen voor superbeheerders, met een reden bij pauzeren (`opgeschort`) en beëindigen (`beeindigd`). Deelnemers zien dan een melding: dat het gesprek gepauzeerd is, of dat het voorbij is. Er kunnen geen antwoorden of stellingen bij, en het team kan er niet bij. `actief` opent het weer. Een gesprek wordt nooit verwijderd.",
+        "operationId": "postGespreksstatus",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Statuswijziging"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "gesprek_id"
+                    ],
+                    "properties": {
+                      "gesprek_id": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "$ref": "#/components/schemas/Gespreksstatus"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het gesprek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gesprek"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
     "/sessie": {
       "get": {
         "tags": [
           "Sessie"
         ],
         "summary": "De ingelogde beheerder",
-        "description": "Zonder geldig token: `{ \"beheerder\": null }`. Een geldig token wordt verlengd.",
+        "description": "`account` is het account van het token, of null. `installatie` is true voor de login met admin/admin direct na installatie. Een geldig token wordt verlengd.",
         "operationId": "getSessie",
         "security": [
           {
@@ -670,26 +1186,11 @@
         ],
         "responses": {
           "200": {
-            "description": "De beheerder van het token, of null",
+            "description": "Wie er is ingelogd",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "required": [
-                    "beheerder"
-                  ],
-                  "properties": {
-                    "beheerder": {
-                      "oneOf": [
-                        {
-                          "$ref": "#/components/schemas/Beheerder"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  }
+                  "$ref": "#/components/schemas/Sessie"
                 }
               }
             }
@@ -731,26 +1232,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "required": [
-                    "beheerder",
-                    "token",
-                    "verloopt"
-                  ],
-                  "properties": {
-                    "beheerder": {
-                      "$ref": "#/components/schemas/Beheerder"
-                    },
-                    "token": {
-                      "type": "string",
-                      "pattern": "^[a-f0-9]{64}$"
-                    },
-                    "verloopt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "description": "Als het token niet gebruikt wordt"
-                    }
-                  }
+                  "$ref": "#/components/schemas/Sessie"
                 }
               }
             }
@@ -768,7 +1250,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Direct na installatie, zolang er geen superbeheerder is, logt ook admin/admin in: met `account` null en `installatie` true. Die login kan alleen de eerste superbeheerder maken (`POST /installatie`)."
       },
       "delete": {
         "tags": [
@@ -897,6 +1380,26 @@
             }
           }
         }
+      },
+      "GeenToegang": {
+        "description": "Ingelogd, maar dit mag dit account niet",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Kan nu niet, zie de melding (bijvoorbeeld: gebruikersnaam bezet, je eigen status, of het gesprek is gepauzeerd)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -936,8 +1439,35 @@
       "Export": {
         "$ref": "schema.json#/$defs/Export"
       },
-      "Beheerder": {
-        "$ref": "schema.json#/$defs/Beheerder"
+      "Status": {
+        "$ref": "schema.json#/$defs/Status"
+      },
+      "Rol": {
+        "$ref": "schema.json#/$defs/Rol"
+      },
+      "Account": {
+        "$ref": "schema.json#/$defs/Account"
+      },
+      "NieuwAccount": {
+        "$ref": "schema.json#/$defs/NieuwAccount"
+      },
+      "Sessie": {
+        "$ref": "schema.json#/$defs/Sessie"
+      },
+      "Lid": {
+        "$ref": "schema.json#/$defs/Lid"
+      },
+      "Superbeheerder": {
+        "$ref": "schema.json#/$defs/Superbeheerder"
+      },
+      "Statuswijziging": {
+        "$ref": "schema.json#/$defs/Statuswijziging"
+      },
+      "Uitnodiging": {
+        "$ref": "schema.json#/$defs/Uitnodiging"
+      },
+      "Gespreksstatus": {
+        "$ref": "schema.json#/$defs/Gespreksstatus"
       }
     }
   }

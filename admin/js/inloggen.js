@@ -1,5 +1,5 @@
 import { login } from './api.js';
-import { zetBeheerder } from './toegang.js';
+import { zetSessie } from './toegang.js';
 import { toonView } from './views.js';
 
 // elements of views/inloggen.html, set by koppel() once the view is in the page
@@ -33,9 +33,9 @@ async function logIn(event) {
     fout.hidden = true;
     knop.disabled = true;
     try {
-        const beheerder = await login(formulier.gebruikersnaam.value.trim(), formulier.wachtwoord.value);
+        const sessie = await login(formulier.gebruikersnaam.value.trim(), formulier.wachtwoord.value);
         formulier.reset();
-        zetBeheerder(beheerder);
+        zetSessie(sessie);
     } catch (error) {
         fout.textContent = error.status === 401
             ? 'Onjuiste gebruikersnaam of wachtwoord.'

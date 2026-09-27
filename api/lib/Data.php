@@ -2,37 +2,43 @@
 
 // Where the data lives and the lookups the handlers share. Handlers read and write through here.
 //
-// What happens in the gesprekken is stored as events, one JSON object per line (Jsonl), append only.
-// There are three streams:
-//   gesprekken.jsonl                  gesprek.aangemaakt, gesprek.aangepast (of all gesprekken)
+// What happens is stored as events, one JSON object per line (Jsonl), append only. There are these streams:
+//   gesprekken.jsonl                  gesprek.aangemaakt, .aangepast, .opgeschort, .hersteld, .beeindigd
 //   gesprekken/<id>/stellingen.jsonl  stelling.toegevoegd, stelling.goedgekeurd, stelling.afgekeurd
 //   gesprekken/<id>/antwoorden.jsonl  antwoord.gegeven
+//   gesprekken/<id>/team.jsonl        lid.toegevoegd, .opgeschort, .hersteld, .verwijderd (see Beheer)
+//   beheer.jsonl                      accounts, wachtwoorden, superbeheerders and uitnodigingen (see Beheer)
 // Every event has id (UUID v7: sorting by id is sorting by time), tijdstip (unix time; null in data
-// from before the events), type, door ({ soort, id } of who did it; null when unknown) and gesprek_id,
-// plus the fields of its type, see event(). A gesprek, its stellingen and the antwoorden follow from
-// reading the events in order: a change is a new event, and the last one counts.
+// from before the events), type, door ({ soort, id } of who did it; null when unknown) and gesprek_id
+// (null in beheer.jsonl when it is about no gesprek), plus the fields of its type, see event(). The state
+// follows from reading the events in order: a change is a new event, and the last one counts.
 //
-// Beheerders and logins are no events of a gesprek: those are csv, where a change is a new row with
-// the same key and the last row counts (Csv::lastPer).
+// Logins are no events: those are csv, where a change is a new row with the same key and the last row
+// counts (Csv::lastPer).
 class Data {
-    // the columns of the csv files
-    // who may log in to the admin; see Wachtwoord for salt, versleuteld_wachtwoord and wachtwoord_methode
-    const BEHEERDERS = ['id', 'gebruikersnaam', 'email', 'salt', 'versleuteld_wachtwoord', 'wachtwoord_methode'];
     // logins, see Toegang; the token is stored as its sha256; verloopt 0 once logged out
-    const SESSIES = ['token_hash', 'beheerder_id', 'begonnen', 'verloopt'];
+    const SESSIES = ['token_hash', 'account_id', 'begonnen', 'verloopt'];
 
     // the types of events, with their fields besides the ones every event has
     const GESPREK_AANGEMAAKT = 'gesprek.aangemaakt';       // titel, omschrijving, moderatie
     const GESPREK_AANGEPAST = 'gesprek.aangepast';         // only the fields that changed
+    const GESPREK_OPGESCHORT = 'gesprek.opgeschort';       // reden; paused: deelnemers see a notice
+    const GESPREK_BEEINDIGD = 'gesprek.beeindigd';         // reden; over: deelnemers see that it is over
+    const GESPREK_HERSTELD = 'gesprek.hersteld';           // open again, after opgeschort or beeindigd
     const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst
     const STELLING_GOEDGEKEURD = 'stelling.goedgekeurd';   // stelling_id, reden (optional)
     const STELLING_AFGEKEURD = 'stelling.afgekeurd';       // stelling_id, reden
     const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde
-    // the stream of each kind of event, by the part of the type before the dot
-    const STROMEN = ['gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden'];
+    // the stream of each kind of event, by the part of the type before the dot; the events of Beheer too
+    const STROMEN = [
+        'gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden', 'lid' => 'team',
+        'account' => 'beheer', 'wachtwoord' => 'beheer', 'superbeheerder' => 'beheer', 'uitnodiging' => 'beheer',
+    ];
+    // the streams of the whole server; the others are per gesprek
+    const ALGEMENE_STROMEN = ['gesprekken', 'beheer'];
     // the fields of a gesprek besides its id
     const GESPREK_VELDEN = ['titel', 'omschrijving', 'moderatie'];
-    // who does something: door.soort
+    // who does something: door.soort; a beheerder is anyone with an account (see Beheer)
     const DOOR_BEHEERDER = 'beheerder';
     const DOOR_DEELNEMER = 'deelnemer';
 
@@ -47,15 +53,31 @@ class Data {
     const BEOORDELING_GOEDGEKEURD = 'goedgekeurd';
     const BEOORDELING_AFGEKEURD = 'afgekeurd';
     const BEOORDELING_WAARDEN = [self::BEOORDELING_GOEDGEKEURD, self::BEOORDELING_AFGEKEURD];
+    // the status of a superbeheerder or a lid of a team (see Beheer): opgeschort is for a while, with a
+    // reden; verwijderd takes the access away for good (the events stay)
+    const STATUS_ACTIEF = 'actief';
+    const STATUS_OPGESCHORT = 'opgeschort';
+    const STATUS_VERWIJDERD = 'verwijderd';
+    const STATUSSEN = [self::STATUS_ACTIEF, self::STATUS_OPGESCHORT, self::STATUS_VERWIJDERD];
+    // the status of a gesprek: opgeschort (paused) or beeindigd (over); both with a reden, both take no
+    // antwoorden or stellingen and shut out the team, and both can be undone. A gesprek is never removed.
+    const STATUS_BEEINDIGD = 'beeindigd';
+    const GESPREK_STATUSSEN = [self::STATUS_ACTIEF, self::STATUS_OPGESCHORT, self::STATUS_BEEINDIGD];
+    // the event that gives a gesprek each status, and back
+    const GESPREK_STATUS_EVENTS = [
+        self::STATUS_ACTIEF => self::GESPREK_HERSTELD,
+        self::STATUS_OPGESCHORT => self::GESPREK_OPGESCHORT,
+        self::STATUS_BEEINDIGD => self::GESPREK_BEEINDIGD,
+    ];
     // the event of each beoordeling, and back
     const BEOORDELING_EVENTS = [
         self::BEOORDELING_GOEDGEKEURD => self::STELLING_GOEDGEKEURD,
         self::BEOORDELING_AFGEKEURD => self::STELLING_AFGEKEURD,
     ];
 
-    // ---- csv: beheerders and sessies
+    // ---- csv: sessies
 
-    // the csv file with this name, like 'beheerders'
+    // the csv file with this name, like 'sessies'
     public static function bestand($naam) {
         return DATA_DIR . "/$naam.csv";
     }
@@ -72,10 +94,10 @@ class Data {
 
     // ---- events
 
-    // the file of a stream: 'gesprekken', or 'stellingen' or 'antwoorden' of one gesprek;
+    // the file of a stream: 'gesprekken' or 'beheer', or 'stellingen', 'antwoorden' or 'team' of one gesprek;
     // the gesprek id must have passed gesprekBestaat(), since it ends up in the path
     public static function stroom($naam, $gesprekId = null) {
-        return DATA_DIR . ($naam === 'gesprekken' ? '/gesprekken.jsonl' : "/gesprekken/$gesprekId/$naam.jsonl");
+        return DATA_DIR . (in_array($naam, self::ALGEMENE_STROMEN, true) ? "/$naam.jsonl" : "/gesprekken/$gesprekId/$naam.jsonl");
     }
 
     // the events of a stream, oldest first (a generator)
@@ -83,7 +105,8 @@ class Data {
         return Jsonl::read(self::stroom($naam, $gesprekId));
     }
 
-    // a new event, not yet stored; $door from doorBeheerder() or doorDeelnemer()
+    // a new event, not yet stored; $door from doorBeheerder() or doorDeelnemer(); $gesprekId is null when
+    // it is about no gesprek
     public static function event($type, ?array $door, $gesprekId, array $velden) {
         return ['id' => self::uuid7(), 'tijdstip' => time(), 'type' => $type, 'door' => $door, 'gesprek_id' => $gesprekId] + $velden;
     }
@@ -94,8 +117,9 @@ class Data {
         return Jsonl::append(self::stroom($stroom, $gesprekId), self::event($type, $door, $gesprekId, $velden));
     }
 
-    public static function doorBeheerder(array $beheerder) {
-        return ['soort' => self::DOOR_BEHEERDER, 'id' => $beheerder['id']];
+    // $account from Beheer, or anything with an id
+    public static function doorBeheerder(array $account) {
+        return ['soort' => self::DOOR_BEHEERDER, 'id' => $account['id']];
     }
 
     // whether a deelnemer_id is at most MAX_DEELNEMER_ID letters, digits and dashes
@@ -109,11 +133,12 @@ class Data {
 
     // ---- gesprekken
 
-    // all gesprekken { id, titel, omschrijving, moderatie }, in the order they were created
+    // all gesprekken { id, titel, omschrijving, moderatie, status }, in the order they were created
     public static function gesprekken() {
         return array_values(self::alleGesprekken());
     }
 
+    // the gesprek, or null
     public static function gesprek($id) {
         return self::alleGesprekken()[$id] ?? null;
     }
@@ -123,17 +148,27 @@ class Data {
         return preg_match('/^[A-Za-z0-9-]+$/', $id) === 1 && self::gesprek($id) !== null;
     }
 
+    // whether deelnemers can take part: it exists and is not paused (opgeschort) or over (beeindigd)
+    public static function gesprekActief($id) {
+        return self::gesprekBestaat($id) && self::gesprek($id)['status'] === self::STATUS_ACTIEF;
+    }
+
     // [id => gesprek]
     private static function alleGesprekken() {
         $velden = array_flip(self::GESPREK_VELDEN);
+        $statussen = array_flip(self::GESPREK_STATUS_EVENTS);
         $gesprekken = [];
         foreach (self::events('gesprekken') as $event) {
             $id = $event['gesprek_id'];
             if ($event['type'] === self::GESPREK_AANGEMAAKT) {
-                $gesprekken[$id] = ['id' => $id] + array_fill_keys(self::GESPREK_VELDEN, '');
+                $gesprekken[$id] = ['id' => $id] + array_fill_keys(self::GESPREK_VELDEN, '') + ['status' => self::STATUS_ACTIEF];
             }
-            if (isset($gesprekken[$id])) {
-                $gesprekken[$id] = array_merge($gesprekken[$id], array_intersect_key($event, $velden));
+            if (!isset($gesprekken[$id])) {
+                continue;
+            }
+            $gesprekken[$id] = array_merge($gesprekken[$id], array_intersect_key($event, $velden));
+            if (isset($statussen[$event['type']])) {
+                $gesprekken[$id]['status'] = $statussen[$event['type']];
             }
         }
         return $gesprekken;
@@ -248,27 +283,6 @@ class Data {
             $stelling['antwoorden'] = $tellingen[$stelling['id']] ?? array_fill_keys(self::WAARDEN, 0);
             return $stelling;
         }, $stellingen);
-    }
-
-    // ---- beheerders
-
-    // beheerder by gebruikersnaam (not case sensitive), or null
-    public static function beheerder($gebruikersnaam) {
-        foreach (self::beheerders() as $beheerder) {
-            if (strcasecmp($beheerder['gebruikersnaam'], $gebruikersnaam) === 0) {
-                return $beheerder;
-            }
-        }
-        return null;
-    }
-
-    public static function beheerderMetId($id) {
-        return self::beheerders()[$id] ?? null;
-    }
-
-    // [id => beheerder]
-    public static function beheerders() {
-        return Csv::lastPer(self::bestand('beheerders'), 'id');
     }
 
     // ---- ids

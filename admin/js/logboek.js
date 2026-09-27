@@ -132,6 +132,20 @@ function wat(groep) {
             return `keurde goed: ${citaat(event.tekst)}`;
         case 'stelling.afgekeurd':
             return `keurde af: ${citaat(event.tekst)}, met als reden ${citaat(event.reden ?? '')}`;
+        case 'gesprek.opgeschort':
+            return `pauzeerde het gesprek, met als reden ${citaat(event.reden ?? '')}`;
+        case 'gesprek.hersteld':
+            return 'opende het gesprek weer';
+        case 'gesprek.beeindigd':
+            return `beëindigde het gesprek, met als reden ${citaat(event.reden ?? '')}`;
+        case 'lid.toegevoegd':
+            return `kwam in het team als ${escapeHtml(event.rol)}`;
+        case 'lid.opgeschort':
+            return `schortte ${escapeHtml(event.gebruikersnaam)} op, met als reden ${citaat(event.reden ?? '')}`;
+        case 'lid.hersteld':
+            return `herstelde ${escapeHtml(event.gebruikersnaam)} in het team`;
+        case 'lid.verwijderd':
+            return `verwijderde ${escapeHtml(event.gebruikersnaam)} uit het team, met als reden ${citaat(event.reden ?? '')}`;
         case 'antwoord.gegeven':
             return groep.length === 1
                 ? `antwoordde ${escapeHtml(event.waarde)} op ${citaat(event.tekst)}`

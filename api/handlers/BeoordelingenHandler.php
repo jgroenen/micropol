@@ -1,15 +1,15 @@
 <?php
 
-// moderatie of stellingen by beheerders; whether a stelling is shown follows from the moderatie
-// of its gesprek and its last beoordeling, see Data::zichtbaar()
+// moderatie of stellingen by the team of the gesprek (gespreksbeheerders and moderators); whether a stelling
+// is shown follows from the moderatie of its gesprek and its last beoordeling, see Data::zichtbaar()
 class BeoordelingenHandler {
     const MAX_REDEN = 500;
 
-    // GET /beoordelingen?gesprek_id=<id>   beheerders only
+    // GET /beoordelingen?gesprek_id=<id>   the team of the gesprek only
     // all stellingen of the gesprek, in the order they were added, with beoordeling (or null),
     // reden, zichtbaar and antwoorden { eens, neutraal, oneens }
     public function GET($id = null) {
-        Toegang::vereisBeheerder();
+        Toegang::vereisAccount();
         $gesprekId = Http::field($_GET, 'gesprek_id');
         if ($gesprekId === '') {
             throw new HttpFout(400, 'gesprek_id is required.');
@@ -17,14 +17,15 @@ class BeoordelingenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
+        Toegang::vereisRol($gesprekId, Beheer::TEAMROLLEN);
         Http::json(['stellingen' => $this->stellingen($gesprekId)]);
     }
 
-    // POST /beoordelingen  { gesprek_id, stelling_id, beoordeling, reden }   beheerders only
+    // POST /beoordelingen  { gesprek_id, stelling_id, beoordeling, reden }   the team of the gesprek only
     // beoordeling is goedgekeurd or afgekeurd; reden is required for afgekeurd.
     // Returns the stelling with its new state, like GET.
     public function POST($id = null) {
-        $beheerder = Toegang::vereisBeheerder();
+        Toegang::vereisAccount();
         $input = Http::body();
         $gesprekId = Http::field($input, 'gesprek_id');
         $stellingId = Http::field($input, 'stelling_id');
@@ -45,6 +46,7 @@ class BeoordelingenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
+        $beheerder = Toegang::vereisRol($gesprekId, Beheer::TEAMROLLEN);
         if (Data::stelling($gesprekId, $stellingId) === null) {
             throw new HttpFout(404, 'Stelling not found in this gesprek.');
         }

@@ -46,7 +46,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [tests/api.py](tests/api.py) | Elke call van API en math tegen de OpenAPI-spec: status, request en response, inclusief inloggen en uitloggen. Elke operatie in de specs wordt minstens één keer aangeroepen. |
 | [tests/browser.mjs](tests/browser.mjs) | De app en de admin in Chrome (headless) |
 
-- **Testdata:** de tests maken hun eigen data aan, met een eigen testbeheerder. Daarna zet `run.sh` de data van API en math terug. Gebruik de app niet terwijl de tests draaien.
+- **Testdata:** de tests beginnen op een lege API. Ze installeren hem (admin/admin maakt de eerste superbeheerder) en maken hun eigen data aan. Daarna zet `run.sh` de data van API en math terug. Gebruik de app niet terwijl de tests draaien.
 - **Nodig:** python3, node (18 of nieuwer) en Chrome. `jsonschema` komt bij de eerste run in `tests/.venv`.
 
 ## Structuur
@@ -58,8 +58,8 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/schema.json](api/schema.json) | De typen van de API als JSON Schema, live op <http://localhost:8001/docs/schema.json>, zie [Typen](#typen) |
 | [api/config.php](api/config.php) | Instellingen per omgeving: welke origins de API mogen aanroepen, en hoe lang een login geldig is, zie [Losse servers](#losse-servers) |
 | [api/handlers/](api/handlers/) | Eén handler per resource |
-| [api/lib/](api/lib/) | Gedeelde code: opslag ([Data](api/lib/Data.php), [Jsonl](api/lib/Jsonl.php), [Csv](api/lib/Csv.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
-| [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer), en [naar-events.php](api/bin/naar-events.php), zie [Opslag](#opslag) |
+| [api/lib/](api/lib/) | Gedeelde code: opslag ([Data](api/lib/Data.php), [Jsonl](api/lib/Jsonl.php), [Csv](api/lib/Csv.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)), rollen ([Beheer](api/lib/Beheer.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
+| [api/bin/](api/bin/) | [superbeheerder-toevoegen.php](api/bin/superbeheerder-toevoegen.php), zie [Beheer](#beheer); de migraties [naar-events.php](api/bin/naar-events.php) en [naar-teams.php](api/bin/naar-teams.php), zie [Opslag](#opslag) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [www/](www/) | De productpagina: [index.php](www/index.php) vult de URL's van alle delen in [views/pagina.html](www/views/pagina.html) in; [css/](www/css/) en [instellingen.php](www/instellingen.php). Geen JavaScript |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
@@ -110,23 +110,29 @@ Het overzicht hieronder is de korte versie:
 | Methode en pad | Wat |
 |---|---|
 | `GET /gesprekken` | Alle gesprekken (lokaal <http://localhost:8001/gesprekken>) |
-| `POST /gesprekken` | Gesprek aanmaken, alleen voor ingelogde beheerders: `{ titel, omschrijving, moderatie }` (max. 200 en 1000 tekens; omschrijving optioneel; `moderatie` is `achteraf` (standaard) of `vooraf`, zie [Moderatie](#moderatie)) |
-| `PUT /gesprekken/<id>` | Gesprek aanpassen, alleen voor ingelogde beheerders: `{ titel, omschrijving, moderatie }`, zelfde regels als aanmaken; zonder `moderatie` blijft die gelijk |
+| `POST /gesprekken` | Gesprek aanmaken, alleen voor superbeheerders: `{ titel, omschrijving, moderatie }` (max. 200 en 1000 tekens; omschrijving optioneel; `moderatie` is `achteraf` (standaard) of `vooraf`, zie [Moderatie](#moderatie)) |
+| `PUT /gesprekken/<id>` | Gesprek aanpassen, alleen voor de gespreksbeheerders ervan: `{ titel, omschrijving, moderatie }`, zelfde regels als aanmaken; zonder `moderatie` blijft die gelijk |
 | `GET /gesprekken/<id>` | Eén gesprek met zijn zichtbare stellingen (`{ id, tekst }`) in willekeurige volgorde |
 | `GET /stellingen?gesprek_id=<id>&deelnemer_id=<id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
 | `POST /stellingen` | Stelling toevoegen: `{ gesprek_id, deelnemer_id, tekst }` (max. 500 tekens); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
 | `GET /antwoorden?gesprek_id=<id>&deelnemer_id=<id>` | De antwoorden van één deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
 | `GET /antwoorden?gesprek_id=<id>` | Alle antwoorden als matrix: `{ gesprek_id, deelnemers: [{ nummer, antwoorden: { stelling_id: waarde } }] }`, anoniem, zoals in de export |
 | `POST /antwoorden` | Antwoord geven: `{ gesprek_id, deelnemer_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
-| `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor ingelogde beheerders |
-| `POST /beoordelingen` | Stelling beoordelen, alleen voor ingelogde beheerders: `{ gesprek_id, stelling_id, beoordeling, reden }`, met `beoordeling` `goedgekeurd` of `afgekeurd`; bij `afgekeurd` is een `reden` verplicht (max. 500 tekens) |
-| `GET /events?gesprek_id=<id>[&voor=<id>][&limiet=<n>]` | Wat er in een gesprek gebeurde, nieuwste eerst: `{ events, meer }`, alleen voor ingelogde beheerders, zie [Logboek](#logboek) |
+| `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor het team van het gesprek |
+| `POST /beoordelingen` | Stelling beoordelen, alleen voor het team van het gesprek: `{ gesprek_id, stelling_id, beoordeling, reden }`, met `beoordeling` `goedgekeurd` of `afgekeurd`; bij `afgekeurd` is een `reden` verplicht (max. 500 tekens) |
+| `GET /events?gesprek_id=<id>[&voor=<id>][&limiet=<n>]` | Wat er in een gesprek gebeurde, nieuwste eerst: `{ events, meer }`, alleen voor het team van het gesprek, zie [Logboek](#logboek) |
 | `GET /export?gesprek_id=<id>` | De standaardexport van een gesprek, voor de math server, zie [Math server](#math-server) |
 | `GET /docs` | Deze API-documentatie (Swagger UI, lokaal <http://localhost:8001/docs>); de spec zelf op `GET /docs/openapi.json` |
-| `POST /sessie` | Inloggen in de beheeromgeving: `{ gebruikersnaam, wachtwoord }`, geeft `{ beheerder, token, verloopt }` |
-| `GET /sessie` | De beheerder van het token: `{ beheerder: { id, gebruikersnaam, email } }`, of `{ beheerder: null }` |
+| `POST /sessie` | Inloggen in de beheeromgeving: `{ gebruikersnaam, wachtwoord }`, geeft `{ account, installatie, token, verloopt }` |
+| `GET /sessie` | Wie er is ingelogd: `{ account: { id, gebruikersnaam, email, superbeheerder, rollen }, installatie }`, of `account` null |
+| `POST /installatie` | Direct na installatie, ingelogd met admin/admin: de eerste superbeheerder maken, `{ gebruikersnaam, email, wachtwoord }` |
+| `POST /uitnodigingen` | Een uitnodigingslink maken: `{ rol, gesprek_id }`, zie [Beheer](#beheer) |
+| `GET`, `POST /uitnodigingen/<token>` | Waarvoor een uitnodiging is; aannemen, ingelogd of met een nieuw account |
+| `GET`, `POST /team?gesprek_id=<id>` | Het team van een gesprek; een lid opschorten, herstellen of verwijderen |
+| `GET`, `POST /superbeheerders` | De superbeheerders; opschorten, herstellen of verwijderen |
+| `POST /gespreksstatus` | Een gesprek pauzeren, beëindigen of weer openen, alleen voor superbeheerders |
 | `DELETE /sessie` | Uitloggen: het token werkt daarna niet meer |
-„Alleen voor ingelogde beheerders” betekent: met het token uit `POST /sessie` in de header `Authorization: Bearer <token>`, anders volgt 401. Zie [Inloggen](#inloggen).
+Wat alleen voor de beheeromgeving is, vraagt het token uit `POST /sessie` in de header `Authorization: Bearer <token>`, anders volgt 401. Mag het account het niet, dan volgt 403. Zie [Beheer](#beheer) en [Inloggen](#inloggen).
 
 In de app en de admin toont de knop **{ } API** de API-calls van de huidige pagina, met request en response. Het wachtwoord en het token staan daar niet in.
 
@@ -136,7 +142,7 @@ De twee PHP-diensten (api en math) zijn op dezelfde manier opgebouwd:
 
 - **`index.php`** is de router: `/<resource>[/<id>]` gaat naar `handlers/<Resource>Handler-><METHOD>($id)`.
 - **Fouten:** een handler gooit een `HttpFout($status, $melding)`, en `index.php` antwoordt dan met `{ "error": "..." }`.
-- **Data:** handlers lezen en schrijven alleen via `Data`. Wat er in een gesprek gebeurt, schrijven ze met `voegEventToe()`; `gesprekken()`, `stellingen()`, `matrix()` en de andere lezen de events en geven de stand. Voor beheerders en logins zijn er `bestand()`, `voegToe()` en `laatste()`. Zie [Opslag](#opslag).
+- **Data:** handlers lezen en schrijven alleen via `Data`. Wat er in een gesprek gebeurt, schrijven ze met `voegEventToe()`; `gesprekken()`, `stellingen()`, `matrix()` en de andere lezen de events en geven de stand. Accounts, rollen, teams en uitnodigingen staan in `Beheer`. Voor de logins zijn er `bestand()`, `voegToe()` en `laatste()`. Zie [Opslag](#opslag).
 - **Gedeelde bestanden:** `Csv.php`, `Http.php`, `HttpFout.php` en `DocsHandler.php` staan in elk project als gelijke kopie. De projecten zijn los, dus ze delen geen code.
 
 App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per view met `koppel()`, een hash-router in `main.js`, en `api.js` voor de calls. Het laden van views en de calls zelf komen van de cdn (`views.js` en `verzoek.js`). Een call die mislukt, gooit een `Error` met `status`; opzoekfuncties geven `null` als er niets is.
@@ -155,13 +161,15 @@ App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per v
 
 ## Opslag
 
-Alles wat er in een gesprek gebeurt, staat als **event** in [api/data/](api/data/): één JSON-object per regel (jsonl). Er zijn drie stromen:
+Alles wat er gebeurt, staat als **event** in [api/data/](api/data/): één JSON-object per regel (jsonl). Er zijn deze stromen:
 
 | Bestand | Events |
 |---|---|
-| `gesprekken.jsonl` | `gesprek.aangemaakt`, `gesprek.aangepast` (van alle gesprekken) |
+| `gesprekken.jsonl` | `gesprek.aangemaakt`, `.aangepast`, `.opgeschort`, `.beeindigd`, `.hersteld` (van alle gesprekken) |
 | `gesprekken/<gesprek_id>/stellingen.jsonl` | `stelling.toegevoegd`, `stelling.goedgekeurd`, `stelling.afgekeurd` |
 | `gesprekken/<gesprek_id>/antwoorden.jsonl` | `antwoord.gegeven` |
+| `gesprekken/<gesprek_id>/team.jsonl` | `lid.toegevoegd`, `.opgeschort`, `.hersteld`, `.verwijderd`: het team van het gesprek |
+| `beheer.jsonl` | `account.aangemaakt`, `wachtwoord.ingesteld`, `superbeheerder.benoemd`, `.opgeschort`, `.hersteld`, `.verwijderd`, `uitnodiging.aangemaakt`, `.gebruikt` |
 
 Een event ziet er zo uit:
 
@@ -170,20 +178,15 @@ Een event ziet er zo uit:
 ```
 
 - **Elk event** heeft `id`, `tijdstip` (unix-tijd), `type`, `door` en `gesprek_id`, plus de velden van zijn type (zie `Event` in [api/schema.json](api/schema.json)).
-- **`id`** is een UUID v7. Die begint met de tijd, dus op id sorteren is op tijd sorteren; zo voegt het [logboek](#logboek) de drie stromen samen.
-- **`door`** is `{ soort, id }`: een beheerder, of een deelnemer met zijn `deelnemer_id`.
+- **`id`** is een UUID v7. Die begint met de tijd, dus op id sorteren is op tijd sorteren; zo voegt het [logboek](#logboek) de stromen van een gesprek samen.
+- **`door`** is `{ soort, id }`: een account van de beheeromgeving (`beheerder`), of een deelnemer met zijn `deelnemer_id`.
 - **`gesprek.aangepast`** heeft alleen de velden die veranderden. Verandert er niets, dan komt er geen event.
 - **De stand volgt uit de events:** een gesprek, zijn stellingen met hun beoordeling, en de antwoorden krijg je door de events op volgorde te lezen ([Data.php](api/lib/Data.php)). Een wijziging is een nieuw event, en het laatste telt. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord.
 - **Snel genoeg:** `GET /gesprekken` leest alleen het kleine `gesprekken.jsonl`, en tellingen, de matrix en de export lezen de antwoorden van één gesprek.
 
 De bestanden worden alleen aangevuld, nooit gewijzigd. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
 
-Beheerders en logins zijn geen gebeurtenissen van een gesprek. Die staan als csv in dezelfde map, en daar telt de laatste regel met dezelfde sleutel:
-
-| Bestand | Kolommen |
-|---|---|
-| [beheerders.csv](api/data/beheerders.csv) | `id, gebruikersnaam, email, salt, versleuteld_wachtwoord, wachtwoord_methode`, zie [Beheer](#beheer) |
-| `sessies.csv` | `token_hash, beheerder_id, begonnen, verloopt`, zie [Inloggen](#inloggen) |
+Logins zijn geen events: die staan in `sessies.csv` (`token_hash, account_id, begonnen, verloopt`), zie [Inloggen](#inloggen). Daar telt de laatste regel met dezelfde `token_hash`.
 
 **Data van vóór de events** (`gesprekken.csv`, `stellingen.csv`, `antwoorden/` en `beoordelingen/`) zet je eenmalig om:
 
@@ -193,7 +196,9 @@ php api/bin/naar-events.php
 
 Het script schrijft de events en zet de oude csv-bestanden in `api/data/csv-voor-events/`. Die bewaarden niet wanneer iets gebeurde, behalve bij beoordelingen. De andere events krijgen daarom `tijdstip` `null`, en wie een gesprek aanmaakte of aanpaste is onbekend (`door` `null`).
 
-De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn eigen data. Een lege `data/`-map werkt; de bestanden ontstaan bij het eerste gebruik. Hetzelfde geldt voor `math/data/`, met de berekende modellen. Maak op een nieuwe server eerst een beheerder aan, zie [Beheer](#beheer).
+**Beheerders van vóór de teams** (`beheerders.csv`) zet je daarna eenmalig om met `php api/bin/naar-teams.php`. Elke beheerder wordt een account met dezelfde gebruikersnaam en hetzelfde wachtwoord, en superbeheerder én gespreksbeheerder van alle gesprekken; vroeger konden beheerders immers alles. `beheerders.csv` en `sessies.csv` gaan naar `api/data/csv-voor-teams/`, dus iedereen logt opnieuw in.
+
+De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn eigen data. Een lege `data/`-map werkt; de bestanden ontstaan bij het eerste gebruik. Hetzelfde geldt voor `math/data/`, met de berekende modellen. Op een nieuwe server log je eerst in met admin/admin, zie [Beheer](#beheer).
 
 De data is nooit direct op te vragen: in productie stuurt de [Caddyfile](Caddyfile) elk verzoek aan API en math server naar `index.php`.
 
@@ -205,21 +210,33 @@ Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `local
 
 ## Beheer
 
-De beheeromgeving staat lokaal op <http://localhost:8002>. Beheerders staan in [api/data/beheerders.csv](api/data/beheerders.csv), en worden toegevoegd met [api/bin/beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php):
+De beheeromgeving staat lokaal op <http://localhost:8002>. Wie wat mag, hangt af van de rol van het account ([Beheer.php](api/lib/Beheer.php)):
+
+| Rol | Van | Mag |
+|---|---|---|
+| **Superbeheerder** | de hele server | gesprekken aanmaken, pauzeren, beëindigen en weer openen; teamleden en andere superbeheerders opschorten, herstellen of verwijderen; altijd met een reden. Leest en modereert zelf geen inhoud. |
+| **Gespreksbeheerder** | één gesprek | de gegevens aanpassen, het team beheren (uitnodigen, opschorten, verwijderen) en modereren |
+| **Moderator** | één gesprek | stellingen goed- of afkeuren, en het logboek lezen |
+
+Eén account kan meer rollen hebben, in meer gesprekken. Het team van een gesprek is dus per gesprek.
+
+- **Na installatie** log je in met **admin/admin**. Die login kan alleen de eerste superbeheerder maken, met gebruikersnaam, e-mailadres en eigen wachtwoord. Daarna werkt admin/admin niet meer.
+- **Nieuwe mensen** komen erbij met een **uitnodigingslink**. Een superbeheerder nodigt uit voor elke rol, een gespreksbeheerder voor het team van zijn gesprek. De link is 48 uur geldig en werkt één keer. Wie hem opent, maakt een account of logt in, en krijgt de rol. Er wordt geen e-mail verstuurd: wie uitnodigt, stuurt de link zelf door.
+- **Opschorten** (met een reden) ontzegt iemand tijdelijk de toegang; **herstellen** geeft hem terug. **Verwijderen** is voorgoed, maar de events blijven bewaard. Je eigen status verander je niet, zodat je jezelf niet buitensluit en er altijd een superbeheerder overblijft. Alleen in een team kan een superbeheerder dat wel: zo herstelt hij zichzelf als iemand anders hem heeft opgeschort.
+- **Een gesprek pauzeren of beëindigen** doet een superbeheerder (status `opgeschort` of `beeindigd`). Deelnemers zien dan een paginavullende melding: „Dit gesprek is tijdelijk gepauzeerd”, of „Dit gesprek is voorbij”. Er kunnen geen antwoorden of stellingen bij, en het team kan er niet bij. Allebei zijn terug te draaien. Een gesprek wordt nooit verwijderd: de events blijven, en daarmee alle antwoorden.
+- **Wachtwoorden** worden bewaard als `wachtwoord.ingesteld` in `beheer.jsonl`, met `wachtwoord_methode` en `versleuteld_wachtwoord`. De methode is nu altijd `password_hash` (PHP's `password_hash()`, met het algoritme en de salt in de hash), zodat er later een andere bij kan.
+
+Kan niemand meer inloggen, dan voeg je op de server een superbeheerder toe met [api/bin/superbeheerder-toevoegen.php](api/bin/superbeheerder-toevoegen.php). Het script vraagt het wachtwoord, zodat het niet in de shell-geschiedenis belandt:
 
 ```sh
-php api/bin/beheerder-toevoegen.php <gebruikersnaam> <email>
+php api/bin/superbeheerder-toevoegen.php <gebruikersnaam> <email>
 ```
 
-Het script vraagt het wachtwoord (minstens 12 tekens), zodat het niet in de shell-geschiedenis belandt.
-
-`wachtwoord_methode` zegt hoe `versleuteld_wachtwoord` is gemaakt, zodat er later een andere methode bij kan zonder bestaande beheerders te breken. Nu is dat altijd `password_hash`: PHP's `password_hash()`. Die hash bevat zelf het algoritme en de salt, dus de kolom `salt` blijft leeg.
-
-Een handler in de API die alleen voor beheerders is, begint met `Toegang::vereisBeheerder()`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
+Een handler in de API controleert de rol met `Toegang::vereisSuperbeheerder()` of `Toegang::vereisRol($gesprekId, [...])`, zie bijvoorbeeld [BeoordelingenHandler.php](api/handlers/BeoordelingenHandler.php).
 
 ## Inloggen
 
-Beheerders loggen in bij de API ([Toegang.php](api/lib/Toegang.php)), met een eenvoudig token:
+Accounts loggen in bij de API ([Toegang.php](api/lib/Toegang.php)), met een eenvoudig token:
 
 - **Inloggen:** `POST /sessie` met gebruikersnaam en wachtwoord geeft een token. Dat is een willekeurige string; de API bewaart alleen de sha256 ervan.
 - **Gebruiken:** de admin stuurt het token mee als `Authorization: Bearer <token>`, en bewaart het in `localStorage`, zodat herladen en andere tabbladen ingelogd blijven.
@@ -228,26 +245,26 @@ Beheerders loggen in bij de API ([Toegang.php](api/lib/Toegang.php)), met een ee
 - **Uitloggen** (`DELETE /sessie`) beëindigt het token meteen.
 - **Een onbekende gebruikersnaam** kost even veel tijd als een fout wachtwoord, zodat je aan de responstijd niet kunt zien welke gebruikersnamen bestaan.
 
-`sessies.csv` (`token_hash, beheerder_id, begonnen, verloopt`) is append-only, zoals de rest: `verloopt` 0 betekent uitgelogd, en de laatste regel telt. Samen vormt het ook het logboek van wie wanneer inlogde. Verlopen regels worden (nog) niet opgeruimd.
+`sessies.csv` (`token_hash, account_id, begonnen, verloopt`) is append-only, zoals de rest: `verloopt` 0 betekent uitgelogd, en de laatste regel telt. Samen vormt het ook het logboek van wie wanneer inlogde. Verlopen regels worden (nog) niet opgeruimd.
 
 ## Moderatie
 
-Per gesprek stelt een beheerder in hoe stellingen van deelnemers worden getoond (`moderatie` van het gesprek):
+Per gesprek stelt een gespreksbeheerder in hoe stellingen van deelnemers worden getoond (`moderatie` van het gesprek):
 
 | `moderatie` | Stelling is zichtbaar |
 |---|---|
 | `achteraf` | tenzij afgekeurd (blacklist) |
 | `vooraf` | alleen als goedgekeurd (whitelist) |
 
-Een stelling die niet zichtbaar is, verdwijnt uit het gesprek, de matrix en de analyse, en kan niet meer beantwoord worden. De indiener ziet onder **Mijn stellingen** dat een stelling nog niet is goedgekeurd, of dat hij is afgekeurd, met de reden. Wie een stelling heeft ingediend, ziet een beheerder niet.
+Een stelling die niet zichtbaar is, verdwijnt uit het gesprek, de matrix en de analyse, en kan niet meer beantwoord worden. De indiener ziet onder **Mijn stellingen** dat een stelling nog niet is goedgekeurd, of dat hij is afgekeurd, met de reden. Wie een stelling heeft ingediend, ziet het team niet.
 
-Beheerders beoordelen stellingen op de detailpagina van een gesprek in de beheeromgeving. Een beoordeling is altijd te herzien; de laatste telt.
+Het team (gespreksbeheerders en moderators) beoordeelt stellingen op de detailpagina van een gesprek in de beheeromgeving. Een beoordeling is altijd te herzien; de laatste telt.
 
 ## Logboek
 
-Op de detailpagina van een gesprek staat in de beheeromgeving een tab **Logboek**, naast **Stellingen** en **Gegevens**: wat er in het gesprek gebeurde, nieuwste eerst, met per regel wanneer, wie en wat ([admin/js/logboek.js](admin/js/logboek.js)). Het wordt opnieuw geladen elke keer dat je de tab opent.
+Op de detailpagina van een gesprek staat in de beheeromgeving een tab **Logboek**, voor het team van het gesprek: wat er in het gesprek gebeurde, nieuwste eerst, met per regel wanneer, wie en wat ([admin/js/logboek.js](admin/js/logboek.js)). Het wordt opnieuw geladen elke keer dat je de tab opent.
 
-Het komt uit `GET /events` ([EventsHandler.php](api/handlers/EventsHandler.php)), dat de drie stromen van het gesprek samenvoegt. Events over een stelling hebben daar de `tekst` van de stelling.
+Het komt uit `GET /events` ([EventsHandler.php](api/handlers/EventsHandler.php)), dat de stromen van het gesprek samenvoegt, met die van het team. Events over een stelling hebben daar de `tekst` van de stelling, en events van het team de `gebruikersnaam` van het lid.
 
 - **Deelnemers blijven anoniem:** de API geeft ze als `Deelnemer 12`, met het nummer uit de matrix, nooit met hun id. Wie alleen stellingen toevoegde, krijgt een nummer na de deelnemers die antwoordden.
 - **Antwoorden** van een deelnemer die na elkaar komen, zijn samen één regel („gaf 8 antwoorden”). Anders zou je de rest niet meer zien.

@@ -1,17 +1,17 @@
 <?php
 
-// What happened in a gesprek, for the logboek in the admin: the events of its three streams (see Data),
-// newest first. Deelnemers stay anonymous: door has their nummer, like in the matrix, never their id.
+// What happened in a gesprek, for the logboek in the admin: the events of its streams (see Data), with
+// its team, newest first. Deelnemers stay anonymous: door has their nummer, like in the matrix, never their id.
 // Events about a stelling have its tekst, so the logboek can show it.
 class EventsHandler {
     const LIMIET = 100;
     const MAX_LIMIET = 1000;
 
-    // GET /events?gesprek_id=<id>[&voor=<event id>][&limiet=<n>]   beheerders only
+    // GET /events?gesprek_id=<id>[&voor=<event id>][&limiet=<n>]   the team of the gesprek only
     // { events: [Event], meer } with at most limiet events, newest first; with voor only the events before
     // that one, to load older ones; meer says whether there are older events than these
     public function GET($id = null) {
-        Toegang::vereisBeheerder();
+        Toegang::vereisAccount();
         $gesprekId = Http::field($_GET, 'gesprek_id');
         $voor = Http::field($_GET, 'voor');
         $limiet = Http::field($_GET, 'limiet');
@@ -27,6 +27,7 @@ class EventsHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
+        Toegang::vereisRol($gesprekId, Beheer::TEAMROLLEN);
 
         // from each stream the last limiet + 1 events before voor; together enough to know whether there are more.
         // The antwoorden first: deelnemers who only added stellingen get a nummer after those who answered
@@ -35,16 +36,17 @@ class EventsHandler {
         $events = array_merge(
             $this->laatste(Data::events('gesprekken'), $limiet + 1, $voor, $gesprekId),
             $this->laatste($this->nummer(Data::events('antwoorden', $gesprekId), $nummers), $limiet + 1, $voor),
-            $this->laatste($this->stellingen(Data::events('stellingen', $gesprekId), $nummers, $teksten), $limiet + 1, $voor)
+            $this->laatste($this->stellingen(Data::events('stellingen', $gesprekId), $nummers, $teksten), $limiet + 1, $voor),
+            $this->laatste(Data::events('team', $gesprekId), $limiet + 1, $voor)
         );
         usort($events, function ($a, $b) {
             return strcmp($b['id'], $a['id']);
         });
 
-        $beheerders = Data::beheerders();
+        $accounts = Beheer::accounts();
         Http::json([
-            'events' => array_map(function ($event) use ($nummers, $teksten, $beheerders) {
-                return $this->openbaar($event, $nummers, $teksten, $beheerders);
+            'events' => array_map(function ($event) use ($nummers, $teksten, $accounts) {
+                return $this->openbaar($event, $nummers, $teksten, $accounts);
             }, array_slice($events, 0, $limiet)),
             'meer' => count($events) > $limiet,
         ]);
@@ -87,15 +89,18 @@ class EventsHandler {
         }
     }
 
-    // the event as the api gives it: tijdstip in ISO 8601, door without the id of a deelnemer,
-    // and the tekst of its stelling
-    private function openbaar(array $event, array $nummers, array $teksten, array $beheerders) {
+    // the event as the api gives it: tijdstip in ISO 8601, door without the id of a deelnemer, the tekst of
+    // its stelling, and the gebruikersnaam of the account it is about (an event of the team)
+    private function openbaar(array $event, array $nummers, array $teksten, array $accounts) {
         $event['tijdstip'] = $event['tijdstip'] === null ? null : date('c', $event['tijdstip']);
         $door = $event['door'];
         if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER) {
             $event['door'] = ['soort' => Data::DOOR_DEELNEMER, 'nummer' => $nummers[$door['id']]];
         } elseif (($door['soort'] ?? null) === Data::DOOR_BEHEERDER) {
-            $event['door']['gebruikersnaam'] = $beheerders[$door['id']]['gebruikersnaam'] ?? '';
+            $event['door']['gebruikersnaam'] = $accounts[$door['id']]['gebruikersnaam'] ?? '';
+        }
+        if (isset($event['account_id'])) {
+            $event['gebruikersnaam'] = $accounts[$event['account_id']]['gebruikersnaam'] ?? '';
         }
         if (isset($event['stelling_id']) && !isset($event['tekst'])) {
             $event['tekst'] = $teksten[$event['stelling_id']] ?? '';

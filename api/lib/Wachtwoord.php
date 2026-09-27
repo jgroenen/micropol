@@ -1,21 +1,21 @@
 <?php
 
-// Storing and checking the wachtwoorden of beheerders (beheerders.csv).
+// Storing and checking the wachtwoorden of accounts (wachtwoord.ingesteld in beheer.jsonl, see Beheer).
 // wachtwoord_methode says how versleuteld_wachtwoord was made, so another method can be added later
-// without breaking existing beheerders:
-//   password_hash   PHP's password_hash(); the hash holds its own algorithm and salt, the salt column stays empty
+// without breaking existing accounts:
+//   password_hash   PHP's password_hash(); the hash holds its own algorithm and salt
 class Wachtwoord {
     const METHODE = 'password_hash';
 
-    // [salt, versleuteld_wachtwoord, wachtwoord_methode] for a new wachtwoord
+    // { wachtwoord_methode, versleuteld_wachtwoord } for a new wachtwoord
     public static function versleutel($wachtwoord) {
-        return ['', password_hash($wachtwoord, PASSWORD_DEFAULT), self::METHODE];
+        return ['wachtwoord_methode' => self::METHODE, 'versleuteld_wachtwoord' => password_hash($wachtwoord, PASSWORD_DEFAULT)];
     }
 
-    public static function klopt($wachtwoord, array $beheerder) {
-        switch ($beheerder['wachtwoord_methode']) {
+    public static function klopt($wachtwoord, array $account) {
+        switch ($account['wachtwoord_methode']) {
             case 'password_hash':
-                return password_verify($wachtwoord, $beheerder['versleuteld_wachtwoord']);
+                return password_verify($wachtwoord, $account['versleuteld_wachtwoord']);
             default:
                 return false;
         }

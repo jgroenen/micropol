@@ -3,6 +3,7 @@ import { deelnemerId } from './deelnemer.js';
 import { escapeHtml } from 'cdn/html.js';
 import { maakTabs } from 'cdn/tabs.js';
 import { zetGesprekTitel } from './kop.js';
+import { isGesloten, toonGesloten } from './gesloten.js';
 import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
@@ -82,6 +83,10 @@ export async function toonGesprek(id) {
         ]);
         if (!gesprek) {
             toonNietGevonden();
+            return;
+        }
+        if (isGesloten(gesprek)) {
+            await toonGesloten(gesprek);
             return;
         }
         huidig = { gesprek, antwoorden: antwoorden ?? {}, mijnStellingen: eigenStellingen ?? [], stelling: null, analyse: analyse ?? null, analyseMislukt: analyse === undefined };

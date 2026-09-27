@@ -29,6 +29,11 @@ $handlers = [
     'docs' => 'DocsHandler',
     'beoordelingen' => 'BeoordelingenHandler',
     'events' => 'EventsHandler',
+    'installatie' => 'InstallatieHandler',
+    'uitnodigingen' => 'UitnodigingenHandler',
+    'team' => 'TeamHandler',
+    'superbeheerders' => 'SuperbeheerdersHandler',
+    'gespreksstatus' => 'GespreksstatusHandler',
 ];
 
 // the app and the admin are on other origins: allow those (CORS), and answer the preflight

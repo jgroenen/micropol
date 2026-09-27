@@ -4,16 +4,17 @@
 // sends as "Authorization: Bearer <token>". Only its sha256 is stored (sessies.csv, append only).
 // A token stays valid while it is used: it expires SESSIE_IDLE seconds after it was last used, and
 // SESSIE_MAX seconds after logging in at the latest. Logging out ends it at once.
+// What an account may do follows from its roles, see Beheer.
 class Toegang {
     // a use extends the token only when this much of its idle time has passed, so the file gets at most
     // one row per this many seconds per login
     const VERLENG_NA = 5 * 60;
 
-    // logs in: a new token for the beheerder => { token, verloopt (ISO 8601) }
-    public static function login(array $beheerder) {
+    // logs in: a new token for the account id (or Beheer::INSTALLATIE) => { token, verloopt (ISO 8601) }
+    public static function login($accountId) {
         $token = bin2hex(random_bytes(32));
         $verloopt = time() + SESSIE_IDLE;
-        Data::voegToe('sessies', Data::SESSIES, [hash('sha256', $token), $beheerder['id'], time(), $verloopt]);
+        Data::voegToe('sessies', Data::SESSIES, [hash('sha256', $token), $accountId, time(), $verloopt]);
         return ['token' => $token, 'verloopt' => date('c', $verloopt)];
     }
 
@@ -21,32 +22,64 @@ class Toegang {
     public static function logout() {
         $sessie = self::sessie();
         if ($sessie !== null) {
-            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['beheerder_id'], $sessie['begonnen'], 0]);
+            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['account_id'], $sessie['begonnen'], 0]);
         }
     }
 
-    // the logged in beheerder { id, gebruikersnaam, email }, or null; a valid token is extended
-    public static function beheerder() {
+    // the logged in account (see Beheer::accounts()), or null; a valid token is extended
+    public static function account() {
         $sessie = self::sessie();
-        if ($sessie === null) {
-            return null;
+        $account = $sessie === null ? null : Beheer::account($sessie['account_id']);
+        if ($account !== null) {
+            self::verleng($sessie);
         }
-        $beheerder = Data::beheerderMetId($sessie['beheerder_id']);
-        if ($beheerder === null) {
-            return null;
-        }
-        self::verleng($sessie);
-        return ['id' => $beheerder['id'], 'gebruikersnaam' => $beheerder['gebruikersnaam'], 'email' => $beheerder['email']];
+        return $account;
     }
 
-    // for the beheer endpoints: the logged in beheerder; without one a 401
-    public static function vereisBeheerder() {
-        $beheerder = self::beheerder();
-        if ($beheerder === null) {
+    // whether this request has the login of admin/admin, and there is still no superbeheerder
+    public static function installatie() {
+        $sessie = self::sessie();
+        return $sessie !== null && $sessie['account_id'] === Beheer::INSTALLATIE && Beheer::installatieNodig();
+    }
+
+    // for the beheer endpoints: the logged in account; without one a 401
+    public static function vereisAccount() {
+        $account = self::account();
+        if ($account === null) {
             header('WWW-Authenticate: Bearer');
             throw new HttpFout(401, 'Not logged in.');
         }
-        return $beheerder;
+        return $account;
+    }
+
+    // the logged in account if it is an actief superbeheerder; otherwise a 401 or 403
+    public static function vereisSuperbeheerder() {
+        $account = self::vereisAccount();
+        if (!Beheer::isSuperbeheerder($account)) {
+            throw new HttpFout(403, 'Only for superbeheerders.');
+        }
+        return $account;
+    }
+
+    // the logged in account if it has one of the roles in the gesprek (and it is not paused), or it is
+    // superbeheerder and that is one of the roles; otherwise a 401 or 403. The gesprek must exist.
+    public static function vereisRol($gesprekId, array $rollen) {
+        $account = self::vereisAccount();
+        if (in_array(Beheer::ROL_SUPERBEHEERDER, $rollen, true) && Beheer::isSuperbeheerder($account)) {
+            return $account;
+        }
+        if (Data::gesprekActief($gesprekId) && in_array(Beheer::rolIn($gesprekId, $account), $rollen, true)) {
+            return $account;
+        }
+        throw new HttpFout(403, 'Not allowed for this gesprek.');
+    }
+
+    // for POST /installatie: only the login of admin/admin, while there is no superbeheerder
+    public static function vereisInstallatie() {
+        if (!self::installatie()) {
+            header('WWW-Authenticate: Bearer');
+            throw new HttpFout(401, 'Only right after installing, logged in as admin.');
+        }
     }
 
     // the valid sessie of the token in this request, or null
@@ -56,7 +89,7 @@ class Toegang {
             return null;
         }
         $sessie = Data::laatste('sessies', 'token_hash', hash('sha256', $token));
-        if ($sessie === null || (int) $sessie['verloopt'] < time() || (int) $sessie['begonnen'] + SESSIE_MAX < time()) {
+        if ($sessie === null || !isset($sessie['account_id']) || (int) $sessie['verloopt'] < time() || (int) $sessie['begonnen'] + SESSIE_MAX < time()) {
             return null;
         }
         return $sessie;
@@ -65,7 +98,7 @@ class Toegang {
     private static function verleng(array $sessie) {
         $nieuw = min(time() + SESSIE_IDLE, (int) $sessie['begonnen'] + SESSIE_MAX);
         if ($nieuw - (int) $sessie['verloopt'] >= self::VERLENG_NA) {
-            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['beheerder_id'], $sessie['begonnen'], $nieuw]);
+            Data::voegToe('sessies', Data::SESSIES, [$sessie['token_hash'], $sessie['account_id'], $sessie['begonnen'], $nieuw]);
         }
     }
 }

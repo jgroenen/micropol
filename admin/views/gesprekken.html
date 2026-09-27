@@ -2,8 +2,12 @@
     <h1 class="pagina-titel">Gesprekken</h1>
     <p class="melding" id="gesprekken-melding" role="status" hidden></p>
     <div id="gesprekken-overzicht">
+        <!-- after making a gesprek: the link for its first gespreksbeheerder, see js/uitnodigen.js -->
+        <form class="uitnodigen eerste-uitnodiging" id="nieuw-uitnodigen" hidden></form>
         <ul class="beheer-lijst gesprekken-lijst" id="gesprekken-lijst"></ul>
-        <button class="link-knop open-nieuw" id="open-nieuw">
+        <p class="leeg-tekst" id="gesprekken-leeg" hidden>Je hebt nog geen gesprekken. Vraag een superbeheerder of een gespreksbeheerder om een uitnodiging.</p>
+        <!-- superbeheerders only -->
+        <button class="link-knop open-nieuw" id="open-nieuw" hidden>
             <svg width="27" height="25" viewBox="0 0 27 25" aria-hidden="true"><rect x="1" y="1" width="25" height="23" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13.5 7v11M8 12.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             Nieuw gesprek
         </button>

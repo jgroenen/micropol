@@ -10,6 +10,8 @@
             <button role="tab" id="tab-stellingen" aria-controls="paneel-stellingen" data-tab="stellingen">Stellingen</button>
             <button role="tab" id="tab-logboek" aria-controls="paneel-logboek" data-tab="logboek">Logboek</button>
             <button role="tab" id="tab-gegevens" aria-controls="paneel-gegevens" data-tab="gegevens">Gegevens</button>
+            <button role="tab" id="tab-team" aria-controls="paneel-team" data-tab="team">Team</button>
+            <button role="tab" id="tab-status" aria-controls="paneel-status" data-tab="status">Status</button>
         </div>
 
         <!-- see js/stellingen.js -->
@@ -56,5 +58,21 @@
                 <button type="submit" class="knop" id="gesprek-knop">Opslaan</button>
             </form>
         </div>
+
+        <!-- see js/team.js -->
+        <div class="tab-paneel" role="tabpanel" id="paneel-team" aria-labelledby="tab-team" tabindex="0" hidden>
+            <p class="melding fout" id="team-fout" role="alert" hidden></p>
+            <ul class="beheer-lijst" id="team-lijst"></ul>
+            <p class="leeg-tekst" id="team-leeg" hidden>Er is nog niemand in het team. Nodig iemand uit.</p>
+            <form class="uitnodigen" id="team-uitnodigen"></form>
+        </div>
+
+        <!-- superbeheerders: pausing, restoring and removing the gesprek -->
+        <div class="tab-paneel" role="tabpanel" id="paneel-status" aria-labelledby="tab-status" tabindex="0" hidden>
+            <p class="melding fout" id="status-fout" role="alert" hidden></p>
+            <div id="status-rij" data-rij></div>
+        </div>
     </div>
+
+    <p class="leeg-tekst" id="gesprek-geen-toegang" hidden></p>
 </section>

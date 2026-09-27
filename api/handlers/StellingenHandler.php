@@ -43,6 +43,9 @@ class StellingenHandler {
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
+        if (!Data::gesprekActief($gesprekId)) {
+            throw new HttpFout(409, 'This gesprek is paused or over.');
+        }
 
         $stellingId = Data::uuid();
         Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst]);
