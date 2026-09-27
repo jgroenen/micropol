@@ -55,6 +55,7 @@ export async function toonGesprek(id) {
             return;
         }
         titel.textContent = gesprek.titel;
+        document.title = `MiniPol beheer | ${gesprek.titel}`;
         const aantal = gesprek.stellingen.length;
         info.innerHTML = `${aantal} ${aantal === 1 ? 'zichtbare stelling' : 'zichtbare stellingen'} · <a target="_blank" rel="noopener" href="${APP_URL}/#/gesprekken/${encodeURIComponent(id)}">Bekijken in de app →</a>`;
         vulFormulier(gesprek);
@@ -93,6 +94,7 @@ async function slaOp(event) {
     try {
         const gesprek = await putGesprek(huidigId, gesprekVelden(formulier));
         titel.textContent = gesprek.titel;
+        document.title = `MiniPol beheer | ${gesprek.titel}`;
         vulFormulier(gesprek);
         melding.textContent = 'De wijzigingen zijn opgeslagen.';
         melding.hidden = false;

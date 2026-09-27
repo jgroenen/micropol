@@ -15,6 +15,8 @@ const routes = [
 const ingelogd = document.getElementById('ingelogd');
 
 function route() {
+    // the page of a gesprek adds its title once it is loaded
+    document.title = 'MiniPol beheer';
     const beheerder = ingelogdeBeheerder();
     ingelogd.hidden = !beheerder;
     if (!beheerder) {

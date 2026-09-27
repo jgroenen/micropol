@@ -102,6 +102,7 @@ try {
     await naar(`${APP}/#/gesprekken/${data.gesprek}`);
     await cmd('Page.reload');
     check('app: gesprek geladen', await wachtOp(`document.getElementById('mijn-antwoorden-lijst')?.children.length > 0`));
+    check('app: titel van het gesprek in de kop en in de tabtitel', await wachtOp(`document.getElementById('site-gesprek').textContent.startsWith('Testgesprek') && document.title.startsWith('MiniPol | Testgesprek')`));
     check('app: oude user_id overgenomen als deelnemer_id', await waarde(`localStorage.getItem('deelnemer_id') === '${data.deelnemer}' && localStorage.getItem('user_id') === null`));
     check('app: eigen antwoorden (alleen zichtbare stellingen)', await waarde(`document.getElementById('mijn-antwoorden-lijst').children.length`) === data.zichtbaar);
     check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
@@ -121,6 +122,7 @@ try {
 
     // ---- app: the matrix
     await naar(`${APP}/#/gesprekken/${data.gesprek}/matrix`);
+    check('app: matrix met de titel van het gesprek in de kop', await wachtOp(`document.title.startsWith('MiniPol | Testgesprek') && !document.getElementById('site-gesprek').hidden`));
     check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers}`));
     check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
     check('app: aanhalingstekens en tags blijven tekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling === 'Een "stelling" <b>uit</b> de browsertest.') && !document.querySelector('.matrix b')`));
@@ -146,7 +148,7 @@ try {
     // ---- admin: changing
     check('admin: tabs, met stellingen eerst', await waarde(`${zichtbaar('paneel-stellingen')} && document.getElementById('paneel-logboek').hidden && document.getElementById('paneel-gegevens').hidden`));
     await doe(`document.getElementById('tab-gegevens').click(); document.getElementById('gesprek-titel-veld').value = 'Testgesprek (browser)'; document.getElementById('gesprek-knop').click();`);
-    check('admin: gesprek opgeslagen', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Testgesprek (browser)'`));
+    check('admin: gesprek opgeslagen', await wachtOp(`document.getElementById('gesprek-titel').textContent === 'Testgesprek (browser)' && document.title === 'MiniPol beheer | Testgesprek (browser)'`));
     await doe(`document.getElementById('tab-stellingen').click(); document.querySelector('#stellingen-lijst [data-actie=afkeuren]').click();`);
     await doe(`const f = document.querySelector('#stellingen-lijst .afkeur-formulier:not([hidden])'); f.reden.value = 'Browsertest'; f.querySelector('button[type=submit]').click();`);
     check('admin: stelling afgekeurd', await wachtOp(`[...document.querySelectorAll('.stelling-meta')].some(m => m.textContent.includes('Browsertest'))`));

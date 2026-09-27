@@ -1,7 +1,7 @@
 /*
  * The design system of MiniPol, shared by the app and the admin: load this before the main.css of the interface.
  * Layer order decides which styles win, not file order: later layers override earlier ones.
- * Look & feel based on the Voxit frontend of praatmeemetdeoverheid.nl
+ * The colors are in tokens.css: old blue on broken white.
  */
 @layer reset, tokens, base, layout, components;
 

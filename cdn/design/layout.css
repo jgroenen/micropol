@@ -5,13 +5,25 @@
 }
 
 .site-titel {
+    flex-shrink: 0;
     color: var(--color-brand-text);
     font-size: var(--font-size-h2);
     font-weight: 600;
     text-decoration: none;
 }
 
-/* main area with the rounded brand background */
+/* next to the name, what the page is about, like the title of a gesprek; after a thin line */
+.site-gesprek {
+    min-inline-size: 0;
+    margin-inline-start: var(--space-3);
+    padding-inline-start: var(--space-3);
+    border-inline-start: 1px solid var(--color-border);
+    font-size: var(--font-size-h3);
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+/* main area: a light blue panel with a line in the brand color on top */
 main {
     flex-grow: 1;
     display: flex;
@@ -19,10 +31,11 @@ main {
     margin: var(--space-3) 0 0;
     padding: clamp(var(--space-5), 4vw, var(--space-6)) clamp(var(--space-4), 4vw, var(--space-6));
     background-color: var(--color-brand-surface);
-    border-start-end-radius: clamp(5rem, 12vw, 9rem);
+    border-block-start: 3px solid var(--color-brand);
 
     @media (width >= 40rem) {
         margin: var(--space-4);
+        border-radius: var(--radius);
     }
 }
 

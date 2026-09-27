@@ -2,13 +2,14 @@ import { getGesprek, getMijnAntwoorden, getMijnStellingen, getAnalyse, postAntwo
 import { deelnemerId } from './deelnemer.js';
 import { escapeHtml } from 'cdn/html.js';
 import { maakTabs } from 'cdn/tabs.js';
+import { zetGesprekTitel } from './kop.js';
 import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
 import { plaats, groepMarker, groepNaam, tekenPlot, tekenLegenda } from './analyse.js';
 
 // elements of views/gesprek.html, set by koppel() once the view is in the page
-let beantwoorden, toevoegen, melding, titel, teller, huidigeStelling, knoppen, antwoordKnoppen, tabs, tabBladen, textarea, indienen;
+let beantwoorden, toevoegen, melding, teller, huidigeStelling, knoppen, antwoordKnoppen, tabs, tabBladen, textarea, indienen;
 let gekoppeld = false;
 
 // the tab shown below the stelling, kept when switching gesprekken
@@ -21,7 +22,6 @@ function koppel() {
     beantwoorden = document.getElementById('beantwoorden');
     toevoegen = document.getElementById('toevoegen');
     melding = document.getElementById('melding');
-    titel = document.getElementById('gesprek-titel');
     teller = document.getElementById('stelling-teller');
     huidigeStelling = document.getElementById('huidige-stelling');
     knoppen = document.getElementById('antwoord-knoppen');
@@ -85,7 +85,7 @@ export async function toonGesprek(id) {
             return;
         }
         huidig = { gesprek, antwoorden: antwoorden ?? {}, mijnStellingen: eigenStellingen ?? [], stelling: null, analyse: analyse ?? null, analyseMislukt: analyse === undefined };
-        titel.textContent = gesprek.titel;
+        zetGesprekTitel(gesprek.titel);
         document.getElementById('moderatie-hint').hidden = gesprek.moderatie !== 'vooraf';
         toonBeantwoorden();
     } catch (error) {
@@ -95,7 +95,6 @@ export async function toonGesprek(id) {
 
 function toonNietGevonden() {
     beantwoorden.hidden = false;
-    titel.textContent = '';
     teller.textContent = '';
     huidigeStelling.textContent = 'Gesprek niet gevonden.';
     knoppen.hidden = true;

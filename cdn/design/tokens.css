@@ -1,19 +1,19 @@
 :root {
     color-scheme: light dark;
 
-    /* colors: light-dark(<light>, <dark>) follows the OS setting */
-    --color-brand: oklch(47% 0.09 315);                 /* #714f87 */
+    /* colors: light-dark(<light>, <dark>) follows the OS setting; old blue on broken white */
+    --color-brand: oklch(47% 0.065 245);                /* #3a5f7d */
     --color-brand-hover: color-mix(in oklch, var(--color-brand), black 18%);
     --color-brand-text: light-dark(var(--color-brand), color-mix(in oklch, var(--color-brand), white 50%));  /* brand color for text/icons */
     --color-on-brand: oklch(100% 0 0);
-    --color-text: light-dark(oklch(0% 0 0), oklch(93% 0.01 315));
-    --color-muted: light-dark(oklch(45% 0 0), oklch(75% 0.02 315));
-    --color-page: light-dark(oklch(100% 0 0), oklch(17% 0.015 315));
-    --color-brand-surface: light-dark(oklch(92% 0.02 315), oklch(25% 0.035 315));   /* #e8dfed */
-    --color-surface: light-dark(oklch(100% 0 0), oklch(30% 0.03 315));
-    --color-border: light-dark(oklch(84% 0 0), oklch(42% 0.03 315));
-    --color-tooltip: light-dark(oklch(0% 0 0), oklch(95% 0.01 315));
-    --color-on-tooltip: light-dark(oklch(100% 0 0), oklch(15% 0.01 315));
+    --color-text: light-dark(oklch(20% 0.01 245), oklch(93% 0.008 85));
+    --color-muted: light-dark(oklch(45% 0.01 245), oklch(75% 0.015 245));
+    --color-page: light-dark(oklch(97.5% 0.008 85), oklch(17% 0.012 245));    /* #f9f6f1 */
+    --color-brand-surface: light-dark(oklch(94% 0.013 235), oklch(24% 0.02 245));
+    --color-surface: light-dark(oklch(100% 0 0), oklch(29% 0.02 245));
+    --color-border: light-dark(oklch(85% 0.01 245), oklch(42% 0.02 245));
+    --color-tooltip: light-dark(oklch(20% 0.01 245), oklch(95% 0.008 85));
+    --color-on-tooltip: light-dark(oklch(100% 0 0), oklch(15% 0.01 245));
 
     /* antwoorden */
     --color-eens: oklch(62% 0.16 145);
@@ -27,7 +27,7 @@
     --groep-3: light-dark(#1baf7a, #199e70);
     --groep-4: light-dark(#6f6c68, #a8a2ad);
     --groep-5: light-dark(#6f6c68, #a8a2ad);
-    --color-grid: light-dark(#e1e0d9, #463a4a);
+    --color-grid: light-dark(#e1e0d9, #38434d);
 
     /* spacing */
     --space-1: 0.375rem;

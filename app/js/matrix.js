@@ -5,6 +5,7 @@ import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
 import { tekenPlot, tekenLegenda, tekenGroepKaarten, tekenConsensus, uitlegOnderscheid, uitlegConsensus, groepMarker, groepNaam, plaats } from './analyse.js';
+import { zetGesprekTitel } from './kop.js';
 
 // elements of views/matrix.html, set by koppel() once the view is in the page
 let wrapper, leeg, titel, analyseSectie, plot;
@@ -32,6 +33,7 @@ export async function toonMatrix(id) {
         await toonView('matrix');
         koppel();
         document.getElementById('matrix-terug').href = `#/gesprekken/${encodeURIComponent(id)}`;
+        titel.textContent = 'Matrix';
         wrapper.innerHTML = '';
         plot.innerHTML = '';
         leeg.hidden = true;
@@ -50,7 +52,7 @@ export async function toonMatrix(id) {
             titel.textContent = 'Gesprek niet gevonden';
             return;
         }
-        titel.textContent = `Matrix: ${gesprek.titel}`;
+        zetGesprekTitel(gesprek.titel);
         // the api gives the stellingen in random order; sorted by id, S1, S2, ... stay the same stelling
         gesprek.stellingen.sort((a, b) => a.id.localeCompare(b.id));
 
