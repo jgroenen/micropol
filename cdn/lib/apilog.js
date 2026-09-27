@@ -7,6 +7,10 @@ import { escapeHtml } from './html.js';
 
 const MAX_VERZOEKEN = 50;
 
+// the Popover API is from 2023 (Safari 17, iOS 17); without it there is no button, and the page just works.
+// Before, ':popover-open' threw there, so the app and the admin showed no more than their header.
+const heeftPopover = Object.hasOwn(HTMLElement.prototype, 'popover');
+
 const stijl = document.createElement('link');
 stijl.rel = 'stylesheet';
 stijl.href = new URL('apilog.css', import.meta.url);
@@ -19,6 +23,7 @@ const knop = document.createElement('button');
 knop.className = 'api-log-knop';
 knop.type = 'button';
 knop.setAttribute('popovertarget', 'api-log');
+knop.hidden = !heeftPopover;
 knop.innerHTML = '<span aria-hidden="true">{ }</span> API <span class="api-log-teller">0</span>';
 
 const paneel = document.createElement('div');
@@ -69,7 +74,7 @@ function teken() {
     teller.textContent = verzoeken.length;
     leeg.hidden = verzoeken.length > 0;
     // only draw the list when it can be seen; it is drawn again when the popover opens
-    if (paneel.matches(':popover-open')) {
+    if (heeftPopover && paneel.matches(':popover-open')) {
         lijst.innerHTML = '';
         verzoeken.forEach(verzoek => lijst.append(maakRegel(verzoek)));
     }

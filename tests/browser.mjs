@@ -311,6 +311,25 @@ try {
     await naar(`${ADMIN}/#/`);
     await uitloggen();
     check('admin: uitgelogd', await waarde(zichtbaar('inloggen')));
+
+    // ---- app: in a browser without the Popover API (Safari before 17, like on an older iPhone), where
+    // ':popover-open' is an unknown selector that throws, the page works, without the API button
+    const { identifier } = (await cmd('Page.addScriptToEvaluateOnNewDocument', { source: `
+        delete HTMLElement.prototype.popover;
+        const matches = Element.prototype.matches;
+        Element.prototype.matches = function (selector) {
+            if (selector.includes(':popover-open')) {
+                throw new DOMException('not a valid selector', 'SyntaxError');
+            }
+            return matches.call(this, selector);
+        };
+    ` })).result;
+    await naar(`${APP}/`);
+    await naar(`${APP}/#/gesprekken/${data.gesprek}`);
+    await cmd('Page.reload');
+    check('app zonder Popover API: gesprek geladen', await wachtOp(`${zichtbaar('beantwoorden')} && document.getElementById('huidige-stelling').textContent.length > 0`));
+    check('app zonder Popover API: geen API-knop', await waarde(`getComputedStyle(document.querySelector('.api-log-knop')).display === 'none'`));
+    await cmd('Page.removeScriptToEvaluateOnNewDocument', { identifier });
 } finally {
     ws.close();
     // wait until Chrome has really stopped (at most 5 seconds): until then it may still write in its profile
