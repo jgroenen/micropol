@@ -2,7 +2,7 @@
 
 ## Een kwetsbaarheid melden
 
-Vind je een zwakke plek in MiniPol, meld die dan **niet** in een openbaar issue. Gebruik **Report a vulnerability** onder het tabblad **Security** van deze repository ([private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)). Alleen de beheerder van de repository ziet je melding.
+Vind je een zwakke plek in MiniPol, meld die dan **niet** in een openbaar issue. Gebruik [**Report a vulnerability**](https://github.com/jgroenen/micropol/security/advisories/new) onder het tabblad **Security** van [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol) ([private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)). Alleen de beheerder van de repository ziet je melding.
 
 Beschrijf wat je vond, hoe je het kunt nadoen, en wat iemand ermee zou kunnen. Je krijgt binnen een week antwoord. Een oplossing komt zo snel als het kan, en daarna een openbare melding, met jouw naam als je dat wilt.
 
@@ -24,7 +24,7 @@ MiniPol leunt op zo min mogelijk anderen. Dit is alles, met hoe elk risico is af
 |---|---|---|
 | PHP 8 | draaien | Van de server zelf, of in FrankenPHP. |
 | [FrankenPHP](https://frankenphp.dev) | de webserver in productie (Caddy met PHP, HTTPS) | [installeer.sh](deploy/installeer.sh) installeert een **vaste versie** en controleert de download met een **sha256** vóór installatie. Een nieuwere versie is een bewuste stap: versie en checksums aanpassen, en installeer.sh opnieuw draaien. |
-| Deze repository | [uppen.sh](deploy/uppen.sh) pullt `main` en draait die code | Tweestapsverificatie op het GitHub-account, branch protection op `main`, en een deploy key van de server die alleen mag lezen. |
+| [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol) | [uppen.sh](deploy/uppen.sh) pullt `main` en draait die code | Tweestapsverificatie op het GitHub-account, branch protection op `main`, en een deploy key van de server die alleen mag lezen. |
 | IBM Plex Sans | het font | Meegeleverd in [cdn/design/fonts/](cdn/design/fonts/): vaste bestanden, geen externe server. |
 | [petstore.swagger.io](https://petstore.swagger.io) | de viewer van `/docs` | Leest alleen de openbare spec. De site mag de API aanroepen (CORS), maar alleen met een token dat iemand daar zelf invult; op de eigen domeinen draait hij niet. |
 | Node en Chrome | alleen de browsertest | Draaien alleen bij het testen, nooit op de server. |

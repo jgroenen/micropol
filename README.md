@@ -1,5 +1,7 @@
 # MiniPol
 
+[![tests](https://github.com/jgroenen/micropol/actions/workflows/tests.yml/badge.svg)](https://github.com/jgroenen/micropol/actions/workflows/tests.yml)
+
 Een kleine, Polis-achtige tool voor gesprekken. Deelnemers beantwoorden stellingen met *eens*, *neutraal* of *oneens* en kunnen zelf stellingen toevoegen. De analyse deelt deelnemers in groepen in die stellingen op een vergelijkbare manier beantwoorden.
 
 Er is geen database, er zijn geen dependencies en er is geen build-stap: een PHP-backend die alles wat er gebeurt bijhoudt als events in bestanden, en frontends in vanilla JavaScript (ES modules).
@@ -50,7 +52,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 
 - **Testdata:** de tests beginnen op een lege API. Ze installeren hem (admin/admin maakt de eerste superbeheerder) en maken hun eigen data aan. Daarna zet `run.sh` de data van API en math terug. Gebruik de app niet terwijl de tests draaien.
 - **Nodig:** PHP 8.1 of nieuwer, Node 18 of nieuwer, en Chrome. Er hoeft niets geïnstalleerd te worden: geen Composer, npm of pip. Node en Chrome zijn alleen voor de browsertest; MiniPol zelf heeft alleen PHP nodig.
-- **Op GitHub** draaien alle tests bij elke push, zie [.github/workflows/tests.yml](.github/workflows/tests.yml).
+- **Op GitHub** draaien alle tests bij elke push ([.github/workflows/tests.yml](.github/workflows/tests.yml)). De uitkomst staat onder [Actions](https://github.com/jgroenen/micropol/actions), en in het schildje bovenaan deze README.
 
 ## Structuur
 
@@ -338,7 +340,7 @@ De cdn gebruiken www, app en admin tegelijk: een wijziging daar raakt alle drie.
 
 ## Licentie en beveiliging
 
-MiniPol valt onder de [MIT-licentie](LICENSE). Het font IBM Plex Sans valt onder de [SIL Open Font License](cdn/design/fonts/LICENSE-OFL.txt).
+De code staat op [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol). MiniPol valt onder de [MIT-licentie](LICENSE). Het font IBM Plex Sans valt onder de [SIL Open Font License](cdn/design/fonts/LICENSE-OFL.txt).
 
 Een kwetsbaarheid meld je zoals beschreven in [SECURITY.md](SECURITY.md). Daar staat ook waar MiniPol op leunt, en hoe elk risico in die toeleveringsketen is afgedekt.
 

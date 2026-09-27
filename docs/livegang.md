@@ -39,17 +39,19 @@ Wacht tot de namen naar de VPS wijzen, bijvoorbeeld met `dig +short api.<domein>
 
 ### 3. De repository op de VPS
 
-De repository moet ergens staan waar de VPS hem kan ophalen, bijvoorbeeld op GitHub. Als root op de VPS:
+De code staat op [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol). Als root op de VPS:
 
 ```sh
 apt install -y git curl
-git clone <url van de repository> /srv/minipol
+git clone https://github.com/jgroenen/micropol.git /srv/minipol
 ```
 
-**Is de repository privé**, gebruik dan een *deploy key*: een SSH-sleutel die alleen deze repository mag lezen.
+Een openbare repository haalt de VPS zo op, ook bij elke update, zonder sleutel.
+
+**Een privé-repository**, zoals een eigen kopie, vraagt een *deploy key*: een SSH-sleutel die alleen die repository mag lezen.
 1. Maak de sleutel op de VPS: `ssh-keygen -t ed25519 -f /root/minipol-deploy -N ''`.
-2. Zet `/root/minipol-deploy.pub` bij GitHub onder *Settings → Deploy keys*.
-3. Clone met: `GIT_SSH_COMMAND='ssh -i /root/minipol-deploy' git clone git@github.com:<jij>/<repo>.git /srv/minipol`.
+2. Zet `/root/minipol-deploy.pub` bij de repository op GitHub, onder *Settings → Deploy keys*. Zet *Allow write access* niet aan: de server hoeft alleen te lezen.
+3. Clone met: `GIT_SSH_COMMAND='ssh -i /root/minipol-deploy' git clone git@github.com:jgroenen/micropol.git /srv/minipol` (met de naam van je eigen repository).
 4. Na het installeren doet de gebruiker `minipol` de pulls. Zet de sleutel daarom ook in `/var/lib/minipol/.ssh/id_ed25519`, van de gebruiker `minipol` en met rechten `600`.
 
 ### 4. Installeren
@@ -94,7 +96,7 @@ Hadden de beheerders nog `beheerders.csv`, dan zijn ze daarna superbeheerder, en
 
 ## Een nieuwe versie uitrollen
 
-Push de code naar de repository, en dan vanaf je laptop:
+Push de code naar [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol). Kijk bij [Actions](https://github.com/jgroenen/micropol/actions) of de tests slagen, en dan vanaf je laptop:
 
 ```sh
 ssh root@<vps> /srv/minipol/deploy/uppen.sh
