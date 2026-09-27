@@ -1,7 +1,7 @@
 // The product page, the app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
 // answering, adding a stelling, the tabs, the matrix, a paused gesprek, and in the admin the roles:
 // a gespreksbeheerder moderates and sees the logboek and the team, a superbeheerder makes a gesprek with
-// an uitnodiging, which a new account accepts; and logging in and out.
+// an uitnodiging, which a new account accepts, and a kanaal a new deelnemer comes through; and logging in and out.
 // Uses the data that tests/api.php made (TEST_UITVOER); run it with tests/run.sh.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -192,6 +192,29 @@ try {
     check('admin: team met de moderator', await wachtOp(`document.getElementById('team-lijst').textContent.includes('${data.moderator}')`));
     await doe(`document.querySelector('#team-uitnodigen [type=submit]').click();`);
     check('admin: uitnodigingslink voor het team', await wachtOp(`document.querySelector('#team-uitnodigen .uitnodiging-link input')?.value.includes('#/uitnodiging/')`));
+
+    // ---- kanalen: a link per promotion channel; a new deelnemer answers through it, and the kanaal counts him
+    await doe(`document.getElementById('tab-kanalen').click();`);
+    await wachtOp(`document.querySelector('#kanalen-lijst .kanaal-zonder')`);
+    await doe(`const f = document.getElementById('kanaal-nieuw'); f.naam.value = 'Browserkanaal'; f.querySelector('[type=submit]').click();`);
+    check('admin: kanaal gemaakt, met een link', await wachtOp(`document.querySelector('#kanalen-lijst .kanaal-link input')?.value.includes('?kanaal=')`));
+    const kanaalLink = await waarde(`document.querySelector('#kanalen-lijst .kanaal-link input').value`);
+    await naar(`${APP}/`);
+    await naar(kanaalLink);
+    check('app: kanaal uit de link bewaard, en uit de adresbalk', await wachtOp(`localStorage.getItem('kanaal:${data.gesprek}') && !location.hash.includes('kanaal')`));
+    // a new deelnemer: without his id the app makes a new one when the page loads again
+    await doe(`localStorage.removeItem('deelnemer_id');`);
+    await cmd('Page.reload');
+    check('app: nieuwe deelnemer via het kanaal kan antwoorden', await wachtOp(zichtbaar('antwoord-knoppen')));
+    await doe(`document.querySelector('#antwoord-knoppen [data-antwoord=eens]').click();`);
+    await wachtOp(`document.getElementById('mijn-antwoorden-lijst')?.children.length === 1`);
+    await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
+    await wachtOp(zichtbaar('gesprek-tabs'));
+    await doe(`document.getElementById('tab-kanalen').click();`);
+    check('admin: kanaal telt de nieuwe deelnemer', await wachtOp(`[...document.querySelectorAll('#kanalen-lijst li')].some(li => li.textContent.includes('Browserkanaal') && li.textContent.includes('1 deelnemer ·'))`));
+    await doe(`[...document.querySelectorAll('#kanalen-lijst li')].find(li => li.textContent.includes('Browserkanaal')).querySelector('[data-actie=intrekken]').click();`);
+    await doe(`document.querySelector('#kanalen-lijst .intrekken-formulier:not([hidden]) [type=submit]').click();`);
+    check('admin: kanaal ingetrokken', await wachtOp(`document.getElementById('kanalen-lijst').textContent.includes('Ingetrokken')`));
     await naar(`${ADMIN}/#/`);
     check('admin: gespreksbeheerder ziet zijn gesprekken, zonder knop voor een nieuw', await wachtOp(`document.getElementById('gesprekken-lijst').textContent.includes('Testgesprek (browser)') && document.getElementById('open-nieuw').hidden`));
     await naar(`${ADMIN}/#/gesprekken/bestaatniet`);

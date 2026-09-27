@@ -23,10 +23,12 @@ export async function getGesprekken() {
     return (await get('/gesprekken')).gesprekken;
 }
 
-// { id, titel, omschrijving, moderatie, stellingen: [{ id, tekst }] } or null;
-// only the zichtbare stellingen, in random order
-export function getGesprek(gesprekId) {
-    return ofNull(get(`/gesprekken/${encodeURIComponent(gesprekId)}`));
+// { id, titel, omschrijving, moderatie, status, zonder_kanaal, stellingen: [{ id, tekst }] } or null;
+// only the zichtbare stellingen, in random order. With the token of a kanaal also kanaal_geldig: whether its
+// link still works
+export function getGesprek(gesprekId, kanaal = null) {
+    const zoek = kanaal ? `?kanaal=${encodeURIComponent(kanaal)}` : '';
+    return ofNull(get(`/gesprekken/${encodeURIComponent(gesprekId)}${zoek}`));
 }
 
 // { stelling_id: waarde } for one deelnemer, or null if the gesprek does not exist
@@ -61,12 +63,13 @@ export async function getMijnStellingen(gesprekId, deelnemerId) {
     return data ? data.stellingen : null;
 }
 
-// { gesprek_id, deelnemer_id, stelling_id, waarde } => the saved antwoord
+// { gesprek_id, deelnemer_id, stelling_id, waarde, kanaal } => the saved antwoord; a 403 when the kanaal works
+// no more, or when the gesprek only takes part through a kanaal and there is none
 export function postAntwoord(antwoord) {
     return post('/antwoorden', antwoord);
 }
 
-// { gesprek_id, deelnemer_id, tekst } => the new stelling { id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar }
+// { gesprek_id, deelnemer_id, tekst, kanaal } => the new stelling { id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar }
 export function postStelling(stelling) {
     return post('/stellingen', stelling);
 }

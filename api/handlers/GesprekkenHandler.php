@@ -11,6 +11,7 @@ class GesprekkenHandler {
     //                            the others the gesprekken of their team
     // GET /gesprekken/<id>       one gesprek with its zichtbare stellingen, in random order; a paused or
     //                            ended gesprek has no stellingen, the app shows a notice instead
+    //   ?kanaal=<token>          also kanaal_geldig: whether the link of that kanaal still works
     public function GET($id = null) {
         if ($id === null) {
             $account = Toegang::account();
@@ -25,21 +26,26 @@ class GesprekkenHandler {
         $gesprek['stellingen'] = !Data::gesprekActief($id) ? [] : array_map(function ($stelling) {
             return ['id' => $stelling['id'], 'tekst' => $stelling['tekst']];
         }, $this->volgorde(Data::zichtbareStellingen($id)));
+        $token = Http::field($_GET, 'kanaal');
+        if ($token !== '') {
+            $gesprek['kanaal_geldig'] = Data::kanaalMetToken($id, $token) !== null;
+        }
         Http::json($gesprek);
     }
 
-    // POST /gesprekken  { titel, omschrijving, moderatie }   superbeheerders only; returns the new gesprek
-    // moderatie is optional, default achteraf. Its team comes in with uitnodigingen (POST /uitnodigingen).
+    // POST /gesprekken  { titel, omschrijving, moderatie, zonder_kanaal }   superbeheerders only; returns the new gesprek
+    // moderatie is optional, default achteraf; zonder_kanaal optional, default true. Its team comes in with
+    // uitnodigingen (POST /uitnodigingen).
     public function POST($id = null) {
         $beheerder = Toegang::vereisSuperbeheerder();
-        $velden = $this->velden(Http::body(), Data::MODERATIE_ACHTERAF);
+        $velden = $this->velden(Http::body(), Data::MODERATIE_ACHTERAF, true);
         $id = Data::uuid();
         Data::voegEventToe(Data::GESPREK_AANGEMAAKT, Data::doorBeheerder($beheerder), $id, $velden);
         Http::json(Data::gesprek($id), 201);
     }
 
-    // PUT /gesprekken/<id>  { titel, omschrijving, moderatie }   gespreksbeheerders of the gesprek only;
-    // returns the changed gesprek. moderatie is optional, default unchanged; the event has only the fields
+    // PUT /gesprekken/<id>  { titel, omschrijving, moderatie, zonder_kanaal }   gespreksbeheerders of the gesprek only;
+    // returns the changed gesprek. moderatie and zonder_kanaal are optional, default unchanged; the event has only the fields
     // that changed, and there is no event when nothing changed
     public function PUT($id = null) {
         if ($id === null || !Data::gesprekBestaat($id)) {
@@ -47,15 +53,20 @@ class GesprekkenHandler {
         }
         $beheerder = Toegang::vereisRol($id, [Beheer::ROL_GESPREKSBEHEERDER]);
         $gesprek = Data::gesprek($id);
-        $gewijzigd = array_diff_assoc($this->velden(Http::body(), $gesprek['moderatie'] ?: Data::MODERATIE_ACHTERAF), $gesprek);
+        $gewijzigd = array_diff_assoc($this->velden(Http::body(), $gesprek['moderatie'] ?: Data::MODERATIE_ACHTERAF, $gesprek['zonder_kanaal']), $gesprek);
         if ($gewijzigd) {
             Data::voegEventToe(Data::GESPREK_AANGEPAST, Data::doorBeheerder($beheerder), $id, $gewijzigd);
         }
         Http::json(Data::gesprek($id));
     }
 
-    // { titel, omschrijving, moderatie } from the body
-    private function velden(array $input, $standaardModeratie) {
+    // { titel, omschrijving, moderatie, zonder_kanaal } from the body
+    private function velden(array $input, $standaardModeratie, $standaardZonderKanaal) {
+        // zonder_kanaal is a boolean; without it, it stays as it was (or true for a new gesprek)
+        $zonderKanaal = array_key_exists('zonder_kanaal', $input) ? $input['zonder_kanaal'] : $standaardZonderKanaal;
+        if (!is_bool($zonderKanaal)) {
+            throw new HttpFout(400, 'zonder_kanaal must be true or false.');
+        }
         $titel = Http::line($input, 'titel');
         $omschrijving = Http::line($input, 'omschrijving');
         $moderatie = Http::field($input, 'moderatie') ?: $standaardModeratie;
@@ -71,7 +82,7 @@ class GesprekkenHandler {
         if (!in_array($moderatie, Data::MODERATIES, true)) {
             throw new HttpFout(400, 'moderatie must be one of: ' . implode(', ', Data::MODERATIES) . '.');
         }
-        return ['titel' => $titel, 'omschrijving' => $omschrijving, 'moderatie' => $moderatie];
+        return ['titel' => $titel, 'omschrijving' => $omschrijving, 'moderatie' => $moderatie, 'zonder_kanaal' => $zonderKanaal];
     }
 
     private function actieve() {

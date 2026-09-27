@@ -24,8 +24,8 @@ class StellingenHandler {
         Http::json(['stellingen' => Data::metTellingen($gesprekId, $stellingen)]);
     }
 
-    // POST /stellingen  { gesprek_id, deelnemer_id, tekst }
-    // returns the new stelling with its moderatie state, like GET
+    // POST /stellingen  { gesprek_id, deelnemer_id, tekst, kanaal }
+    // returns the new stelling with its moderatie state, like GET; kanaal as in POST /antwoorden
     public function POST($id = null) {
         $input = Http::body();
         $gesprekId = Http::field($input, 'gesprek_id');
@@ -46,9 +46,10 @@ class StellingenHandler {
         if (!Data::gesprekActief($gesprekId)) {
             throw new HttpFout(409, 'This gesprek is paused or over.');
         }
+        $kanaal = Data::kanaalVelden($gesprekId, Http::field($input, 'kanaal'));
 
         $stellingId = Data::uuid();
-        Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst]);
+        Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst] + $kanaal);
         Http::json(Data::stelling($gesprekId, $stellingId), 201);
     }
 }

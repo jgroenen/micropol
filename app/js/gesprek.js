@@ -4,6 +4,7 @@ import { escapeHtml } from 'cdn/html.js';
 import { maakTabs } from 'cdn/tabs.js';
 import { zetGesprekTitel } from './kop.js';
 import { isGesloten, toonGesloten } from './gesloten.js';
+import { kanaalVan, vergeetKanaal } from './kanaal.js';
 import { labels } from './labels.js';
 import { toonView } from './views.js';
 import { koppelTooltip } from './tooltip.js';
@@ -70,8 +71,9 @@ export async function toonGesprek(id) {
         tabs.hidden = true;
         toevoegen.hidden = true;
 
+        const kanaal = kanaalVan(id);
         const [gesprek, antwoorden, eigenStellingen, analyse] = await Promise.all([
-            getGesprek(id),
+            getGesprek(id, kanaal),
             getMijnAntwoorden(id, deelnemerId),
             getMijnStellingen(id, deelnemerId),
             // the groups are extra: answering works without them (e.g. when the math server is down)
@@ -87,6 +89,19 @@ export async function toonGesprek(id) {
         if (isGesloten(gesprek)) {
             await toonGesloten(gesprek);
             return;
+        }
+        // a kanaal whose link works no more is forgotten; without a kanaal, only when the gesprek allows it
+        const kanaalVervallen = kanaal !== null && !gesprek.kanaal_geldig;
+        if (kanaalVervallen) {
+            vergeetKanaal(id);
+        }
+        if (!gesprek.zonder_kanaal && (kanaal === null || kanaalVervallen)) {
+            await toonGesloten(gesprek, 'alleen-via-link');
+            return;
+        }
+        if (kanaalVervallen) {
+            melding.textContent = 'De link waarmee je kwam, werkt niet meer. Je kunt gewoon verder meedoen.';
+            melding.hidden = false;
         }
         huidig = { gesprek, antwoorden: antwoorden ?? {}, mijnStellingen: eigenStellingen ?? [], stelling: null, analyse: analyse ?? null, analyseMislukt: analyse === undefined };
         zetGesprekTitel(gesprek.titel);
@@ -236,7 +251,7 @@ async function beantwoord(waarde) {
     melding.hidden = true;
     antwoordKnoppen.forEach(b => b.disabled = true);
     try {
-        await postAntwoord({ gesprek_id: gesprek.id, deelnemer_id: deelnemerId, stelling_id: stelling.id, waarde });
+        await postAntwoord({ gesprek_id: gesprek.id, deelnemer_id: deelnemerId, stelling_id: stelling.id, waarde, kanaal: kanaalVan(gesprek.id) ?? undefined });
         antwoorden[stelling.id] = waarde;
         // answering an own stelling changes its bar
         const eigen = huidig.mijnStellingen.find(s => s.id === stelling.id);
@@ -246,6 +261,9 @@ async function beantwoord(waarde) {
         toonBeantwoorden();
     } catch (error) {
         console.error('Error saving antwoord:', error);
+        if (await kanaalGewijzigd(error, gesprek.id)) {
+            return;
+        }
         alert('Je antwoord kon niet worden opgeslagen. Probeer het opnieuw.');
         antwoordKnoppen.forEach(b => b.disabled = false);
     }
@@ -262,7 +280,7 @@ async function dienStellingIn(event) {
     }
     indienen.disabled = true;
     try {
-        const stelling = await postStelling({ gesprek_id: huidig.gesprek.id, deelnemer_id: deelnemerId, tekst });
+        const stelling = await postStelling({ gesprek_id: huidig.gesprek.id, deelnemer_id: deelnemerId, tekst, kanaal: kanaalVan(huidig.gesprek.id) ?? undefined });
         textarea.value = '';
         // a stelling waiting for goedkeuring can't be answered yet
         if (stelling.zichtbaar) {
@@ -278,8 +296,21 @@ async function dienStellingIn(event) {
         melding.hidden = false;
     } catch (error) {
         console.error('Error adding stelling:', error);
+        if (await kanaalGewijzigd(error, huidig.gesprek.id)) {
+            return;
+        }
         alert('De stelling kon niet worden toegevoegd. Probeer het opnieuw.');
     } finally {
         indienen.disabled = false;
     }
+}
+
+// a 403 while taking part: the kanaal was withdrawn, or the gesprek now only takes part through a link.
+// The gesprek is loaded again, which shows what fits; whether that was it
+async function kanaalGewijzigd(error, gesprekId) {
+    if (error.status !== 403) {
+        return false;
+    }
+    await toonGesprek(gesprekId);
+    return true;
 }

@@ -1,10 +1,15 @@
-// { titel, omschrijving, moderatie } from the form of a new or an existing gesprek
+// { titel, omschrijving, moderatie, zonder_kanaal } from the form of a new or an existing gesprek;
+// zonder_kanaal only when the form has it
 export function gesprekVelden(form) {
-    return {
+    const velden = {
         titel: form.titel.value.trim(),
         omschrijving: form.omschrijving.value.trim(),
         moderatie: form.moderatie.value,
     };
+    if (form.zonder_kanaal) {
+        velden.zonder_kanaal = form.zonder_kanaal.checked;
+    }
+    return velden;
 }
 
 // the fields of a new account, for the html of a form (installatie, uitnodiging); ids start with the prefix

@@ -50,6 +50,10 @@
     {
       "name": "Beheer",
       "description": "Accounts, rollen, teams en uitnodigingen; zie de beschrijving van de rollen bij `Rol`"
+    },
+    {
+      "name": "Kanalen",
+      "description": "Links om mee te doen, per promotiekanaal"
     }
   ],
   "paths": {
@@ -168,7 +172,18 @@
           "404": {
             "$ref": "#/components/responses/NietGevonden"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "kanaal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Het token van een kanaallink: dan zegt `kanaal_geldig` of die link nog werkt"
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -276,7 +291,7 @@
           "Stellingen"
         ],
         "summary": "Stelling toevoegen",
-        "description": "Witruimte wordt één spatie. Of de stelling direct zichtbaar is, hangt af van de moderatie van het gesprek. Niet als het gesprek gepauzeerd of beëindigd is (409).",
+        "description": "Witruimte wordt één spatie. Of de stelling direct zichtbaar is, hangt af van de moderatie van het gesprek. Niet als het gesprek gepauzeerd of beëindigd is (409). Met `kanaal` het token van de link waarmee de deelnemer kwam; zonder kanaal alleen als het gesprek dat toestaat (`zonder_kanaal`), anders 403.",
         "operationId": "postStelling",
         "requestBody": {
           "required": true,
@@ -319,6 +334,16 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "403": {
+            "description": "Het kanaal werkt niet (meer), of het gesprek doet alleen mee via een kanaal en er is er geen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
           }
         }
       }
@@ -404,7 +429,7 @@
           "Antwoorden"
         ],
         "summary": "Antwoord geven",
-        "description": "Alleen op zichtbare stellingen. Opnieuw antwoorden mag; het laatste antwoord telt. Niet als het gesprek gepauzeerd of beëindigd is (409).",
+        "description": "Alleen op zichtbare stellingen. Opnieuw antwoorden mag; het laatste antwoord telt. Niet als het gesprek gepauzeerd of beëindigd is (409). Met `kanaal` het token van de link waarmee de deelnemer kwam; zonder kanaal alleen als het gesprek dat toestaat (`zonder_kanaal`), anders 403.",
         "operationId": "postAntwoord",
         "requestBody": {
           "required": true,
@@ -455,6 +480,16 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "403": {
+            "description": "Het kanaal werkt niet (meer), of het gesprek doet alleen mee via een kanaal en er is er geen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
           }
         }
       }
@@ -1170,6 +1205,219 @@
         }
       }
     },
+    "/kanalen": {
+      "get": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "De kanalen van een gesprek",
+        "description": "Voor het team van het gesprek: elk kanaal met hoeveel deelnemers en antwoorden erdoor kwamen (ook als het niet meetelt), en hetzelfde voor wie zonder kanaal meedeed.",
+        "operationId": "getKanalen",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De kanalen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "kanalen",
+                    "zonder_kanaal"
+                  ],
+                  "properties": {
+                    "kanalen": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Kanaal"
+                      }
+                    },
+                    "zonder_kanaal": {
+                      "type": "object",
+                      "required": [
+                        "deelnemers",
+                        "antwoorden"
+                      ],
+                      "properties": {
+                        "deelnemers": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "antwoorden": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "Een kanaal maken",
+        "description": "Voor de gespreksbeheerders van het gesprek. Geeft het kanaal met zijn token, voor de link `<app>/#/gesprekken/<id>?kanaal=<token>`.",
+        "operationId": "postKanaal",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "naam"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "naam": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Het nieuwe kanaal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kanaal"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/kanalen/{kanaal_id}": {
+      "parameters": [
+        {
+          "name": "kanaal_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "Meetellen aan of uit, of een kanaal intrekken",
+        "description": "Voor de gespreksbeheerders van het gesprek. `meetellen` kan altijd aan of uit; `status` `ingetrokken` zet de link voorgoed uit (terug naar `actief` geeft 409).",
+        "operationId": "putKanaal",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "meetellen": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "actief",
+                      "ingetrokken"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het kanaal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kanaal"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
     "/sessie": {
       "get": {
         "tags": [
@@ -1468,6 +1716,9 @@
       },
       "Gespreksstatus": {
         "$ref": "schema.json#/$defs/Gespreksstatus"
+      },
+      "Kanaal": {
+        "$ref": "schema.json#/$defs/Kanaal"
       }
     }
   }

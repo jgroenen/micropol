@@ -24,7 +24,9 @@ class AntwoordenHandler {
         Http::json(['antwoorden' => $this->vanDeelnemer($gesprekId, $deelnemerId)]);
     }
 
-    // POST /antwoorden  { gesprek_id, deelnemer_id, stelling_id, waarde }
+    // POST /antwoorden  { gesprek_id, deelnemer_id, stelling_id, waarde, kanaal }
+    // kanaal: the token of the link the deelnemer came with (optional); required when the gesprek only takes
+    // part through kanalen, see Data::kanaalVelden()
     public function POST($id = null) {
         $input = Http::body();
         $gesprekId = Http::field($input, 'gesprek_id');
@@ -46,19 +48,20 @@ class AntwoordenHandler {
         if (!Data::gesprekActief($gesprekId)) {
             throw new HttpFout(409, 'This gesprek is paused or over.');
         }
+        $kanaal = Data::kanaalVelden($gesprekId, Http::field($input, 'kanaal'));
         // only stellingen deelnemers can see, not those afgekeurd or waiting for goedkeuring
         if (!Data::stellingZichtbaar($stellingId, $gesprekId)) {
             throw new HttpFout(404, 'Stelling not found in this gesprek.');
         }
 
-        Data::voegEventToe(Data::ANTWOORD_GEGEVEN, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'waarde' => $waarde]);
+        Data::voegEventToe(Data::ANTWOORD_GEGEVEN, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'waarde' => $waarde] + $kanaal);
         Http::json(['gesprek_id' => $gesprekId, 'deelnemer_id' => $deelnemerId, 'stelling_id' => $stellingId, 'waarde' => $waarde], 201);
     }
 
-    // the last antwoord of the deelnemer on each stelling
+    // the last antwoord of the deelnemer on each stelling; also through a kanaal that does not count
     private function vanDeelnemer($gesprekId, $deelnemerId) {
         $antwoorden = [];
-        foreach (Data::matrix($gesprekId)[$deelnemerId] ?? [] as $stellingId => $waarde) {
+        foreach (Data::matrix($gesprekId, true)[$deelnemerId] ?? [] as $stellingId => $waarde) {
             $antwoorden[] = ['gesprek_id' => $gesprekId, 'deelnemer_id' => $deelnemerId, 'stelling_id' => (string) $stellingId, 'waarde' => $waarde];
         }
         return $antwoorden;

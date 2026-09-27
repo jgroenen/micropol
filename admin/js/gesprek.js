@@ -3,6 +3,7 @@ import { isSuperbeheerder, rolIn, verwerkFout } from './toegang.js';
 import { toonStellingen, verbergStellingen } from './stellingen.js';
 import { maakLogboek } from './logboek.js';
 import { toonTeam } from './team.js';
+import { toonKanalen } from './kanalen.js';
 import { statusLabel, statusActiesHtml, koppelStatusacties } from './statusacties.js';
 import { maakTabs } from 'cdn/tabs.js';
 import { gesprekVelden } from './util.js';
@@ -37,6 +38,8 @@ function koppel() {
 }
 
 let huidigId = null;
+// the gesprek shown, as the api gave it
+let huidigGesprek = null;
 // which tabs the account may see in the current gesprek
 let zichtbaar = {};
 
@@ -50,6 +53,7 @@ function tabsVoor(gesprek) {
         stellingen: actief && rol !== null,
         logboek: actief && rol !== null,
         gegevens: gespreksbeheerder,
+        kanalen: gespreksbeheerder,
         team: gespreksbeheerder || isSuperbeheerder(),
         status: isSuperbeheerder(),
     };
@@ -72,6 +76,7 @@ export async function toonGesprek(id) {
         info.textContent = '';
 
         const gesprek = await getGesprek(id);
+        huidigGesprek = gesprek;
         if (huidigId !== id) {
             return; // another gesprek was opened in the meantime
         }
@@ -123,6 +128,8 @@ async function bijTab(naam) {
             await logboek.toon(huidigId);
         } else if (naam === 'team') {
             await toonTeam(huidigId);
+        } else if (naam === 'kanalen') {
+            await toonKanalen(huidigGesprek);
         }
     } catch (error) {
         verwerkFout(error);
@@ -160,6 +167,7 @@ function vulFormulier(gesprek) {
     formulier.titel.value = gesprek.titel;
     formulier.omschrijving.value = gesprek.omschrijving;
     formulier.moderatie.value = gesprek.moderatie || 'achteraf';
+    formulier.zonder_kanaal.checked = gesprek.zonder_kanaal !== false;
 }
 
 async function slaOp(event) {
@@ -169,6 +177,7 @@ async function slaOp(event) {
     knop.disabled = true;
     try {
         const gesprek = await putGesprek(huidigId, gesprekVelden(formulier));
+        huidigGesprek = { ...huidigGesprek, ...gesprek };
         titel.textContent = gesprek.titel;
         document.title = `MiniPol beheer | ${gesprek.titel}`;
         vulFormulier(gesprek);

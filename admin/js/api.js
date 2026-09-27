@@ -128,6 +128,22 @@ export function postSuperbeheerderstatus(wijziging) {
     return stuur('POST', '/superbeheerders', wijziging);
 }
 
+// the kanalen of a gesprek: { kanalen: [{ kanaal_id, naam, token, status, meetellen, deelnemers, antwoorden }],
+// zonder_kanaal: { deelnemers, antwoorden } }
+export function getKanalen(gesprekId) {
+    return verzoek(`/kanalen?gesprek_id=${encodeURIComponent(gesprekId)}`);
+}
+
+// { gesprek_id, naam } => the new kanaal
+export function postKanaal(kanaal) {
+    return stuur('POST', '/kanalen', kanaal);
+}
+
+// { gesprek_id, meetellen, status } => the kanaal; status ingetrokken stops its link for good
+export function putKanaal(kanaalId, wijziging) {
+    return stuur('PUT', `/kanalen/${encodeURIComponent(kanaalId)}`, wijziging);
+}
+
 // { gesprek_id, status, reden } => the gesprek
 export function postGespreksstatus(wijziging) {
     return stuur('POST', '/gespreksstatus', wijziging);

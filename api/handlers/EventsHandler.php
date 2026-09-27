@@ -31,13 +31,20 @@ class EventsHandler {
 
         // from each stream the last limiet + 1 events before voor; together enough to know whether there are more.
         // The antwoorden first: deelnemers who only added stellingen get a nummer after those who answered
+        // the deelnemers in the matrix have its nummers; the others (only through a kanaal that does not count,
+        // or only stellingen) get one after them
         $nummers = [];
+        foreach (array_keys(Data::matrix($gesprekId)) as $deelnemerId) {
+            $nummers[$deelnemerId] = count($nummers) + 1;
+        }
         $teksten = [];
+        $kanalen = Data::kanalen($gesprekId);
         $events = array_merge(
             $this->laatste(Data::events('gesprekken'), $limiet + 1, $voor, $gesprekId),
             $this->laatste($this->nummer(Data::events('antwoorden', $gesprekId), $nummers), $limiet + 1, $voor),
             $this->laatste($this->stellingen(Data::events('stellingen', $gesprekId), $nummers, $teksten), $limiet + 1, $voor),
-            $this->laatste(Data::events('team', $gesprekId), $limiet + 1, $voor)
+            $this->laatste(Data::events('team', $gesprekId), $limiet + 1, $voor),
+            $this->laatste(Data::events('kanalen', $gesprekId), $limiet + 1, $voor)
         );
         usort($events, function ($a, $b) {
             return strcmp($b['id'], $a['id']);
@@ -45,8 +52,8 @@ class EventsHandler {
 
         $accounts = Beheer::accounts();
         Http::json([
-            'events' => array_map(function ($event) use ($nummers, $teksten, $accounts) {
-                return $this->openbaar($event, $nummers, $teksten, $accounts);
+            'events' => array_map(function ($event) use ($nummers, $teksten, $accounts, $kanalen) {
+                return $this->openbaar($event, $nummers, $teksten, $accounts, $kanalen);
             }, array_slice($events, 0, $limiet)),
             'meer' => count($events) > $limiet,
         ]);
@@ -90,8 +97,8 @@ class EventsHandler {
     }
 
     // the event as the api gives it: tijdstip in ISO 8601, door without the id of a deelnemer, the tekst of
-    // its stelling, and the gebruikersnaam of the account it is about (an event of the team)
-    private function openbaar(array $event, array $nummers, array $teksten, array $accounts) {
+    // its stelling, the gebruikersnaam of the account it is about (an event of the team), and the naam of its kanaal
+    private function openbaar(array $event, array $nummers, array $teksten, array $accounts, array $kanalen) {
         $event['tijdstip'] = $event['tijdstip'] === null ? null : date('c', $event['tijdstip']);
         $door = $event['door'];
         if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER) {
@@ -104,6 +111,9 @@ class EventsHandler {
         }
         if (isset($event['stelling_id']) && !isset($event['tekst'])) {
             $event['tekst'] = $teksten[$event['stelling_id']] ?? '';
+        }
+        if (isset($event['kanaal_id'])) {
+            $event['kanaal'] = $kanalen[$event['kanaal_id']]['naam'] ?? '';
         }
         return $event;
     }

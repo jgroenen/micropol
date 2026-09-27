@@ -52,3 +52,44 @@
     font-size: var(--font-size-small);
     font-weight: 300;
 }
+
+/* the kanalen: the link to copy, and the choice when withdrawing one; see js/kanalen.js */
+.kanaal-link {
+    display: flex;
+    gap: var(--space-2);
+    margin-block-end: var(--space-2);
+
+    & input {
+        flex: 1;
+        min-inline-size: 0;
+        padding: var(--space-1) var(--space-2);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        color: inherit;
+        font: inherit;
+        font-size: var(--font-size-small);
+    }
+}
+
+.intrekken-formulier .vinkje {
+    display: flex;
+    flex: 1 1 16rem;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 300;
+
+    & input {
+        margin: 0;
+    }
+}
+
+#kanaal-nieuw input {
+    margin-inline-start: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: inherit;
+    font: inherit;
+}

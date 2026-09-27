@@ -94,12 +94,13 @@ export function maakLogboek(id) {
     return { toon, verberg };
 }
 
-// [[event]]: antwoorden of the same deelnemer one after another together, the rest alone
+// [[event]]: antwoorden of the same deelnemer (through the same kanaal) one after another together, the rest alone
 function groepeer(events) {
     const groepen = [];
     for (const event of events) {
         const vorige = groepen.at(-1)?.[0];
-        if (event.type === 'antwoord.gegeven' && vorige?.type === 'antwoord.gegeven' && vorige.door?.nummer === event.door?.nummer) {
+        if (event.type === 'antwoord.gegeven' && vorige?.type === 'antwoord.gegeven'
+            && vorige.door?.nummer === event.door?.nummer && vorige.kanaal === event.kanaal) {
             groepen.at(-1).push(event);
         } else {
             groepen.push([event]);
@@ -127,7 +128,7 @@ function wat(groep) {
         case 'gesprek.aangepast':
             return `paste het gesprek aan: ${wijzigingen(event)}`;
         case 'stelling.toegevoegd':
-            return `voegde een stelling toe: ${citaat(event.tekst)}`;
+            return `voegde een stelling toe: ${citaat(event.tekst)}${via(event)}`;
         case 'stelling.goedgekeurd':
             return `keurde goed: ${citaat(event.tekst)}`;
         case 'stelling.afgekeurd':
@@ -148,8 +149,16 @@ function wat(groep) {
             return `verwijderde ${escapeHtml(event.gebruikersnaam)} uit het team, met als reden ${citaat(event.reden ?? '')}`;
         case 'antwoord.gegeven':
             return groep.length === 1
-                ? `antwoordde ${escapeHtml(event.waarde)} op ${citaat(event.tekst)}`
-                : `gaf ${groep.length} antwoorden`;
+                ? `antwoordde ${escapeHtml(event.waarde)} op ${citaat(event.tekst)}${via(event)}`
+                : `gaf ${groep.length} antwoorden${via(event)}`;
+        case 'kanaal.aangemaakt':
+            return `maakte kanaal ${citaat(event.naam)}`;
+        case 'kanaal.ingetrokken':
+            return `trok kanaal ${citaat(event.kanaal)} in; de antwoorden erdoor tellen ${event.meetellen ? 'mee' : 'niet mee'}`;
+        case 'kanaal.aangepast':
+            return event.meetellen
+                ? `liet de antwoorden via kanaal ${citaat(event.kanaal)} weer meetellen`
+                : `liet de antwoorden via kanaal ${citaat(event.kanaal)} niet meer meetellen`;
         default:
             return escapeHtml(event.type);
     }
@@ -166,7 +175,15 @@ function wijzigingen(event) {
     if ('moderatie' in event) {
         delen.push(event.moderatie === 'vooraf' ? 'stellingen pas tonen na goedkeuring' : 'stellingen direct tonen');
     }
+    if ('zonder_kanaal' in event) {
+        delen.push(event.zonder_kanaal ? 'meedoen ook zonder kanaallink' : 'meedoen alleen via een kanaallink');
+    }
     return delen.join(', ');
+}
+
+// ' via kanaal „…”' for an event through a kanaal, or nothing
+function via(event) {
+    return event.kanaal ? ` via kanaal ${citaat(event.kanaal)}` : '';
 }
 
 function citaat(tekst) {

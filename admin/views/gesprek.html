@@ -10,6 +10,7 @@
             <button role="tab" id="tab-stellingen" aria-controls="paneel-stellingen" data-tab="stellingen">Stellingen</button>
             <button role="tab" id="tab-logboek" aria-controls="paneel-logboek" data-tab="logboek">Logboek</button>
             <button role="tab" id="tab-gegevens" aria-controls="paneel-gegevens" data-tab="gegevens">Gegevens</button>
+            <button role="tab" id="tab-kanalen" aria-controls="paneel-kanalen" data-tab="kanalen">Kanalen</button>
             <button role="tab" id="tab-team" aria-controls="paneel-team" data-tab="team">Team</button>
             <button role="tab" id="tab-status" aria-controls="paneel-status" data-tab="status">Status</button>
         </div>
@@ -55,7 +56,25 @@
                     <label><input type="radio" name="moderatie" value="achteraf"> Direct tonen, achteraf afkeuren</label>
                     <label><input type="radio" name="moderatie" value="vooraf"> Pas tonen na goedkeuring</label>
                 </fieldset>
+                <fieldset class="keuze">
+                    <legend>Meedoen</legend>
+                    <label><input type="checkbox" name="zonder_kanaal"> Ook zonder kanaallink <span>(uit: alleen via een link uit de tab Kanalen)</span></label>
+                </fieldset>
                 <button type="submit" class="knop" id="gesprek-knop">Opslaan</button>
+            </form>
+        </div>
+
+        <!-- see js/kanalen.js -->
+        <div class="tab-paneel" role="tabpanel" id="paneel-kanalen" aria-labelledby="tab-kanalen" tabindex="0" hidden>
+            <p class="uitleg-tekst">Geef elk promotiekanaal, zoals een nieuwsbrief of een advertentie, een eigen link. Dan zie je waar deelnemers vandaan komen, en kun je een kanaal uitzetten als het misgaat.</p>
+            <p class="melding fout" id="kanalen-fout" role="alert" hidden></p>
+            <ul class="beheer-lijst" id="kanalen-lijst"></ul>
+            <form class="uitnodigen" id="kanaal-nieuw">
+                <h2>Nieuw kanaal</h2>
+                <div class="uitnodigen-kop">
+                    <label>Naam <input name="naam" maxlength="100" required placeholder="bijvoorbeeld Nieuwsbrief september"></label>
+                    <button type="submit" class="knop-klein">Kanaal maken</button>
+                </div>
             </form>
         </div>
 

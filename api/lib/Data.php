@@ -7,6 +7,7 @@
 //   gesprekken/<id>/stellingen.jsonl  stelling.toegevoegd, stelling.goedgekeurd, stelling.afgekeurd
 //   gesprekken/<id>/antwoorden.jsonl  antwoord.gegeven
 //   gesprekken/<id>/team.jsonl        lid.toegevoegd, .opgeschort, .hersteld, .verwijderd (see Beheer)
+//   gesprekken/<id>/kanalen.jsonl     kanaal.aangemaakt, .aangepast, .ingetrokken
 //   beheer.jsonl                      accounts, wachtwoorden, superbeheerders and uitnodigingen (see Beheer)
 // Every event has id (UUID v7: sorting by id is sorting by time), tijdstip (unix time; null in data
 // from before the events), type, door ({ soort, id } of who did it; null when unknown) and gesprek_id
@@ -25,19 +26,24 @@ class Data {
     const GESPREK_OPGESCHORT = 'gesprek.opgeschort';       // reden; paused: deelnemers see a notice
     const GESPREK_BEEINDIGD = 'gesprek.beeindigd';         // reden; over: deelnemers see that it is over
     const GESPREK_HERSTELD = 'gesprek.hersteld';           // open again, after opgeschort or beeindigd
-    const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst
+    const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst, kanaal_id (when via a kanaal)
     const STELLING_GOEDGEKEURD = 'stelling.goedgekeurd';   // stelling_id, reden (optional)
     const STELLING_AFGEKEURD = 'stelling.afgekeurd';       // stelling_id, reden
-    const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde
+    const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde, kanaal_id (when via a kanaal)
+    // a kanaal: a link for taking part, handed to one promotion channel (like a newsletter); see kanalen()
+    const KANAAL_AANGEMAAKT = 'kanaal.aangemaakt';         // kanaal_id, naam, token
+    const KANAAL_AANGEPAST = 'kanaal.aangepast';           // kanaal_id, meetellen
+    const KANAAL_INGETROKKEN = 'kanaal.ingetrokken';       // kanaal_id, meetellen
     // the stream of each kind of event, by the part of the type before the dot; the events of Beheer too
     const STROMEN = [
-        'gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden', 'lid' => 'team',
+        'gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden', 'lid' => 'team', 'kanaal' => 'kanalen',
         'account' => 'beheer', 'wachtwoord' => 'beheer', 'superbeheerder' => 'beheer', 'uitnodiging' => 'beheer',
     ];
     // the streams of the whole server; the others are per gesprek
     const ALGEMENE_STROMEN = ['gesprekken', 'beheer'];
     // the fields of a gesprek besides its id
-    const GESPREK_VELDEN = ['titel', 'omschrijving', 'moderatie'];
+    // zonder_kanaal: whether deelnemers may take part without a kanaal (true), or only through the link of one
+    const GESPREK_VELDEN = ['titel', 'omschrijving', 'moderatie', 'zonder_kanaal'];
     // who does something: door.soort; a beheerder is anyone with an account (see Beheer)
     const DOOR_BEHEERDER = 'beheerder';
     const DOOR_DEELNEMER = 'deelnemer';
@@ -62,6 +68,9 @@ class Data {
     // the status of a gesprek: opgeschort (paused) or beeindigd (over); both with a reden, both take no
     // antwoorden or stellingen and shut out the team, and both can be undone. A gesprek is never removed.
     const STATUS_BEEINDIGD = 'beeindigd';
+    // the status of a kanaal
+    const KANAAL_ACTIEF = 'actief';
+    const KANAAL_INGETROKKEN_STATUS = 'ingetrokken';
     const GESPREK_STATUSSEN = [self::STATUS_ACTIEF, self::STATUS_OPGESCHORT, self::STATUS_BEEINDIGD];
     // the event that gives a gesprek each status, and back
     const GESPREK_STATUS_EVENTS = [
@@ -162,6 +171,8 @@ class Data {
             $id = $event['gesprek_id'];
             if ($event['type'] === self::GESPREK_AANGEMAAKT) {
                 $gesprekken[$id] = ['id' => $id] + array_fill_keys(self::GESPREK_VELDEN, '') + ['status' => self::STATUS_ACTIEF];
+                // gesprekken of before the kanalen: everyone may take part
+                $gesprekken[$id]['zonder_kanaal'] = true;
             }
             if (!isset($gesprekken[$id])) {
                 continue;
@@ -236,13 +247,70 @@ class Data {
     // ---- antwoorden
 
     // [deelnemer_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
-    // the last antwoord of a deelnemer on a stelling counts
-    public static function matrix($gesprekId) {
+    // the last antwoord of a deelnemer on a stelling counts. Antwoorden through a kanaal that does not count
+    // (meetellen false) are left out, unless $alles
+    public static function matrix($gesprekId, $alles = false) {
+        $uit = $alles ? [] : array_filter(self::kanalen($gesprekId), function ($kanaal) {
+            return !$kanaal['meetellen'];
+        });
         $rows = [];
         foreach (self::events('antwoorden', $gesprekId) as $event) {
-            $rows[$event['door']['id']][$event['stelling_id']] = $event['waarde'];
+            if (!isset($uit[$event['kanaal_id'] ?? ''])) {
+                $rows[$event['door']['id']][$event['stelling_id']] = $event['waarde'];
+            }
         }
         return $rows;
+    }
+
+    // ---- kanalen
+
+    // the kanalen of a gesprek: [kanaal_id => { kanaal_id, naam, token, status (actief or ingetrokken), meetellen }].
+    // A kanaal is a link for taking part (the app with ?kanaal=<token>), for one promotion channel. The token
+    // is no secret: the channel shares the link openly. Ingetrokken, the link works no more; whether the
+    // antwoorden through it count (meetellen) can change any time.
+    public static function kanalen($gesprekId) {
+        $kanalen = [];
+        foreach (self::events('kanalen', $gesprekId) as $event) {
+            $id = $event['kanaal_id'];
+            if ($event['type'] === self::KANAAL_AANGEMAAKT) {
+                $kanalen[$id] = ['kanaal_id' => $id, 'naam' => $event['naam'], 'token' => $event['token'], 'status' => self::KANAAL_ACTIEF, 'meetellen' => true];
+            } elseif (isset($kanalen[$id])) {
+                if ($event['type'] === self::KANAAL_INGETROKKEN) {
+                    $kanalen[$id]['status'] = self::KANAAL_INGETROKKEN_STATUS;
+                }
+                if (array_key_exists('meetellen', $event)) {
+                    $kanalen[$id]['meetellen'] = (bool) $event['meetellen'];
+                }
+            }
+        }
+        return $kanalen;
+    }
+
+    // for an antwoord or a stelling: [kanaal_id => ...] to add to its event, or [] without a kanaal. A HttpFout 403
+    // when the token is no actief kanaal of the gesprek (anymore), or when there is no token while the gesprek
+    // only takes part through kanalen (zonder_kanaal false)
+    public static function kanaalVelden($gesprekId, $token) {
+        if ($token === '') {
+            if (!self::gesprek($gesprekId)['zonder_kanaal']) {
+                throw new HttpFout(403, 'This gesprek only takes part through the link of a kanaal.');
+            }
+            return [];
+        }
+        $kanaal = self::kanaalMetToken($gesprekId, $token);
+        if ($kanaal === null) {
+            throw new HttpFout(403, 'This kanaal does not work (anymore).');
+        }
+        return ['kanaal_id' => $kanaal['kanaal_id']];
+    }
+
+    // the actief kanaal of this token in the gesprek, or null
+    public static function kanaalMetToken($gesprekId, $token) {
+        foreach (self::kanalen($gesprekId) as $kanaal) {
+            if ($kanaal['status'] === self::KANAAL_ACTIEF && hash_equals($kanaal['token'], $token)) {
+                return $kanaal;
+            }
+        }
+        return null;
     }
 
     // the deelnemers of a gesprek, anonymous: [{ nummer, antwoorden: { stelling_id: waarde } }], numbered in

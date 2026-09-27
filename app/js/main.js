@@ -3,6 +3,7 @@ import { toonGesprek } from './gesprek.js';
 import { toonMatrix } from './matrix.js';
 import { nieuwePagina } from 'cdn/apilog.js';
 import { zetGesprekTitel } from './kop.js';
+import { neemKanaalUitLink } from './kanaal.js';
 
 // simple hash router so the back button works
 const routes = [
@@ -14,8 +15,10 @@ function route() {
     nieuwePagina();
     // the page of a gesprek sets its title once it is loaded
     zetGesprekTitel(null);
+    // a link with ?kanaal=<token>: the kanaal is kept, and taken out of the address
+    const hash = neemKanaalUitLink(location.hash);
     for (const [pattern, toon] of routes) {
-        const match = location.hash.match(pattern);
+        const match = hash.match(pattern);
         if (match) {
             toon(...match.slice(1));
             return;

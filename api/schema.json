@@ -110,6 +110,15 @@
           ],
           "readOnly": true,
           "description": "De rol van het ingelogde account in het team, of null"
+        },
+        "zonder_kanaal": {
+          "type": "boolean",
+          "description": "Of deelnemers zonder kanaal mogen meedoen (standaard true). false: alleen via de link van een kanaal. Altijd aan of uit te zetten."
+        },
+        "kanaal_geldig": {
+          "type": "boolean",
+          "readOnly": true,
+          "description": "Alleen bij `GET /gesprekken/{id}?kanaal=<token>`: of de link van dat kanaal nog werkt"
         }
       }
     },
@@ -168,6 +177,11 @@
           ],
           "readOnly": true,
           "description": "Hoe hij beantwoord is"
+        },
+        "kanaal": {
+          "type": "string",
+          "writeOnly": true,
+          "description": "Het token van de kanaallink waarmee de deelnemer kwam (optioneel; verplicht als het gesprek alleen via kanalen meedoet)"
         }
       }
     },
@@ -192,6 +206,11 @@
         },
         "waarde": {
           "$ref": "#/$defs/Waarde"
+        },
+        "kanaal": {
+          "type": "string",
+          "writeOnly": true,
+          "description": "Het token van de kanaallink waarmee de deelnemer kwam (optioneel; verplicht als het gesprek alleen via kanalen meedoet)"
         }
       }
     },
@@ -237,11 +256,14 @@
         "lid.toegevoegd",
         "lid.opgeschort",
         "lid.hersteld",
-        "lid.verwijderd"
+        "lid.verwijderd",
+        "kanaal.aangemaakt",
+        "kanaal.aangepast",
+        "kanaal.ingetrokken"
       ]
     },
     "Event": {
-      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `gesprek.opgeschort`, `gesprek.beeindigd`: `reden`; `gesprek.hersteld`: niets\n- `lid.toegevoegd`: `account_id`, `gebruikersnaam`, `rol`\n- `lid.opgeschort`, `lid.verwijderd`: `account_id`, `gebruikersnaam`, `reden`; `lid.hersteld`: `account_id`, `gebruikersnaam`\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
+      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `gesprek.opgeschort`, `gesprek.beeindigd`: `reden`; `gesprek.hersteld`: niets\n- `lid.toegevoegd`: `account_id`, `gebruikersnaam`, `rol`\n- `lid.opgeschort`, `lid.verwijderd`: `account_id`, `gebruikersnaam`, `reden`; `lid.hersteld`: `account_id`, `gebruikersnaam`\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`, en via een kanaal `kanaal_id` en `kanaal`\n- `kanaal.aangemaakt`: `kanaal_id`, `kanaal` (de naam), `naam`, `token`\n- `kanaal.aangepast`, `kanaal.ingetrokken`: `kanaal_id`, `kanaal`, `meetellen`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
       "type": "object",
       "required": [
         "id",
@@ -351,6 +373,25 @@
             "gespreksbeheerder",
             "moderator"
           ]
+        },
+        "kanaal_id": {
+          "type": "string"
+        },
+        "kanaal": {
+          "type": "string",
+          "description": "De naam van het kanaal van het event"
+        },
+        "naam": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "meetellen": {
+          "type": "boolean"
+        },
+        "zonder_kanaal": {
+          "type": "boolean"
         }
       }
     },
@@ -682,6 +723,53 @@
         "beeindigd"
       ],
       "description": "`opgeschort`: gepauzeerd; `beeindigd`: voorbij. Beide met een reden: deelnemers zien een melding, er kunnen geen antwoorden of stellingen bij, en het team kan er niet bij. Een superbeheerder kan het gesprek weer openen (`actief`). Een gesprek wordt nooit verwijderd."
+    },
+    "Kanaal": {
+      "description": "Een kanaal: een link om mee te doen (`<app>/#/gesprekken/<id>?kanaal=<token>`), voor één promotiekanaal, zoals een nieuwsbrief. Het token is geen geheim. Ingetrokken werkt de link niet meer; `meetellen` bepaalt of de antwoorden via het kanaal meetellen in de matrix, de tellingen, de export en de analyse.",
+      "type": "object",
+      "required": [
+        "kanaal_id",
+        "naam",
+        "token",
+        "status",
+        "meetellen"
+      ],
+      "properties": {
+        "kanaal_id": {
+          "type": "string",
+          "readOnly": true
+        },
+        "naam": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "token": {
+          "type": "string",
+          "readOnly": true,
+          "pattern": "^[a-f0-9]{16}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "actief",
+            "ingetrokken"
+          ]
+        },
+        "meetellen": {
+          "type": "boolean"
+        },
+        "deelnemers": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true,
+          "description": "Hoeveel deelnemers via dit kanaal antwoordden"
+        },
+        "antwoorden": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true
+        }
+      }
     }
   }
 }

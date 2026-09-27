@@ -138,6 +138,8 @@ Het overzicht hieronder is de korte versie:
 | `GET`, `POST /team?gesprek_id=<id>` | Het team van een gesprek; een lid opschorten, herstellen of verwijderen |
 | `GET`, `POST /superbeheerders` | De superbeheerders; opschorten, herstellen of verwijderen |
 | `POST /gespreksstatus` | Een gesprek pauzeren, beëindigen of weer openen, alleen voor superbeheerders |
+| `GET`, `POST /kanalen` | De [kanalen](#kanalen) van een gesprek, met hun cijfers; een kanaal maken |
+| `PUT /kanalen/<id>` | Meetellen aan of uit, of een kanaal intrekken |
 | `DELETE /sessie` | Uitloggen: het token werkt daarna niet meer |
 Wat alleen voor de beheeromgeving is, vraagt het token uit `POST /sessie` in de header `Authorization: Bearer <token>`, anders volgt 401. Mag het account het niet, dan volgt 403. Zie [Beheer](#beheer) en [Inloggen](#inloggen).
 
@@ -176,6 +178,7 @@ Alles wat er gebeurt, staat als **event** in [api/data/](api/data/): één JSON-
 | `gesprekken/<gesprek_id>/stellingen.jsonl` | `stelling.toegevoegd`, `stelling.goedgekeurd`, `stelling.afgekeurd` |
 | `gesprekken/<gesprek_id>/antwoorden.jsonl` | `antwoord.gegeven` |
 | `gesprekken/<gesprek_id>/team.jsonl` | `lid.toegevoegd`, `.opgeschort`, `.hersteld`, `.verwijderd`: het team van het gesprek |
+| `gesprekken/<gesprek_id>/kanalen.jsonl` | `kanaal.aangemaakt`, `.aangepast`, `.ingetrokken`: de [kanalen](#kanalen) van het gesprek |
 | `beheer.jsonl` | `account.aangemaakt`, `wachtwoord.ingesteld`, `superbeheerder.benoemd`, `.opgeschort`, `.hersteld`, `.verwijderd`, `uitnodiging.aangemaakt`, `.gebruikt` |
 
 Een event ziet er zo uit:
@@ -276,6 +279,18 @@ Per gesprek stelt een gespreksbeheerder in hoe stellingen van deelnemers worden 
 Een stelling die niet zichtbaar is, verdwijnt uit het gesprek, de matrix en de analyse, en kan niet meer beantwoord worden. De indiener ziet onder **Mijn stellingen** dat een stelling nog niet is goedgekeurd, of dat hij is afgekeurd, met de reden. Wie een stelling heeft ingediend, ziet het team niet.
 
 Het team (gespreksbeheerders en moderators) beoordeelt stellingen op de detailpagina van een gesprek in de beheeromgeving. Een beoordeling is altijd te herzien; de laatste telt.
+
+## Kanalen
+
+Meedoen is anoniem: iedereen met de link van een gesprek kan antwoorden. Daar is het voor bedoeld. Maar zo kan iemand ook veel nep-deelnemers maken. **Kanalen** geven grip daarop, zonder dat meedoen minder anoniem wordt:
+
+- **Een kanaal is een link om mee te doen**, voor één promotiekanaal, zoals een nieuwsbrief, een advertentie of een wijkkrant: `<app>/#/gesprekken/<id>?kanaal=<token>`. De app onthoudt het kanaal ([app/js/kanaal.js](app/js/kanaal.js)), haalt het uit de adresbalk, en stuurt het mee met elk antwoord en elke stelling. Het token is geen geheim: het kanaal deelt de link openlijk.
+- **De gespreksbeheerder maakt ze** in de tab **Kanalen** van het gesprek. Daar staat per kanaal hoeveel deelnemers en antwoorden erdoor kwamen, en ook hoeveel er zonder kanaal meededen. Zo zie je welke promotie werkt, en valt een kanaal op dat vreemd piekt.
+- **Meetellen** staat per kanaal aan of uit, altijd. Uit: de antwoorden via dat kanaal vallen weg uit de matrix, de tellingen, de export en de analyse. Een deelnemer ziet zijn eigen antwoorden wel nog.
+- **Intrekken** zet de link voorgoed uit: nieuwe antwoorden via dat kanaal geven een 403, en de app zegt dat de link niet meer werkt. Bij het intrekken kies je of de antwoorden die er al zijn, blijven meetellen.
+- **Zonder kanaal meedoen** staat per gesprek aan of uit, in de tab **Gegevens** (`zonder_kanaal`). Uit: alleen wie via een werkende kanaallink komt, kan meedoen; de anderen zien „Meedoen kan alleen via een link”. Aan (standaard): iedereen kan meedoen, en de kanalen laten alleen zien waar deelnemers vandaan komen.
+
+Alles staat als events in `kanalen.jsonl`, en een antwoord of stelling via een kanaal heeft een `kanaal_id`. Een keuze is dus altijd terug te draaien, en in het logboek staat wie wat wanneer deed.
 
 ## Logboek
 

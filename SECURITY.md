@@ -19,7 +19,7 @@ Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijf
 
 ## Bekende grenzen
 
-- **Nep-antwoorden:** meedoen is anoniem, dus iemand kan met veel verschillende `deelnemer_id`s veel „deelnemers” maken en zo de groepen beïnvloeden. Doordat de API open is voor elke site, kan dat ook via de browsers van de bezoekers van een andere site. Er is nog geen limiet per IP-adres of per tijd.
+- **Nep-antwoorden:** meedoen is anoniem, dus iemand kan met veel verschillende `deelnemer_id`s veel „deelnemers” maken en zo de groepen beïnvloeden. Doordat de API open is voor elke site, kan dat ook via de browsers van de bezoekers van een andere site. Er is nog geen limiet per IP-adres of per tijd. Wat wel kan: meedoen alleen via [kanalen](README.md#kanalen) toestaan, en een kanaal dat misbruikt wordt intrekken, en de antwoorden erdoor laten wegvallen.
 - **Inloggen:** er is nog geen limiet op het aantal inlogpogingen. Wachtwoorden zijn minstens 12 tekens.
 
 ## De toeleveringsketen
