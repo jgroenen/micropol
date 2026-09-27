@@ -44,7 +44,8 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | Test | Wat |
 |---|---|
 | [tests/api.py](tests/api.py) | Elke call van API en math tegen de OpenAPI-spec: status, request en response, inclusief inloggen en uitloggen. Elke operatie in de specs wordt minstens één keer aangeroepen. |
-| [tests/browser.mjs](tests/browser.mjs) | De app en de admin in Chrome (headless) |
+| [tests/browser.mjs](tests/browser.mjs) | De productpagina, de app en de admin in Chrome (headless) |
+| [tests/migraties.sh](tests/migraties.sh) | De [migraties](#migraties) op data in de oudste vorm |
 
 - **Testdata:** de tests beginnen op een lege API. Ze installeren hem (admin/admin maakt de eerste superbeheerder) en maken hun eigen data aan. Daarna zet `run.sh` de data van API en math terug. Gebruik de app niet terwijl de tests draaien.
 - **Nodig:** python3, node (18 of nieuwer) en Chrome. `jsonschema` komt bij de eerste run in `tests/.venv`.
@@ -59,7 +60,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/config.php](api/config.php) | Instellingen per omgeving: welke origins de API mogen aanroepen, en hoe lang een login geldig is, zie [Losse servers](#losse-servers) |
 | [api/handlers/](api/handlers/) | Eén handler per resource |
 | [api/lib/](api/lib/) | Gedeelde code: opslag ([Data](api/lib/Data.php), [Jsonl](api/lib/Jsonl.php), [Csv](api/lib/Csv.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)), rollen ([Beheer](api/lib/Beheer.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
-| [api/bin/](api/bin/) | [superbeheerder-toevoegen.php](api/bin/superbeheerder-toevoegen.php), zie [Beheer](#beheer); de migraties [naar-events.php](api/bin/naar-events.php) en [naar-teams.php](api/bin/naar-teams.php), zie [Opslag](#opslag) |
+| [api/bin/](api/bin/) | [superbeheerder-toevoegen.php](api/bin/superbeheerder-toevoegen.php), zie [Beheer](#beheer); [migreer.php](api/bin/migreer.php) met de [migraties/](api/bin/migraties/), zie [Migraties](#migraties) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
 | [www/](www/) | De productpagina: [index.php](www/index.php) vult de URL's van alle delen in [views/pagina.html](www/views/pagina.html) in; [css/](www/css/) en [instellingen.php](www/instellingen.php). Geen JavaScript |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
@@ -68,7 +69,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [math/](math/) | De math server, zelfde opbouw als `api/`: [index.php](math/index.php), [config.php](math/config.php), [openapi.json](math/openapi.json), [handlers/](math/handlers/), [lib/](math/lib/) ([Analyse](math/lib/Analyse.php), [AnalyseModel](math/lib/AnalyseModel.php), [Export](math/lib/Export.php)) en [data/](math/data/) (de berekende modellen) |
 | [dev/](dev/) | Alleen voor lokaal ontwikkelen: [start.sh](dev/start.sh) en de router voor de cdn ([cdn.php](dev/cdn.php)) |
 | [Caddyfile](Caddyfile) | De webserver in productie: alle subdomeinen, met FrankenPHP en automatische HTTPS, zie [docs/livegang.md](docs/livegang.md) |
-| [deploy/](deploy/) | Op de VPS: [installeer.sh](deploy/installeer.sh) (eenmalig), [uppen.sh](deploy/uppen.sh) (nieuwe versie: `git pull`) en de dienst [minipol.service](deploy/minipol.service) |
+| [deploy/](deploy/) | Op de VPS: [installeer.sh](deploy/installeer.sh) (eenmalig), [uppen.sh](deploy/uppen.sh) (een nieuwe versie: back-up, `git pull`, migraties), [terugzetten.sh](deploy/terugzetten.sh) (terug naar een back-up) en de dienst [minipol.service](deploy/minipol.service) |
 | [docs/](docs/) | Achtergronddocumentatie, zoals [analyse.md](docs/analyse.md) |
 | [tests/](tests/) | De tests, zie [Testen](#testen) |
 
@@ -188,15 +189,25 @@ De bestanden worden alleen aangevuld, nooit gewijzigd. Gesprekken worden aangema
 
 Logins zijn geen events: die staan in `sessies.csv` (`token_hash, account_id, begonnen, verloopt`), zie [Inloggen](#inloggen). Daar telt de laatste regel met dezelfde `token_hash`.
 
-**Data van vóór de events** (`gesprekken.csv`, `stellingen.csv`, `antwoorden/` en `beoordelingen/`) zet je eenmalig om:
+### Migraties
 
-```sh
-php api/bin/naar-events.php
-```
+Verandert de vorm van de data, dan zet een **migratie** bestaande data om. [api/bin/migreer.php](api/bin/migreer.php) draait de migraties in [api/bin/migraties/](api/bin/migraties/) die op deze data nog niet gedraaid hebben, op volgorde van hun naam. Welke al gedraaid hebben, staat in `api/data/migraties.jsonl`. Je hoeft ze nooit met de hand te draaien:
 
-Het script schrijft de events en zet de oude csv-bestanden in `api/data/csv-voor-events/`. Die bewaarden niet wanneer iets gebeurde, behalve bij beoordelingen. De andere events krijgen daarom `tijdstip` `null`, en wie een gesprek aanmaakte of aanpaste is onbekend (`door` `null`).
+- **Op de server** draait [uppen.sh](deploy/uppen.sh) ze bij elke nieuwe versie, na een back-up van de data. [installeer.sh](deploy/installeer.sh) draait ze ook, op de nog lege data.
+- **Lokaal** draait [dev/start.sh](dev/start.sh) ze bij het starten.
+- **Op nieuwe of lege data** hebben ze niets te doen. Ze worden dan alleen als gedaan genoteerd.
 
-**Beheerders van vóór de teams** (`beheerders.csv`) zet je daarna eenmalig om met `php api/bin/naar-teams.php`. Elke beheerder wordt een account met dezelfde gebruikersnaam en hetzelfde wachtwoord, en superbeheerder én gespreksbeheerder van alle gesprekken; vroeger konden beheerders immers alles. `beheerders.csv` en `sessies.csv` gaan naar `api/data/csv-voor-teams/`, dus iedereen logt opnieuw in.
+Een nieuwe migratie is een bestand `NNN-naam.php` in `api/bin/migraties/` (het volgende nummer), dat een functie teruggeeft:
+- is er niets om te zetten, dan doet de functie niets;
+- anders zet hij de data om, en geeft hij in één regel terug wat hij deed;
+- klopt de data niet, dan gooit hij een exception. Dan stopt de update, en blijft deze migratie te doen.
+
+Laat oude bestanden niet weg, maar zet ze in een map `csv-voor-…`, zoals de migraties die er zijn. [tests/migraties.sh](tests/migraties.sh) test ze op data in de oudste vorm.
+
+| Migratie | Zet om |
+|---|---|
+| [001-naar-events](api/bin/migraties/001-naar-events.php) | `gesprekken.csv`, `stellingen.csv`, `antwoorden/` en `beoordelingen/` naar de event-stromen. De oude bestanden gaan naar `csv-voor-events/`. De csv-bestanden bewaarden niet wanneer iets gebeurde, behalve bij beoordelingen: de andere events krijgen `tijdstip` `null`, en wie een gesprek aanmaakte of aanpaste is onbekend (`door` `null`). |
+| [002-naar-teams](api/bin/migraties/002-naar-teams.php) | `beheerders.csv` naar accounts. Elke beheerder wordt superbeheerder én gespreksbeheerder van alle gesprekken, met dezelfde gebruikersnaam en hetzelfde wachtwoord; vroeger konden beheerders immers alles. `beheerders.csv` en `sessies.csv` gaan naar `csv-voor-teams/`, dus iedereen logt opnieuw in. |
 
 De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn eigen data. Een lege `data/`-map werkt; de bestanden ontstaan bij het eerste gebruik. Hetzelfde geldt voor `math/data/`, met de berekende modellen. Op een nieuwe server log je eerst in met admin/admin, zie [Beheer](#beheer).
 

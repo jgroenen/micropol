@@ -84,26 +84,40 @@ ssh root@<vps> 'chown -R minipol:minipol /srv/minipol/api/data'
 
 Met `math/data` gaat het net zo, maar dat hoeft niet: de analysemodellen worden vanzelf opnieuw berekend.
 
-Is de data ouder, zet hem dan eenmalig om, in deze volgorde (zie [Opslag](../README.md#opslag) in de README):
-- met `gesprekken.csv` in plaats van `gesprekken.jsonl`: `naar-events.php`;
-- met `beheerders.csv` in plaats van `beheer.jsonl`: `naar-teams.php`. De beheerders worden dan superbeheerder, dus stap 5 is niet nodig.
+Is de data van een oudere versie, breng hem dan bij met de [migraties](../README.md#migraties). Dat doet `uppen.sh` bij een nieuwe versie vanzelf, maar na zo'n kopie draai je ze één keer zelf:
 
 ```sh
-sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/naar-events.php
-sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/naar-teams.php
+sudo -u minipol frankenphp php-cli /srv/minipol/api/bin/migreer.php
 ```
+
+Hadden de beheerders nog `beheerders.csv`, dan zijn ze daarna superbeheerder, en is stap 5 niet nodig.
 
 ## Een nieuwe versie uitrollen
 
-Push de code naar de repository, en dan op de VPS:
+Push de code naar de repository, en dan vanaf je laptop:
 
 ```sh
-/srv/minipol/deploy/uppen.sh
+ssh root@<vps> /srv/minipol/deploy/uppen.sh
 ```
 
-[uppen.sh](../deploy/uppen.sh) doet `git pull` en laat Caddy de `Caddyfile` opnieuw laden, zonder onderbreking. Veranderde PHP-bestanden gebruikt FrankenPHP meteen. Aan het eind controleert het script of de API antwoordt.
+[uppen.sh](../deploy/uppen.sh) doet:
+1. kijken of er een nieuwe versie is; zo niet, dan stopt het;
+2. een **back-up** van `api/data` maken, in `/var/backups/minipol/<datum>-<commit>.tar.gz`. De laatste tien blijven bewaard;
+3. `git pull`;
+4. de **migraties** draaien: zo komt de data in de vorm die de nieuwe code verwacht (zie [Migraties](../README.md#migraties));
+5. Caddy laten herladen, zonder onderbreking, en controleren of de API antwoordt.
 
-Vanaf je laptop kan het in één keer: `ssh root@<vps> /srv/minipol/deploy/uppen.sh`.
+Veranderde PHP-bestanden gebruikt FrankenPHP meteen. Tussen de pull en de migraties draait de nieuwe code heel even op de oude data. Dat duurt hooguit een paar seconden.
+
+### Terugzetten
+
+Mislukt een migratie, of werkt de nieuwe versie niet, dan zet [terugzetten.sh](../deploy/terugzetten.sh) de code én de data terug naar een back-up. `uppen.sh` noemt in dat geval het commando al:
+
+```sh
+ssh root@<vps> /srv/minipol/deploy/terugzetten.sh /var/backups/minipol/<datum>-<commit>.tar.gz
+```
+
+Zonder back-up toont het de back-ups die er zijn. De data van vóór het terugzetten blijft bewaard in `api/data-<datum>`. Wat er sinds de back-up bij kwam, staat daarin. De volgende `uppen.sh` haalt de nieuwste versie weer op, dus los eerst het probleem op.
 
 ## Controleren
 
@@ -130,7 +144,9 @@ Pas op de server niets aan in `/srv/minipol`: de volgende pull verwacht een scho
 
 ## Back-ups
 
-Alle data staat in `api/data`: de events van de gesprekken en het beheer (accounts, teams, uitnodigingen), en de logins. De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg. Twee opties:
+Alle data staat in `api/data`: de events van de gesprekken en het beheer (accounts, teams, uitnodigingen), en de logins. De bestanden worden alleen aangevuld, dus een kopie is altijd consistent genoeg.
+
+`uppen.sh` maakt bij elke nieuwe versie een back-up in `/var/backups/minipol/`, maar die staat op dezelfde VPS. Zorg daarom ook voor een kopie elders. Twee opties:
 
 - **Snapshots van de VPS** bij je provider.
 - **Zelf ophalen**, bijvoorbeeld dagelijks vanaf een andere machine:

@@ -10,6 +10,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 trap 'kill 0' INT TERM EXIT
 
+# the data up to date with the code, like deploy/uppen.sh does on the server
+php api/bin/migreer.php || exit 1
+
 php -S localhost:8000 -t www &
 php -S localhost:8001 api/index.php &
 php -S localhost:8002 -t admin &

@@ -66,6 +66,10 @@ if command -v ufw > /dev/null && ufw status | grep -q active; then
     ufw allow 443/tcp > /dev/null
 fi
 
+echo "== data: de migraties"
+# on new data they have nothing to do, but are marked as done, so an update never runs them again
+sudo -u minipol /usr/local/bin/frankenphp php-cli "$REPO/api/bin/migreer.php"
+
 echo "== dienst minipol"
 cp "$REPO/deploy/minipol.service" /etc/systemd/system/minipol.service
 systemctl daemon-reload
@@ -75,6 +79,6 @@ sleep 2
 systemctl --no-pager --lines=0 status minipol
 
 echo
-echo "Klaar. Maak nu een beheerder aan:"
-echo "  sudo -u minipol frankenphp php-cli $REPO/api/bin/beheerder-toevoegen.php <gebruikersnaam> <email>"
+echo "Klaar. Log nu in op https://admin.$DOMEIN met admin/admin, en maak je eigen account:"
+echo "de eerste superbeheerder. Doe dat meteen: tot die tijd kan iedereen dat."
 echo "Een nieuwe versie uitrollen: $REPO/deploy/uppen.sh"

@@ -48,6 +48,7 @@ draai() {
         mislukt=1
     fi
 }
+draai tests/migraties.sh
 draai tests/.venv/bin/python tests/api.py
 draai node tests/browser.mjs
 
