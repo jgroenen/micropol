@@ -282,6 +282,18 @@ try {
     await doe(`document.getElementById('open-nieuw').click(); const f = document.getElementById('nieuw-formulier'); f.titel.value = 'Uit de browsertest'; document.getElementById('nieuw-knop').click();`);
     check('admin: nieuw gesprek, met de link voor de eerste gespreksbeheerder', await wachtOp(`document.getElementById('gesprekken-lijst').textContent.includes('Uit de browsertest') && document.querySelector('#nieuw-uitnodigen .uitnodiging-link input')?.value.includes('#/uitnodiging/')`));
     const link = await waarde(`document.querySelector('#nieuw-uitnodigen .uitnodiging-link input').value`);
+    // on a phone (390 pixels wide): the menu is behind a button, and the page is no wider than the screen
+    await cmd('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+    const menuZichtbaar = `document.getElementById('menu-superbeheerders').getBoundingClientRect().width > 0 && document.getElementById('uitloggen').getBoundingClientRect().width > 0`;
+    check('admin: op een telefoon het menu achter een knop', await wachtOp(`${zichtbaar('ingelogd')} && document.getElementById('menu-openen').getBoundingClientRect().width > 0 && !(${menuZichtbaar})`));
+    check('admin: op een telefoon niet breder dan het scherm', await waarde(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+    await doe(`document.getElementById('menu-openen').click();`);
+    check('admin: menuknop opent menu met uitloggen', await wachtOp(`${menuZichtbaar} && document.getElementById('menu-openen').getAttribute('aria-expanded') === 'true'`));
+    check('admin: open menu niet breder dan het scherm', await waarde(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+    await doe(`document.getElementById('menu-superbeheerders').click();`);
+    check('admin: menu sluit na een keuze', await wachtOp(`location.hash === '#/superbeheerders' && !(${menuZichtbaar}) && document.getElementById('menu-openen').getAttribute('aria-expanded') === 'false'`));
+    await cmd('Emulation.clearDeviceMetricsOverride');
+    check('admin: op een groot scherm het menu gewoon in de kop', await wachtOp(`${menuZichtbaar} && document.getElementById('menu-openen').getBoundingClientRect().width === 0`));
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: superbeheerder ziet bij een gesprek alleen team en status', await wachtOp(`${zichtbaar('gesprek-tabs')} && document.getElementById('tab-stellingen').hidden && !document.getElementById('tab-team').hidden && !document.getElementById('tab-status').hidden`));
     // the reden form: clicking in it keeps the button as it is

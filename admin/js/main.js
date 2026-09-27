@@ -25,11 +25,36 @@ const routes = [
 
 const ingelogd = document.getElementById('ingelogd');
 
+// on a phone the menu is behind a button (see css/admin.css); it closes on a page change, a click
+// elsewhere and Escape
+const menuOpenen = document.getElementById('menu-openen');
+const ingelogdMenu = document.getElementById('ingelogd-menu');
+
+function zetMenuOpen(open) {
+    ingelogdMenu.classList.toggle('open', open);
+    menuOpenen.setAttribute('aria-expanded', String(open));
+}
+
+menuOpenen.addEventListener('click', () => zetMenuOpen(!ingelogdMenu.classList.contains('open')));
+document.addEventListener('click', event => {
+    if (!ingelogd.contains(event.target) || event.target.closest('a')) {
+        zetMenuOpen(false);
+    }
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && ingelogdMenu.classList.contains('open')) {
+        zetMenuOpen(false);
+        menuOpenen.focus();
+    }
+});
+
 function route() {
+    zetMenuOpen(false);
     // the page of a gesprek adds its title once it is loaded
     document.title = 'MiniPol beheer';
     const account = ingelogdAccount();
     ingelogd.hidden = !account && !isInstallatie();
+    document.getElementById('ingelogd-als').hidden = ingelogd.hidden;
     document.getElementById('ingelogd-als').textContent = account?.gebruikersnaam ?? 'admin';
     document.getElementById('beheer-menu').hidden = !account;
     document.getElementById('menu-superbeheerders').hidden = !isSuperbeheerder();

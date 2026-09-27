@@ -13,14 +13,23 @@
 <body>
     <header class="site-kop">
         <!-- to the product page, from where everything is reachable; index.php fills in its url -->
-        <a class="site-titel" href="{{WWW_URL}}/">MiniPol <span class="beheer-label">beheer</span></a>
+        <div class="site-naam">
+            <a class="site-titel" href="{{WWW_URL}}/">MiniPol <span class="beheer-label">beheer</span></a>
+            <!-- who is logged in, below the name -->
+            <span class="ingelogd-als" id="ingelogd-als" hidden></span>
+        </div>
         <div class="ingelogd" id="ingelogd" hidden>
-            <nav class="beheer-menu" id="beheer-menu" aria-label="Beheer">
-                <a href="#/" id="menu-gesprekken">Gesprekken</a>
-                <a href="#/superbeheerders" id="menu-superbeheerders" hidden>Superbeheerders</a>
-            </nav>
-            <span id="ingelogd-als"></span>
-            <button class="link-knop" id="uitloggen">Uitloggen</button>
+            <!-- on a phone the menu is behind this button, see js/main.js -->
+            <button type="button" class="menu-openen" id="menu-openen" aria-expanded="false" aria-controls="ingelogd-menu" aria-label="Menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <div class="ingelogd-menu" id="ingelogd-menu">
+                <nav class="beheer-menu" id="beheer-menu" aria-label="Beheer">
+                    <a href="#/" id="menu-gesprekken">Gesprekken</a>
+                    <a href="#/superbeheerders" id="menu-superbeheerders" hidden>Superbeheerders</a>
+                </nav>
+                <button class="link-knop" id="uitloggen">Uitloggen</button>
+            </div>
         </div>
     </header>
 

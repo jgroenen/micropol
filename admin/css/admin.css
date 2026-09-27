@@ -1,7 +1,22 @@
 /* shared by the views of the admin environment: header, forms, lists */
 .site-kop {
+    position: relative;
     justify-content: space-between;
     gap: var(--space-3);
+}
+
+/* the name, with below it who is logged in */
+.site-naam {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+}
+
+.ingelogd-als {
+    color: var(--color-muted);
+    font-size: var(--font-size-small);
+    font-weight: 300;
+    overflow-wrap: anywhere;
 }
 
 .beheer-label {
@@ -9,7 +24,8 @@
     font-weight: 300;
 }
 
-.ingelogd {
+/* the menu and logging out: in the header, or on a phone behind the menu button */
+.ingelogd-menu {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -22,6 +38,19 @@
     }
 }
 
+.menu-openen {
+    display: none;
+    padding: var(--space-1);
+    border: 0;
+    background: none;
+    color: var(--color-brand-text);
+    cursor: pointer;
+
+    & svg {
+        display: block;
+    }
+}
+
 /* the pages of the admin, in the header; the current one is not underlined, but bold */
 .beheer-menu {
     display: flex;
@@ -31,6 +60,40 @@
     & a[aria-current] {
         font-weight: 600;
         text-decoration: none;
+    }
+}
+
+/* on a phone: a panel below the header, opened with the menu button */
+@media (width < 40rem) {
+    .menu-openen {
+        display: block;
+    }
+
+    .ingelogd-menu {
+        position: absolute;
+        inset: 100% var(--space-4) auto auto;
+        z-index: 10;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-3);
+        min-inline-size: 12rem;
+        max-inline-size: calc(100vw - 2 * var(--space-4));
+        margin-block-start: var(--space-1);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-surface);
+        box-shadow: var(--shadow-raised);
+
+        &:not(.open) {
+            display: none;
+        }
+    }
+
+    .beheer-menu {
+        flex-direction: column;
+        gap: var(--space-3);
+        margin: 0;
     }
 }
 
