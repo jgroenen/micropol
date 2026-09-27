@@ -157,6 +157,19 @@ try {
     // 2 minutes later, as far as the page knows
     await doe(`const echt = Date.now; Date.now = () => echt() + 121000; document.dispatchEvent(new Event('visibilitychange'));`);
     check('app: nieuwe stelling verschijnt vanzelf', await wachtOp(`document.getElementById('huidige-stelling').textContent === 'Een nieuwe stelling terwijl de browsertest wacht.' && !document.getElementById('antwoord-knoppen').hidden`));
+    // ---- app: while the tab Mijn stellingen is open, the antwoorden on them come by themselves
+    await doe(`document.getElementById('tab-stellingen').click();`);
+    const eigen = (await (await fetch(`${API}/stellingen?gesprek_id=${data.gesprek}`, { headers: { Authorization: `Bearer ${data.deelnemer}` } })).json())
+        .stellingen.find(st => st.zichtbaar && st.tekst.includes('<b>uit</b> de browsertest'));
+    const eigenAntwoord = await fetch(`${API}/antwoorden`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${crypto.randomUUID()}` },
+        body: JSON.stringify({ gesprek_id: data.gesprek, stelling_id: eigen?.id, waarde: 'oneens' }),
+    });
+    check('app: een andere deelnemer beantwoordt de eigen stelling', eigenAntwoord.status === 201);
+    // a minute later, as far as the page knows
+    await doe(`const eerder = Date.now; Date.now = () => eerder() + 61000; document.dispatchEvent(new Event('visibilitychange'));`);
+    check('app: Mijn stellingen werkt zichzelf bij', await wachtOp(`[...document.querySelectorAll('#mijn-stellingen-lijst li')].some(li => li.textContent.includes('<b>uit</b> de browsertest') && li.querySelector('.verdeling .oneens'))`));
 
     check('app: API-popup telt de calls', Number(await waarde(`document.querySelector('.api-log-teller').textContent`)) > 0);
     check('app: API-popup met eigen stylesheet van de cdn', await wachtOp(`getComputedStyle(document.querySelector('.api-log-knop')).position === 'fixed'`));
@@ -164,7 +177,8 @@ try {
     // ---- app: the matrix
     await naar(`${APP}/#/gesprekken/${data.gesprek}/matrix`);
     check('app: matrix met de titel van het gesprek in de kop', await wachtOp(`document.title.startsWith('MiniPol | Testgesprek') && !document.getElementById('site-gesprek').hidden`));
-    check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers}`));
+    // plus the deelnemer that answered the own stelling above
+    check('app: matrix met een rij per deelnemer', await wachtOp(`document.querySelectorAll('.matrix tbody tr').length === ${data.deelnemers + 1}`));
     check('app: matrixkolommen met stellingtekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling.startsWith('Teststelling'))`));
     check('app: aanhalingstekens en tags blijven tekst', await waarde(`[...document.querySelectorAll('.matrix thead th[data-stelling]')].some(th => th.dataset.stelling === 'Een "stelling" <b>uit</b> de browsertest.') && !document.querySelector('.matrix b')`));
 

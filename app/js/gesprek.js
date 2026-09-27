@@ -36,7 +36,10 @@ function koppel() {
         button.addEventListener('click', () => beantwoord(button.dataset.antwoord));
     });
 
-    tabBladen = maakTabs(tabs.querySelector('[role="tablist"]'), naam => actieveTab = naam);
+    tabBladen = maakTabs(tabs.querySelector('[role="tablist"]'), naam => {
+        actieveTab = naam;
+        planBijwerken();
+    });
 
     // deelnemer info on the plot points
     koppelTooltip(document.getElementById('groepen-plot'));
@@ -52,8 +55,8 @@ function koppel() {
     document.getElementById('sluit-toevoegen').addEventListener('click', toonBeantwoorden);
 
     toevoegen.addEventListener('submit', dienStellingIn);
-    // no looking for new stellingen while the page is out of view; back in view, it goes on
-    document.addEventListener('visibilitychange', wachtOpNieuweStellingen);
+    // no looking for updates while the page is out of view; back in view, it goes on
+    document.addEventListener('visibilitychange', planBijwerken);
     gekoppeld = true;
 }
 
@@ -106,7 +109,7 @@ export async function toonGesprek(id) {
             melding.textContent = 'De link waarmee je kwam, werkt niet meer. Je kunt gewoon verder meedoen.';
             melding.hidden = false;
         }
-        laatstGekeken = Date.now();
+        nieuweGekeken = mijnGekeken = Date.now();
         huidig = { gesprek, antwoorden: antwoorden ?? {}, mijnStellingen: eigenStellingen ?? [], stelling: null, analyse: analyse ?? null, analyseMislukt: analyse === undefined };
         zetGesprekTitel(gesprek.titel);
         document.getElementById('moderatie-hint').hidden = gesprek.moderatie !== 'vooraf';
@@ -231,7 +234,7 @@ function toonBeantwoorden() {
 
     const stelling = stellingen.find(s => !(s.id in antwoorden));
     huidig.stelling = stelling || null;
-    wachtOpNieuweStellingen();
+    planBijwerken();
 
     if (!stelling) {
         teller.textContent = '';
@@ -247,18 +250,32 @@ function toonBeantwoorden() {
     antwoordKnoppen.forEach(b => b.disabled = false);
 }
 
-// once all stellingen are answered: every 2 minutes a look for new ones, only while the page is in view
+// updates while the page of the gesprek is in view: once all stellingen are answered, every 2 minutes a look for
+// new ones; and while the tab Mijn stellingen is open, every minute how the own stellingen are answered and judged
 const NIEUWE_STELLINGEN_NA = 2 * 60 * 1000;
-let wachtTimer = null;
-let laatstGekeken = 0;
+const MIJN_STELLINGEN_NA = 60 * 1000;
+let bijwerkTimer = null;
+let nieuweGekeken = 0;
+let mijnGekeken = 0;
 
-function wachtOpNieuweStellingen() {
-    clearTimeout(wachtTimer);
-    wachtTimer = null;
-    if (!huidig || huidig.stelling || document.hidden || !opDezePagina(huidig.gesprek.id)) {
+// { nieuwe, mijn }: whether each update is wanted now, and when it is due
+function bijwerken() {
+    return {
+        nieuwe: huidig.stelling ? null : nieuweGekeken + NIEUWE_STELLINGEN_NA,
+        mijn: actieveTab === 'stellingen' && huidig.mijnStellingen.length > 0 ? mijnGekeken + MIJN_STELLINGEN_NA : null,
+    };
+}
+
+function planBijwerken() {
+    clearTimeout(bijwerkTimer);
+    bijwerkTimer = null;
+    if (!huidig || document.hidden || !opDezePagina(huidig.gesprek.id)) {
         return;
     }
-    wachtTimer = setTimeout(kijkNaarNieuweStellingen, Math.max(0, laatstGekeken + NIEUWE_STELLINGEN_NA - Date.now()));
+    const momenten = Object.values(bijwerken()).filter(moment => moment !== null);
+    if (momenten.length > 0) {
+        bijwerkTimer = setTimeout(werkBij, Math.max(0, Math.min(...momenten) - Date.now()));
+    }
 }
 
 // whether the page of this gesprek is shown (not the list, nor its matrix)
@@ -266,36 +283,53 @@ function opDezePagina(gesprekId) {
     return location.hash.replace(/\?.*$/, '') === `#/gesprekken/${encodeURIComponent(gesprekId)}`;
 }
 
-async function kijkNaarNieuweStellingen() {
-    wachtTimer = null;
+async function werkBij() {
+    bijwerkTimer = null;
     const vorig = huidig;
     if (!vorig || !opDezePagina(vorig.gesprek.id)) {
         return;
     }
-    laatstGekeken = Date.now();
-    let gesprek;
-    try {
-        gesprek = await getGesprek(vorig.gesprek.id);
-    } catch (error) {
-        console.error('Error looking for new stellingen:', error);
+    const id = vorig.gesprek.id;
+    const nu = Date.now();
+    const { nieuwe, mijn } = bijwerken();
+    const nieuweNu = nieuwe !== null && nieuwe <= nu;
+    const mijnNu = mijn !== null && mijn <= nu;
+    if (nieuweNu) {
+        nieuweGekeken = nu;
     }
+    if (mijnNu) {
+        mijnGekeken = nu;
+    }
+    const mislukt = error => console.error('Error updating gesprek:', error);
+    const [gesprek, mijnStellingen] = await Promise.all([
+        nieuweNu ? getGesprek(id).catch(mislukt) : undefined,
+        mijnNu ? getMijnStellingen(id, deelnemerId).catch(mislukt) : undefined,
+    ]);
     if (huidig !== vorig) {
         return;
     }
-    if (gesprek === null || (gesprek && isGesloten(gesprek))) {
+    if (gesprek === null || mijnStellingen === null || (gesprek && isGesloten(gesprek))) {
         // gone, paused or over in the meantime: show that
-        await toonGesprek(vorig.gesprek.id);
+        await toonGesprek(id);
         return;
     }
     const bekend = new Set(vorig.gesprek.stellingen.map(s => s.id));
-    const nieuw = gesprek ? gesprek.stellingen.filter(s => !bekend.has(s.id)) : [];
+    const nieuw = [
+        ...(gesprek ? gesprek.stellingen : []),
+        // an own stelling that was goedgekeurd in the meantime
+        ...(mijnStellingen ?? []).filter(s => s.zichtbaar).map(s => ({ id: s.id, tekst: s.tekst })),
+    ].filter(s => !bekend.has(s.id) && bekend.add(s.id));
     vorig.gesprek.stellingen.push(...nieuw);
-    // while adding a stelling, the new ones wait until the form closes
-    if (nieuw.length > 0 && !beantwoorden.hidden) {
+    if (mijnStellingen) {
+        vorig.mijnStellingen = mijnStellingen;
+        toonMijnStellingen();
+    }
+    // a new stelling to answer; while adding a stelling, the new ones wait until the form closes
+    if (nieuw.length > 0 && !vorig.stelling && !beantwoorden.hidden) {
         toonBeantwoorden();
         return;
     }
-    wachtOpNieuweStellingen();
+    planBijwerken();
 }
 
 // save an antwoord, then move on to the next stelling
