@@ -15,6 +15,12 @@ Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijf
 - **Deelnemers blijven anoniem:** hun id komt nooit terug uit de API; in de export, de matrix en het logboek zijn ze een nummer.
 - **In de browser:** een strikte Content-Security-Policy op elke pagina, en alle tekst van gebruikers ge-escaped.
 - **De data:** nooit direct op te vragen; alles gaat via `index.php`.
+- **Een open API:** elke website mag de API en de math server vanuit de browser aanroepen (CORS `*`). Voor het beheer is dat veilig: zonder cookies stuurt een pagina alleen een token mee dat hij zelf heeft.
+
+## Bekende grenzen
+
+- **Nep-antwoorden:** meedoen is anoniem, dus iemand kan met veel verschillende `deelnemer_id`s veel „deelnemers” maken en zo de groepen beïnvloeden. Doordat de API open is voor elke site, kan dat ook via de browsers van de bezoekers van een andere site. Er is nog geen limiet per IP-adres of per tijd.
+- **Inloggen:** er is nog geen limiet op het aantal inlogpogingen. Wachtwoorden zijn minstens 12 tekens.
 
 ## De toeleveringsketen
 
@@ -26,7 +32,7 @@ MiniPol leunt op zo min mogelijk anderen. Dit is alles, met hoe elk risico is af
 | [FrankenPHP](https://frankenphp.dev) | de webserver in productie (Caddy met PHP, HTTPS) | [installeer.sh](deploy/installeer.sh) installeert een **vaste versie** en controleert de download met een **sha256** vóór installatie. Een nieuwere versie is een bewuste stap: versie en checksums aanpassen, en installeer.sh opnieuw draaien. |
 | [github.com/jgroenen/micropol](https://github.com/jgroenen/micropol) | [uppen.sh](deploy/uppen.sh) pullt `main` en draait die code | Tweestapsverificatie op het GitHub-account, branch protection op `main`, en een deploy key van de server die alleen mag lezen. |
 | IBM Plex Sans | het font | Meegeleverd in [cdn/design/fonts/](cdn/design/fonts/): vaste bestanden, geen externe server. |
-| [petstore.swagger.io](https://petstore.swagger.io) | de viewer van `/docs` | Leest alleen de openbare spec. De site mag de API aanroepen (CORS), maar alleen met een token dat iemand daar zelf invult; op de eigen domeinen draait hij niet. |
+| [petstore.swagger.io](https://petstore.swagger.io) | de viewer van `/docs` | Leest alleen de openbare spec; op de eigen domeinen draait hij niet. Een token gebruikt hij alleen als iemand dat daar zelf invult. |
 | Node en Chrome | alleen de browsertest | Draaien alleen bij het testen, nooit op de server. |
 | [actions/checkout](https://github.com/actions/checkout) | de tests op GitHub | Vastgezet op een commit, niet op een tag die kan verschuiven. |
 

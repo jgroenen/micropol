@@ -79,6 +79,8 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 
 ## API
 
+**De API is open**, als basis voor open innovatie: elke website mag hem vanuit de browser aanroepen (CORS `*`), ook om te schrijven. Een pagina in JSFiddle, een eigen dashboard of een onderzoek kan dus direct `fetch('https://api.<domein>/gesprekken')` doen. Voor de math server geldt hetzelfde. Voor het beheer is dat veilig: er zijn geen cookies, dus een pagina stuurt alleen een token mee dat hij zelf heeft. Beperken kan met `TOEGESTANE_ORIGINS` in [api/config.php](api/config.php) en [math/config.php](math/config.php).
+
 Alle requests en responses zijn JSON. Fouten komen terug als `{ "error": "..." }` met een passende statuscode.
 
 De volledige beschrijving staat in een OpenAPI 3.1-spec, per server:
@@ -89,7 +91,7 @@ De volledige beschrijving staat in een OpenAPI 3.1-spec, per server:
 | Math server | [math/openapi.json](math/openapi.json) | <http://localhost:8004/docs> en <http://localhost:8004/docs/openapi.json> |
 
 - **Try it out:** op `/docs` kun je elke call uitproberen. De spec krijgt daar de server zelf als `servers`-url, dus dat werkt in elke omgeving. Voor de beheer-endpoints log je in met `POST /sessie` (ook via Try it out), en vul je het token in via **Authorize**.
-- **Viewer:** de servers hebben zelf geen Swagger UI. `/docs` stuurt door naar Swagger UI op [petstore.swagger.io](https://petstore.swagger.io), met de URL van de spec als `?url=` (`DOCS_VIEWER` in `config.php`). Daarvoor mag iedereen `/docs/openapi.json` en `/docs/schema.json` lezen (CORS `*`), en mag de viewer de API aanroepen voor Try it out.
+- **Viewer:** de servers hebben zelf geen Swagger UI. `/docs` stuurt door naar Swagger UI op [petstore.swagger.io](https://petstore.swagger.io), met de URL van de spec als `?url=` (`DOCS_VIEWER` in `config.php`). Omdat de API open staat voor elke site (zie hieronder), kan de viewer de spec lezen en werkt Try it out.
 - **Lokaal** blokkeert Chrome dat een https-site als de viewer `http://localhost` leest, tenzij je de vraag om toegang tot je lokale netwerk toestaat. Lukt dat niet, open dan de spec zelf: <http://localhost:8001/docs/openapi.json>.
 - **Onderhoud:** pas de spec aan als je een endpoint toevoegt of verandert. `npx @redocly/cli lint api/openapi.json math/openapi.json` controleert of de spec geldig is.
 
@@ -323,7 +325,7 @@ De productpagina, de app, de admin, de API, de math server en de cdn draaien elk
 
 | Deel | Instellingen | Variabelen |
 |---|---|---|
-| `api/` | [config.php](api/config.php): de URL's van app en admin (CORS), en hoe lang een login geldig is | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` |
+| `api/` | [config.php](api/config.php): welke sites de API mogen aanroepen (CORS, nu alle), en hoe lang een login geldig is | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` |
 | `math/` | [config.php](math/config.php): de URL's van app en API | `MINIPOL_APP_URL`, `MINIPOL_API_URL` |
 | `www/` | [instellingen.php](www/instellingen.php): de URL's van alle delen, om naar te linken | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL`, `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
 | `app/` | [instellingen.php](app/instellingen.php): de URL's van API, math server en cdn | `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |

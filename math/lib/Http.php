@@ -21,14 +21,18 @@ class Http {
         return trim(preg_replace('/\s+/', ' ', self::field($source, $name)));
     }
 
-    // CORS headers when the request comes from one of the allowed origins; no cookies are used
+    // CORS headers when the request comes from one of the allowed origins, or from any with '*'; no cookies are used
     public static function cors(array $origins) {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
         header('Vary: Origin');
-        if (!in_array($origin, $origins, true)) {
+        if (in_array('*', $origins, true)) {
+            // every site; safe without cookies: a token is only sent by a page that has it
+            header('Access-Control-Allow-Origin: *');
+        } elseif (in_array($origin, $origins, true)) {
+            header("Access-Control-Allow-Origin: $origin");
+        } else {
             return;
         }
-        header("Access-Control-Allow-Origin: $origin");
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization');
         header('Access-Control-Max-Age: 600');

@@ -390,6 +390,20 @@ foreach (DIENSTEN as $dienst) {
     }
 }
 
+// ---- the api and the math server are open to every site (CORS *): also a preflight for a POST with a token
+foreach (['api' => '/antwoorden', 'math' => '/analyse'] as $dienst => $pad) {
+    $antwoord = @file_get_contents($basis[$dienst] . $pad, false, stream_context_create(['http' => [
+        'method' => 'OPTIONS',
+        'header' => "Origin: https://fiddle.jshell.net\r\nAccess-Control-Request-Method: POST\r\nAccess-Control-Request-Headers: content-type, authorization",
+        'ignore_errors' => true,
+    ]]));
+    $open = false;
+    foreach ($http_response_header ?? [] as $regel) {
+        $open = $open || strcasecmp(trim($regel), 'Access-Control-Allow-Origin: *') === 0;
+    }
+    meld($open, "$dienst: open voor elke site, ook een POST met een token (CORS *)");
+}
+
 // ---- api: logging out ends the token
 $uit = check('api', 'POST', '/sessie', 200, ['gebruikersnaam' => $gebruiker, 'wachtwoord' => $wachtwoord])['token'];
 check('api', 'DELETE', '/sessie', 204, null, $uit);
