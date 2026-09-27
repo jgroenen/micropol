@@ -21,7 +21,9 @@ done
 
 BEWAARD=$(mktemp -d)
 UITVOER=$BEWAARD/testdata.json
+# in a fresh checkout the data maps are not there yet (they are made on first use)
 for deel in api math; do
+    mkdir -p "$deel/data"
     cp -R "$deel/data" "$BEWAARD/$deel"
 done
 terugzetten() {
