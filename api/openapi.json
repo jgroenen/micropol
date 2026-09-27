@@ -227,22 +227,12 @@
         "tags": [
           "Stellingen"
         ],
-        "summary": "De stellingen die één deelnemer heeft toegevoegd",
+        "summary": "De stellingen die de deelnemer heeft toegevoegd",
         "description": "Met hun moderatiestatus en hoe ze beantwoord zijn.",
         "operationId": "getMijnStellingen",
         "parameters": [
           {
             "$ref": "#/components/parameters/GesprekId"
-          },
-          {
-            "name": "MiniPol-Deelnemer",
-            "in": "header",
-            "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9-]{1,64}$"
-            },
-            "description": "De `deelnemer_id`. Een header en geen parameter in de URL: URL's komen in logs, en dit id is de sleutel van een deelnemer.",
-            "required": true
           }
         ],
         "responses": {
@@ -272,8 +262,16 @@
           },
           "404": {
             "$ref": "#/components/responses/NietGevonden"
+          },
+          "401": {
+            "$ref": "#/components/responses/GeenDeelnemer"
           }
-        }
+        },
+        "security": [
+          {
+            "deelnemer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -287,7 +285,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "description": "Een stelling, met gesprek_id en deelnemer_id",
+                "description": "Een stelling, met gesprek_id",
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/Stelling"
@@ -295,7 +293,6 @@
                   {
                     "required": [
                       "gesprek_id",
-                      "deelnemer_id",
                       "tekst"
                     ]
                   }
@@ -333,8 +330,16 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/GeenDeelnemer"
           }
-        }
+        },
+        "security": [
+          {
+            "deelnemer": []
+          }
+        ]
       }
     },
     "/antwoorden": {
@@ -343,21 +348,11 @@
           "Antwoorden"
         ],
         "summary": "De antwoorden van één deelnemer, of van iedereen als matrix",
-        "description": "Met de header `MiniPol-Deelnemer`: de antwoorden van die deelnemer. Zonder: de matrix, per deelnemer anoniem, zoals in de export.",
+        "description": "Als deelnemer (`Authorization: Bearer <deelnemer_id>`): de antwoorden van die deelnemer. Zonder: de matrix, per deelnemer anoniem, zoals in de export.",
         "operationId": "getAntwoorden",
         "parameters": [
           {
             "$ref": "#/components/parameters/GesprekId"
-          },
-          {
-            "name": "MiniPol-Deelnemer",
-            "in": "header",
-            "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9-]{1,64}$"
-            },
-            "description": "De `deelnemer_id`. Een header en geen parameter in de URL: URL's komen in logs, en dit id is de sleutel van een deelnemer.",
-            "required": false
           }
         ],
         "responses": {
@@ -412,7 +407,13 @@
           "404": {
             "$ref": "#/components/responses/NietGevonden"
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "deelnemer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -426,7 +427,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "description": "Een antwoord, met alle velden",
+                "description": "Een antwoord, zonder deelnemer_id: die staat in Authorization",
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/Antwoord"
@@ -434,7 +435,6 @@
                   {
                     "required": [
                       "gesprek_id",
-                      "deelnemer_id",
                       "stelling_id",
                       "waarde"
                     ]
@@ -480,8 +480,16 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/GeenDeelnemer"
           }
-        }
+        },
+        "security": [
+          {
+            "deelnemer": []
+          }
+        ]
       }
     },
     "/beoordelingen": {
@@ -1837,6 +1845,11 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Het token uit `POST /sessie`"
+      },
+      "deelnemer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "De `deelnemer_id` van een deelnemer: een willekeurige UUID die de app maakt en bewaart. Hij werkt als een token (wie hem heeft, is die deelnemer), dus hij staat in `Authorization` en nooit in een URL of een body."
       }
     },
     "parameters": {
@@ -1892,6 +1905,16 @@
       },
       "Conflict": {
         "description": "Kan nu niet, zie de melding (bijvoorbeeld: gebruikersnaam bezet, je eigen status, of het gesprek is gepauzeerd)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fout"
+            }
+          }
+        }
+      },
+      "GeenDeelnemer": {
+        "description": "Zonder deelnemer_id (Authorization: Bearer <deelnemer_id>)",
         "content": {
           "application/json": {
             "schema": {

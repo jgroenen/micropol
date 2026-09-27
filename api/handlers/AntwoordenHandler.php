@@ -2,18 +2,15 @@
 
 // antwoorden of deelnemers on stellingen; answering again is fine, the last antwoord counts
 class AntwoordenHandler {
-    // GET /antwoorden?gesprek_id=<id>   with header MiniPol-Deelnemer: <id>   { antwoorden: [Antwoord] } of one deelnemer
+    // GET /antwoorden?gesprek_id=<id>   as a deelnemer (Authorization: Bearer <deelnemer_id>, see
+    //                                    Toegang::deelnemerId()): { antwoorden: [Antwoord] } of that deelnemer
     // GET /antwoorden?gesprek_id=<id>                    matrix: { gesprek_id, deelnemers: [{ nummer, antwoorden }] },
     //                                                    anonymous, like the export
-    // The deelnemer_id is a header, never in the url: urls end up in logs, and it is the key of a deelnemer.
     public function GET($id = null) {
         $gesprekId = Http::field($_GET, 'gesprek_id');
-        $deelnemerId = Http::kop('MiniPol-Deelnemer');
+        $deelnemerId = Toegang::deelnemerId();
         if ($gesprekId === '') {
             throw new HttpFout(400, 'gesprek_id is required.');
-        }
-        if ($deelnemerId !== '' && !Data::deelnemerIdGeldig($deelnemerId)) {
-            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
         }
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
@@ -25,20 +22,17 @@ class AntwoordenHandler {
         Http::json(['antwoorden' => $this->vanDeelnemer($gesprekId, $deelnemerId)]);
     }
 
-    // POST /antwoorden  { gesprek_id, deelnemer_id, stelling_id, waarde, kanaal }
+    // POST /antwoorden  { gesprek_id, stelling_id, waarde, kanaal }   as a deelnemer (Authorization: Bearer <deelnemer_id>)
     // kanaal: the token of the link the deelnemer came with (optional); required when the gesprek only takes
     // part through kanalen, see Data::kanaalVoorDeelname()
     public function POST($id = null) {
         $input = Http::body();
         $gesprekId = Http::field($input, 'gesprek_id');
-        $deelnemerId = Http::field($input, 'deelnemer_id');
+        $deelnemerId = Toegang::vereisDeelnemer();
         $stellingId = Http::field($input, 'stelling_id');
         $waarde = Http::field($input, 'waarde');
-        if ($gesprekId === '' || $deelnemerId === '' || $stellingId === '') {
-            throw new HttpFout(400, 'gesprek_id, deelnemer_id and stelling_id are required.');
-        }
-        if (!Data::deelnemerIdGeldig($deelnemerId)) {
-            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
+        if ($gesprekId === '' || $stellingId === '') {
+            throw new HttpFout(400, 'gesprek_id and stelling_id are required.');
         }
         if (!in_array($waarde, Data::WAARDEN, true)) {
             throw new HttpFout(400, 'waarde must be one of: ' . implode(', ', Data::WAARDEN) . '.');

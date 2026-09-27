@@ -133,8 +133,9 @@
         },
         "deelnemer_id": {
           "type": "string",
-          "description": "De deelnemer die hem toevoegde; hooguit 64 letters, cijfers en streepjes",
-          "pattern": "^[A-Za-z0-9-]{1,64}$"
+          "description": "De deelnemer. In een verzoek staat hij nooit in de body, maar in `Authorization: Bearer <deelnemer_id>`; in een antwoord alleen aan de deelnemer zelf.",
+          "pattern": "^[A-Za-z0-9-]{1,64}$",
+          "readOnly": true
         },
         "tekst": {
           "type": "string",
@@ -194,7 +195,8 @@
         "deelnemer_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9-]{1,64}$",
-          "description": "Het id van de deelnemer; hooguit 64 letters, cijfers en streepjes"
+          "description": "De deelnemer. In een verzoek staat hij nooit in de body, maar in `Authorization: Bearer <deelnemer_id>`; in een antwoord alleen aan de deelnemer zelf.",
+          "readOnly": true
         },
         "stelling_id": {
           "type": "string"

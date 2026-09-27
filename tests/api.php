@@ -32,7 +32,7 @@ function meld($goed, $melding) {
 }
 
 // one call: [status, headers with lowercase names, body]; status 0 when the server does not answer.
-// $deelnemer goes in the header MiniPol-Deelnemer, like the app does: never in a url
+// $deelnemer: the deelnemer_id, as "Authorization: Bearer <deelnemer_id>" like the app sends it
 function verzoek($dienst, $methode, $pad, $body = null, $token = null, $deelnemer = null) {
     global $basis;
     $headers = ['Content-Type: application/json'];
@@ -40,7 +40,7 @@ function verzoek($dienst, $methode, $pad, $body = null, $token = null, $deelneme
         $headers[] = "Authorization: Bearer $token";
     }
     if ($deelnemer !== null) {
-        $headers[] = "MiniPol-Deelnemer: $deelnemer";
+        $headers[] = "Authorization: Bearer $deelnemer";
     }
     $opties = ['http' => [
         'method' => $methode,
@@ -258,7 +258,7 @@ check('api', 'POST', '/superbeheerders', 401, ['account_id' => $tweedeId, 'statu
 
 // ---- api: pausing and ending a gesprek: its own test gesprekken
 $pauze = check('api', 'POST', '/gesprekken', 201, ['titel' => 'Testgesprek gepauzeerd'], $super)['id'];
-$pauzestelling = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $pauze, 'deelnemer_id' => 'deelnemer-1', 'tekst' => 'Voor de pauze.'])['id'];
+$pauzestelling = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $pauze, 'tekst' => 'Voor de pauze.'], null, 'deelnemer-1')['id'];
 check('api', 'POST', '/gespreksstatus', 400, ['gesprek_id' => $pauze, 'status' => 'opgeschort'], $super);
 check('api', 'POST', '/gespreksstatus', 403, ['gesprek_id' => $pauze, 'status' => 'opgeschort', 'reden' => 'Test'], $gb);
 check('api', 'POST', '/gespreksstatus', 401, ['gesprek_id' => $pauze, 'status' => 'opgeschort', 'reden' => 'Test']);
@@ -267,15 +267,15 @@ check('api', 'POST', '/gespreksstatus', 200, ['gesprek_id' => $pauze, 'status' =
 $gepauzeerd = check('api', 'GET', "/gesprekken/$pauze", 200);
 meld($gepauzeerd['status'] === 'opgeschort' && $gepauzeerd['stellingen'] === [], 'een gepauzeerd gesprek geeft geen stellingen');
 meld(!in_array($pauze, array_column(check('api', 'GET', '/gesprekken', 200)['gesprekken'], 'id'), true), 'een gepauzeerd gesprek staat niet in GET /gesprekken voor deelnemers');
-check('api', 'POST', '/stellingen', 409, ['gesprek_id' => $pauze, 'deelnemer_id' => 'deelnemer-1', 'tekst' => 'Tijdens de pauze.']);
-check('api', 'POST', '/antwoorden', 409, ['gesprek_id' => $pauze, 'deelnemer_id' => 'deelnemer-1', 'stelling_id' => $pauzestelling, 'waarde' => 'eens']);
+check('api', 'POST', '/stellingen', 409, ['gesprek_id' => $pauze, 'tekst' => 'Tijdens de pauze.'], null, 'deelnemer-1');
+check('api', 'POST', '/antwoorden', 409, ['gesprek_id' => $pauze, 'stelling_id' => $pauzestelling, 'waarde' => 'eens'], null, 'deelnemer-1');
 // a gesprek is never removed, it is ended (beeindigd): like paused, with another notice in the app
 check('api', 'POST', '/gespreksstatus', 400, ['gesprek_id' => $pauze, 'status' => 'verwijderd', 'reden' => 'Test'], $super);
 $voorbij = check('api', 'POST', '/gesprekken', 201, ['titel' => 'Testgesprek beëindigd'], $super)['id'];
 check('api', 'POST', '/gespreksstatus', 400, ['gesprek_id' => $voorbij, 'status' => 'beeindigd'], $super);
 check('api', 'POST', '/gespreksstatus', 200, ['gesprek_id' => $voorbij, 'status' => 'beeindigd', 'reden' => 'Test'], $super);
 meld(check('api', 'GET', "/gesprekken/$voorbij", 200)['status'] === 'beeindigd', 'een beëindigd gesprek heeft de status beeindigd');
-check('api', 'POST', '/stellingen', 409, ['gesprek_id' => $voorbij, 'deelnemer_id' => 'deelnemer-1', 'tekst' => 'Na het einde.']);
+check('api', 'POST', '/stellingen', 409, ['gesprek_id' => $voorbij, 'tekst' => 'Na het einde.'], null, 'deelnemer-1');
 meld(!in_array($voorbij, array_column(check('api', 'GET', '/gesprekken', 200)['gesprekken'], 'id'), true), 'een beëindigd gesprek staat niet in GET /gesprekken voor deelnemers');
 meld(in_array($voorbij, array_column(check('api', 'GET', '/gesprekken', 200, null, $super)['gesprekken'], 'id'), true), 'een superbeheerder ziet een beëindigd gesprek');
 // opening it again
@@ -285,29 +285,33 @@ check('api', 'POST', '/gespreksstatus', 200, ['gesprek_id' => $voorbij, 'status'
 // ---- api: stellingen and antwoorden, from a few deelnemers
 $stellingen = [];
 for ($i = 1; $i <= 8; $i++) {
-    $stellingen[] = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $g, 'deelnemer_id' => 'deelnemer-1', 'tekst' => "Teststelling $i."])['id'];
+    $stellingen[] = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $g, 'tekst' => "Teststelling $i."], null, 'deelnemer-1')['id'];
 }
-check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g]);
-check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g, 'deelnemer_id' => str_repeat('x', 65), 'tekst' => 'Te lang id.']);
-check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g, 'deelnemer_id' => '../x', 'tekst' => 'Vreemd id.']);
-check('api', 'POST', '/stellingen', 404, ['gesprek_id' => 'bestaatniet', 'deelnemer_id' => 'x', 'tekst' => 'x']);
-$wacht = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'deelnemer_id' => 'deelnemer-1', 'tekst' => 'Wacht op goedkeuring.']);
+check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g], null, 'deelnemer-1');
+// the deelnemer_id is in Authorization, never in the body: without it a 401
+check('api', 'POST', '/stellingen', 401, ['gesprek_id' => $g, 'tekst' => 'Zonder deelnemer.']);
+check('api', 'POST', '/antwoorden', 401, ['gesprek_id' => $g, 'stelling_id' => 'x', 'waarde' => 'eens']);
+check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g, 'tekst' => 'Te lang id.'], null, str_repeat('x', 65));
+check('api', 'POST', '/stellingen', 400, ['gesprek_id' => $g, 'tekst' => 'Vreemd id.'], null, '../x');
+check('api', 'POST', '/stellingen', 404, ['gesprek_id' => 'bestaatniet', 'tekst' => 'x'], null, 'x');
+$wacht = check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'tekst' => 'Wacht op goedkeuring.'], null, 'deelnemer-1');
 meld($wacht['zichtbaar'] === false, 'een stelling in een gesprek met moderatie vooraf is niet meteen zichtbaar');
 check('api', 'GET', "/stellingen?gesprek_id=$g", 200, null, null, 'deelnemer-1');
-check('api', 'GET', "/stellingen?gesprek_id=$g", 400);
+check('api', 'GET', "/stellingen?gesprek_id=$g", 401);
+check('api', 'GET', '/stellingen', 400, null, null, 'deelnemer-1');
 check('api', 'GET', '/stellingen?gesprek_id=bestaatniet', 404, null, null, 'x');
 check('api', 'GET', "/gesprekken/$g", 200);
 for ($d = 1; $d <= 4; $d++) {
     foreach ($stellingen as $i => $s) {
-        check('api', 'POST', '/antwoorden', 201, ['gesprek_id' => $g, 'deelnemer_id' => "deelnemer-$d", 'stelling_id' => $s, 'waarde' => ['eens', 'neutraal', 'oneens'][($i + $d) % 3]]);
+        check('api', 'POST', '/antwoorden', 201, ['gesprek_id' => $g, 'stelling_id' => $s, 'waarde' => ['eens', 'neutraal', 'oneens'][($i + $d) % 3]], null, "deelnemer-$d");
     }
 }
-check('api', 'POST', '/antwoorden', 400, ['gesprek_id' => $g, 'deelnemer_id' => 'x', 'stelling_id' => $stellingen[0], 'waarde' => 'misschien']);
-check('api', 'POST', '/antwoorden', 400, ['gesprek_id' => $g, 'deelnemer_id' => str_repeat('x', 65), 'stelling_id' => $stellingen[0], 'waarde' => 'eens']);
+check('api', 'POST', '/antwoorden', 400, ['gesprek_id' => $g, 'stelling_id' => $stellingen[0], 'waarde' => 'misschien'], null, 'x');
+check('api', 'POST', '/antwoorden', 400, ['gesprek_id' => $g, 'stelling_id' => $stellingen[0], 'waarde' => 'eens'], null, str_repeat('x', 65));
 check('api', 'GET', "/antwoorden?gesprek_id=$g", 400, null, null, str_repeat('x', 65));
-check('api', 'POST', '/antwoorden', 404, ['gesprek_id' => $g, 'deelnemer_id' => 'x', 'stelling_id' => $wacht['id'], 'waarde' => 'eens']);
-check('api', 'POST', '/antwoorden', 404, ['gesprek_id' => 'bestaatniet', 'deelnemer_id' => 'x', 'stelling_id' => 'x', 'waarde' => 'eens']);
-meld(count(check('api', 'GET', "/antwoorden?gesprek_id=$g", 200, null, null, 'deelnemer-1')['antwoorden']) === count($stellingen), 'GET /antwoorden met de header MiniPol-Deelnemer geeft de eigen antwoorden');
+check('api', 'POST', '/antwoorden', 404, ['gesprek_id' => $g, 'stelling_id' => $wacht['id'], 'waarde' => 'eens'], null, 'x');
+check('api', 'POST', '/antwoorden', 404, ['gesprek_id' => 'bestaatniet', 'stelling_id' => 'x', 'waarde' => 'eens'], null, 'x');
+meld(count(check('api', 'GET', "/antwoorden?gesprek_id=$g", 200, null, null, 'deelnemer-1')['antwoorden']) === count($stellingen), 'GET /antwoorden als deelnemer geeft de eigen antwoorden');
 check('api', 'GET', "/antwoorden?gesprek_id=$g", 200);
 check('api', 'GET', '/antwoorden', 400);
 check('api', 'GET', '/antwoorden?gesprek_id=bestaatniet', 404);
@@ -404,14 +408,14 @@ check('api', 'POST', '/kanalen', 400, ['gesprek_id' => $vooraf, 'naam' => ''], $
 check('api', 'POST', '/kanalen', 403, ['gesprek_id' => $vooraf, 'naam' => 'Nieuwsbrief'], $mod);
 $kanaal = check('api', 'POST', '/kanalen', 201, ['gesprek_id' => $vooraf, 'naam' => 'Nieuwsbrief'], $gb);
 $antwoordVooraf = ['gesprek_id' => $vooraf, 'stelling_id' => $wacht['id'], 'waarde' => 'eens'];
-check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['deelnemer_id' => 'kanaal-1', 'kanaal' => $kanaal['token']]);
-check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['deelnemer_id' => 'kanaal-x', 'kanaal' => 'bestaatniet']);
-check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'deelnemer_id' => 'kanaal-1', 'tekst' => 'Via de nieuwsbrief.', 'kanaal' => $kanaal['token']]);
+check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['kanaal' => $kanaal['token']], null, 'kanaal-1');
+check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['kanaal' => 'bestaatniet'], null, 'kanaal-x');
+check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'tekst' => 'Via de nieuwsbrief.', 'kanaal' => $kanaal['token']], null, 'kanaal-1');
 // only through a kanaal: without one a 403, and the app can check a link
 check('api', 'PUT', "/gesprekken/$vooraf", 400, ['titel' => 'Testgesprek vooraf', 'zonder_kanaal' => 'nee'], $gb);
 meld(check('api', 'PUT', "/gesprekken/$vooraf", 200, ['titel' => 'Testgesprek vooraf', 'moderatie' => 'vooraf', 'zonder_kanaal' => false], $gb)['zonder_kanaal'] === false, 'zonder_kanaal kan uit');
-check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['deelnemer_id' => 'zonder-1']);
-check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['deelnemer_id' => 'kanaal-2', 'kanaal' => $kanaal['token']]);
+check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + [], null, 'zonder-1');
+check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['kanaal' => $kanaal['token']], null, 'kanaal-2');
 meld(check('api', 'POST', '/kanaalcontrole', 200, ['gesprek_id' => $vooraf, 'kanaal' => $kanaal['token']])['geldig'] === true, 'een werkende kanaallink is geldig');
 meld(check('api', 'POST', '/kanaalcontrole', 200, ['gesprek_id' => $vooraf, 'kanaal' => 'bestaatniet'])['geldig'] === false, 'een onbekende kanaallink is niet geldig');
 check('api', 'POST', '/kanaalcontrole', 400, ['gesprek_id' => $vooraf]);
@@ -430,7 +434,7 @@ meld(count(check('api', 'GET', "/antwoorden?gesprek_id=$vooraf", 200, null, null
 // withdrawn: the link works no more; its antwoorden count again, as chosen
 check('api', 'PUT', "/kanalen/{$kanaal['kanaal_id']}", 200, ['gesprek_id' => $vooraf, 'status' => 'ingetrokken', 'meetellen' => true], $gb);
 meld($deelnemersVooraf() === 2, 'bij intrekken gekozen: de antwoorden tellen weer mee');
-check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['deelnemer_id' => 'kanaal-3', 'kanaal' => $kanaal['token']]);
+check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['kanaal' => $kanaal['token']], null, 'kanaal-3');
 meld(check('api', 'POST', '/kanaalcontrole', 200, ['gesprek_id' => $vooraf, 'kanaal' => $kanaal['token']])['geldig'] === false, 'een ingetrokken kanaallink is niet geldig');
 check('api', 'PUT', "/kanalen/{$kanaal['kanaal_id']}", 409, ['gesprek_id' => $vooraf, 'status' => 'actief'], $gb);
 check('api', 'PUT', '/kanalen/bestaatniet', 404, ['gesprek_id' => $vooraf, 'meetellen' => true], $gb);
@@ -464,9 +468,9 @@ meld(array_keys($links) === [1, 2, 3] && str_contains($links[1]['link'], "#/gesp
 $linkToken = function ($nummer) use (&$links) {
     return explode('kanaal=', $links[$nummer]['link'])[1];
 };
-check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['deelnemer_id' => 'panel-1', 'kanaal' => $linkToken(1)]);
-check('api', 'POST', '/antwoorden', 201, ['waarde' => 'oneens'] + $antwoordVooraf + ['deelnemer_id' => 'panel-1', 'kanaal' => $linkToken(1)]);
-check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'deelnemer_id' => 'panel-2', 'tekst' => 'Van het panel.', 'kanaal' => $linkToken(2)]);
+check('api', 'POST', '/antwoorden', 201, $antwoordVooraf + ['kanaal' => $linkToken(1)], null, 'panel-1');
+check('api', 'POST', '/antwoorden', 201, ['waarde' => 'oneens'] + $antwoordVooraf + ['kanaal' => $linkToken(1)], null, 'panel-1');
+check('api', 'POST', '/stellingen', 201, ['gesprek_id' => $vooraf, 'tekst' => 'Van het panel.', 'kanaal' => $linkToken(2)], null, 'panel-2');
 // the counts come in the export from the next window of the clock on: a day in production, a second locally
 // (dev/start.sh); tests/paneltellingen.php tests the window itself
 sleep(2);
@@ -487,7 +491,7 @@ $aangemaakt = eerste($eventsVooraf, function ($e) {
 meld(($aangemaakt['aantal'] ?? null) === 3 && !isset($aangemaakt['links']) && !str_contains(json_encode($eventsVooraf), $linkToken(1)), 'het logboek heeft geen links van een panel');
 // one link withdrawn, links added, meetellen off, and the whole panel withdrawn
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 200, ['gesprek_id' => $vooraf, 'link_intrekken' => 3], $gb);
-check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['deelnemer_id' => 'panel-3', 'kanaal' => $linkToken(3)]);
+check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['kanaal' => $linkToken(3)], null, 'panel-3');
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 404, ['gesprek_id' => $vooraf, 'link_intrekken' => 9], $gb);
 meld(check('api', 'PUT', "/panels/{$panel['panel_id']}", 200, ['gesprek_id' => $vooraf, 'erbij' => 2], $gb)['links'] === 5, 'links erbij');
 $links = $export();
@@ -497,7 +501,7 @@ check('api', 'PUT', "/panels/{$panel['panel_id']}", 200, ['gesprek_id' => $voora
 meld($deelnemersVooraf() === $metPanel - 1, 'een panel dat niet meetelt, staat niet in de matrix');
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 200, ['gesprek_id' => $vooraf, 'status' => 'ingetrokken', 'meetellen' => true], $gb);
 meld($deelnemersVooraf() === $metPanel, 'bij intrekken gekozen: de antwoorden van het panel tellen weer mee');
-check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['deelnemer_id' => 'panel-1', 'kanaal' => $linkToken(1)]);
+check('api', 'POST', '/antwoorden', 403, $antwoordVooraf + ['kanaal' => $linkToken(1)], null, 'panel-1');
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 409, ['gesprek_id' => $vooraf, 'status' => 'actief'], $gb);
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 409, ['gesprek_id' => $vooraf, 'erbij' => 1], $gb);
 check('api', 'PUT', "/panels/{$panel['panel_id']}", 400, ['gesprek_id' => $vooraf, 'meetellen' => 'ja'], $gb);

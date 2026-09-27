@@ -252,7 +252,7 @@ async function beantwoord(waarde) {
     melding.hidden = true;
     antwoordKnoppen.forEach(b => b.disabled = true);
     try {
-        await postAntwoord({ gesprek_id: gesprek.id, deelnemer_id: deelnemerId, stelling_id: stelling.id, waarde, kanaal: kanaalVan(gesprek.id) ?? undefined });
+        await postAntwoord({ gesprek_id: gesprek.id, stelling_id: stelling.id, waarde, kanaal: kanaalVan(gesprek.id) ?? undefined }, deelnemerId);
         antwoorden[stelling.id] = waarde;
         // answering an own stelling changes its bar
         const eigen = huidig.mijnStellingen.find(s => s.id === stelling.id);
@@ -281,7 +281,7 @@ async function dienStellingIn(event) {
     }
     indienen.disabled = true;
     try {
-        const stelling = await postStelling({ gesprek_id: huidig.gesprek.id, deelnemer_id: deelnemerId, tekst, kanaal: kanaalVan(huidig.gesprek.id) ?? undefined });
+        const stelling = await postStelling({ gesprek_id: huidig.gesprek.id, tekst, kanaal: kanaalVan(huidig.gesprek.id) ?? undefined }, deelnemerId);
         textarea.value = '';
         // a stelling waiting for goedkeuring can't be answered yet
         if (stelling.zichtbaar) {

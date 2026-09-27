@@ -120,11 +120,11 @@ Het overzicht hieronder is de korte versie:
 | `POST /gesprekken` | Gesprek aanmaken, alleen voor superbeheerders: `{ titel, omschrijving, moderatie }` (max. 200 en 1000 tekens; omschrijving optioneel; `moderatie` is `achteraf` (standaard) of `vooraf`, zie [Moderatie](#moderatie)) |
 | `PUT /gesprekken/<id>` | Gesprek aanpassen, alleen voor de gespreksbeheerders ervan: `{ titel, omschrijving, moderatie }`, zelfde regels als aanmaken; zonder `moderatie` blijft die gelijk |
 | `GET /gesprekken/<id>` | Eén gesprek met zijn zichtbare stellingen (`{ id, tekst }`) in willekeurige volgorde |
-| `GET /stellingen?gesprek_id=<id>`, met header `MiniPol-Deelnemer: <id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
-| `POST /stellingen` | Stelling toevoegen: `{ gesprek_id, deelnemer_id, tekst }` (max. 500 tekens); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
-| `GET /antwoorden?gesprek_id=<id>`, met header `MiniPol-Deelnemer: <id>` | De antwoorden van één deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
+| `GET /stellingen?gesprek_id=<id>`, als deelnemer | De stellingen die de deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
+| `POST /stellingen` | Stelling toevoegen, als deelnemer: `{ gesprek_id, tekst, kanaal }` (max. 500 tekens; `kanaal` optioneel, zie [Kanalen](#kanalen)); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
+| `GET /antwoorden?gesprek_id=<id>`, als deelnemer | De antwoorden van de deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
 | `GET /antwoorden?gesprek_id=<id>` | Alle antwoorden als matrix: `{ gesprek_id, deelnemers: [{ nummer, antwoorden: { stelling_id: waarde } }] }`, anoniem, zoals in de export |
-| `POST /antwoorden` | Antwoord geven: `{ gesprek_id, deelnemer_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
+| `POST /antwoorden` | Antwoord geven, als deelnemer: `{ gesprek_id, stelling_id, waarde, kanaal }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
 | `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor het team van het gesprek |
 | `POST /beoordelingen` | Stelling beoordelen, alleen voor het team van het gesprek: `{ gesprek_id, stelling_id, beoordeling, reden }`, met `beoordeling` `goedgekeurd` of `afgekeurd`; bij `afgekeurd` is een `reden` verplicht (max. 500 tekens) |
 | `GET /events?gesprek_id=<id>[&voor=<id>][&limiet=<n>]` | Wat er in een gesprek gebeurde, nieuwste eerst: `{ events, meer }`, alleen voor het team van het gesprek, zie [Logboek](#logboek) |
@@ -144,7 +144,9 @@ Het overzicht hieronder is de korte versie:
 | `GET /panels/<id>?gesprek_id=<id>` | De export van een panel, als CSV |
 | `POST /kanaalcontrole` | Of een kanaallink nog werkt: `{ gesprek_id, kanaal }` geeft `{ geldig }` |
 | `DELETE /sessie` | Uitloggen: het token werkt daarna niet meer |
-**Geen id's of tokens in een URL.** URL's komen in logs terecht, van de server, een proxy of een CDN. Daarom staat de `deelnemer_id` bij het ophalen in de header `MiniPol-Deelnemer`, en gaat een kanaaltoken alleen mee in de body van een POST. Voeg je een call toe, doe het dan ook zo.
+**„Als deelnemer”** betekent: met `Authorization: Bearer <deelnemer_id>`. De `deelnemer_id` werkt als een token (wie hem heeft, is die deelnemer), dus hij staat altijd in `Authorization`, en nooit in een URL of een body. Veel logging-tools, proxy's en CDN's laten die header ook standaard weg. Zonder volgt 401. Het token van een beheerder gaat in dezelfde header, maar naar andere endpoints, dus die twee lopen nooit door elkaar.
+
+**Geen id's of tokens in een URL.** URL's komen in logs terecht, van de server, een proxy of een CDN. Daarom staat een kanaaltoken alleen in de body van een POST. Voeg je een call toe, doe het dan ook zo.
 
 Wat alleen voor de beheeromgeving is, vraagt het token uit `POST /sessie` in de header `Authorization: Bearer <token>`, anders volgt 401. Mag het account het niet, dan volgt 403. Zie [Beheer](#beheer) en [Inloggen](#inloggen).
 
@@ -232,7 +234,7 @@ De pagina's van app en admin hebben een strikte Content-Security-Policy ([app/in
 
 ## Deelnemers
 
-Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `localStorage` bewaart ([app/js/deelnemer.js](app/js/deelnemer.js)). Er is geen login. De API neemt alleen ids aan van hooguit 64 letters, cijfers en streepjes, zodat niemand de data kan vullen met lange ids.
+Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `localStorage` bewaart ([app/js/deelnemer.js](app/js/deelnemer.js)). Er is geen login: de app stuurt de `deelnemer_id` mee als `Authorization: Bearer <deelnemer_id>`, als een token dat de app zelf maakte. De API neemt alleen ids aan van hooguit 64 letters, cijfers en streepjes, zodat niemand de data kan vullen met lange ids.
 
 ## Beheer
 

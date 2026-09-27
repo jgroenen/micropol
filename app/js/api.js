@@ -10,15 +10,15 @@ function get(url, headers = {}) {
     return jsonVerzoek(API_URL + url, { headers });
 }
 
-// the deelnemer_id goes in a header, never in a url: urls end up in logs, and it is the key of a deelnemer
+// the deelnemer_id is the key of a deelnemer, like a token: it goes in Authorization, never in a url or a body
 function alsDeelnemer(deelnemerId) {
-    return { 'MiniPol-Deelnemer': deelnemerId };
+    return { Authorization: `Bearer ${deelnemerId}` };
 }
 
-function post(url, data) {
+function post(url, data, headers = {}) {
     return jsonVerzoek(API_URL + url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(data),
     });
 }
@@ -71,13 +71,13 @@ export async function getMijnStellingen(gesprekId, deelnemerId) {
     return data ? data.stellingen : null;
 }
 
-// { gesprek_id, deelnemer_id, stelling_id, waarde, kanaal } => the saved antwoord; a 403 when the kanaal works
+// { gesprek_id, stelling_id, waarde, kanaal } of the deelnemer => the saved antwoord; a 403 when the kanaal works
 // no more, or when the gesprek only takes part through a kanaal and there is none
-export function postAntwoord(antwoord) {
-    return post('/antwoorden', antwoord);
+export function postAntwoord(antwoord, deelnemerId) {
+    return post('/antwoorden', antwoord, alsDeelnemer(deelnemerId));
 }
 
-// { gesprek_id, deelnemer_id, tekst, kanaal } => the new stelling { id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar }
-export function postStelling(stelling) {
-    return post('/stellingen', stelling);
+// { gesprek_id, tekst, kanaal } of the deelnemer => the new stelling { id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar }
+export function postStelling(stelling, deelnemerId) {
+    return post('/stellingen', stelling, alsDeelnemer(deelnemerId));
 }

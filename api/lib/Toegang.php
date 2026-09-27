@@ -74,6 +74,28 @@ class Toegang {
         throw new HttpFout(403, 'Not allowed for this gesprek.');
     }
 
+    // the deelnemer_id of this request, or '' without one. A deelnemer sends it as "Authorization: Bearer
+    // <deelnemer_id>": it is his key, like a token, and so never in a url or a body. A HttpFout 400 when it is
+    // no valid deelnemer_id. (The endpoints of a deelnemer never take the token of a beheerder, and the other
+    // way round, so the two never mix.)
+    public static function deelnemerId() {
+        $deelnemerId = Http::bearer() ?? '';
+        if ($deelnemerId !== '' && !Data::deelnemerIdGeldig($deelnemerId)) {
+            throw new HttpFout(400, 'The deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
+        }
+        return $deelnemerId;
+    }
+
+    // for the calls of a deelnemer: the deelnemer_id; without one a 401
+    public static function vereisDeelnemer() {
+        $deelnemerId = self::deelnemerId();
+        if ($deelnemerId === '') {
+            header('WWW-Authenticate: Bearer');
+            throw new HttpFout(401, 'The deelnemer_id is required: Authorization: Bearer <deelnemer_id>.');
+        }
+        return $deelnemerId;
+    }
+
     // for POST /installatie: only the login of admin/admin, while there is no superbeheerder
     public static function vereisInstallatie() {
         if (!self::installatie()) {

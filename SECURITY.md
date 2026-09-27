@@ -14,12 +14,12 @@ Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijf
 - **Rollen:** elke call van de beheeromgeving controleert de rol van het account in het gesprek, zie [Beheer](README.md#beheer). Direct na installatie werkt admin/admin, alleen om de eerste superbeheerder te maken: doe dat meteen.
 - **Deelnemers blijven anoniem:** hun id komt nooit terug uit de API; in de export, de matrix en het logboek zijn ze een nummer.
 - **Panelleden ook:** MiniPol bewaart bij een antwoord via een panellink alleen het panel, nooit de link. Per link bewaart het alleen aantallen, zonder volgorde of tijd, en die lopen een dag achter. Wie de export én alle data heeft, kan dus nog steeds niet zien wat een panellid antwoordde. Zie [Panels](README.md#panels).
-- **Geen id's of tokens in URL's:** de `deelnemer_id` gaat in een header, een kanaaltoken alleen in de body van een POST. Foutmeldingen van PHP bevatten geen argumenten (`zend.exception_ignore_args`).
+- **Geen id's of tokens in URL's:** de `deelnemer_id` werkt als een token en gaat daarom in `Authorization: Bearer`, net als het token van een beheerder; een kanaaltoken alleen in de body van een POST. Foutmeldingen van PHP bevatten geen argumenten (`zend.exception_ignore_args`).
 
 ## Logging
 
 MiniPol logt zelf geen verzoeken, en de [Caddyfile](Caddyfile) zet geen access log aan. Zo blijft het:
-- **Een access log** (van Caddy, een proxy of een CDN) mag alleen methode, pad, status en tijd bevatten. Log nooit headers of de inhoud van verzoeken: daar staan de `deelnemer_id` en het kanaaltoken, en samen koppelen die een panellid aan zijn antwoorden. Kort IP-adressen in.
+- **Een access log** (van Caddy, een proxy of een CDN) mag alleen methode, pad, status en tijd bevatten. Log nooit de header `Authorization` of de inhoud van verzoeken: daar staan de `deelnemer_id` en het kanaaltoken, en samen koppelen die een panellid aan zijn antwoorden. Kort IP-adressen in.
 - **Blijft er dan nog iets over?** Met IP-adres en tijd uit een log, en de tijden in de data, is ruwweg te zien wanneer iemand meedeed. Maar niet via welke persoonlijke link, want die staat nergens bij een tijd.
 - **In de browser:** een strikte Content-Security-Policy op elke pagina, en alle tekst van gebruikers ge-escaped.
 - **De data:** nooit direct op te vragen; alles gaat via `index.php`.
