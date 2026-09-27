@@ -6,7 +6,8 @@ Elk deel draait op een eigen subdomein:
 
 | Subdomein | Deel |
 |---|---|
-| `www.<domein>` | app (het kale `<domein>` stuurt hierheen door) |
+| `www.<domein>` | de productpagina (het kale `<domein>` stuurt hierheen door) |
+| `app.<domein>` | app |
 | `admin.<domein>` | admin |
 | `api.<domein>` | API |
 | `math.<domein>` | math server |
@@ -32,7 +33,7 @@ ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
 
 ### 2. DNS
 
-Maak bij je domein A-records (en AAAA voor IPv6) naar het IP-adres van de VPS, voor `@`, `www`, `admin`, `api`, `math` en `cdn`. Een wildcard-record `*` mag ook, maar `@` moet er apart bij.
+Maak bij je domein A-records (en AAAA voor IPv6) naar het IP-adres van de VPS, voor `@`, `www`, `app`, `admin`, `api`, `math` en `cdn`. Een wildcard-record `*` mag ook, maar `@` moet er apart bij.
 
 Wacht tot de namen naar de VPS wijzen, bijvoorbeeld met `dig +short api.<domein>`. Caddy haalt de certificaten pas als dat zo is.
 
@@ -110,7 +111,7 @@ De tests kunnen ook tegen de echte server draaien. Dan maken ze testdata aan op 
 Voor productie is dit genoeg:
 
 ```sh
-curl -I https://www.<domein>/ && curl https://api.<domein>/sessie
+curl -I https://www.<domein>/ && curl -I https://app.<domein>/ && curl https://api.<domein>/sessie
 ```
 
 ## Op de server

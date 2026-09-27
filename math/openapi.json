@@ -101,16 +101,22 @@
     },
     "/docs": {
       "get": {
-        "summary": "Deze documentatie (Swagger UI)",
+        "summary": "Deze documentatie, in Swagger UI",
         "operationId": "getDocs",
         "responses": {
-          "200": {
-            "description": "HTML-pagina",
-            "content": {
-              "text/html": {}
+          "302": {
+            "description": "Naar de viewer",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
             }
           }
-        }
+        },
+        "description": "Stuurt door naar Swagger UI op petstore.swagger.io, met de url van `/docs/openapi.json` als `?url=`. Deze server heeft zelf geen viewer."
       }
     },
     "/docs/openapi.json": {
@@ -124,14 +130,15 @@
               "application/json": {}
             }
           }
-        }
+        },
+        "description": "Iedereen mag hem lezen, ook vanaf andere sites (CORS `*`)."
       }
     },
     "/docs/schema.json": {
       "get": {
         "summary": "De typen van de math server als JSON Schema",
         "operationId": "getSchema",
-        "description": "Dezelfde typen als in deze spec, in een los JSON Schema-bestand (2020-12), om zelf te gebruiken. `$id` is de url van het bestand.",
+        "description": "Dezelfde typen als in deze spec, in een los JSON Schema-bestand (2020-12), om zelf te gebruiken. `$id` is de url van het bestand. Iedereen mag hem lezen, ook vanaf andere sites (CORS `*`).",
         "responses": {
           "200": {
             "description": "JSON Schema",

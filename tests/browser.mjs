@@ -1,4 +1,4 @@
-// The app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
+// The product page, the app and the admin in Chrome (headless, over the DevTools protocol, without dependencies):
 // answering, adding a stelling, the tabs, the matrix, and in the admin logging in,
 // changing a gesprek, rejecting a stelling, the tabs with the logboek, and logging in and out.
 // Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
@@ -7,9 +7,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const APP = process.env.TEST_APP_URL ?? 'http://localhost:8000';
+const WWW = process.env.TEST_WWW_URL ?? 'http://localhost:8000';
+const APP = process.env.TEST_APP_URL ?? 'http://localhost:8005';
 const ADMIN = process.env.TEST_ADMIN_URL ?? 'http://localhost:8002';
 const API = process.env.TEST_API_URL ?? 'http://localhost:8001';
+const MATH = process.env.TEST_MATH_URL ?? 'http://localhost:8004';
 const GEBRUIKER = process.env.TEST_GEBRUIKER ?? 'minipol-test';
 const WACHTWOORD = process.env.TEST_WACHTWOORD ?? 'testwachtwoord123';
 const data = JSON.parse(readFileSync(process.env.TEST_UITVOER, 'utf8'));
@@ -96,6 +98,18 @@ await cmd('Network.enable');
 await cmd('Network.setCacheDisabled', { cacheDisabled: true });
 
 try {
+    // ---- www: the product page, with links to all the parts
+    await naar(`${WWW}/`);
+    check('www: productpagina', await wachtOp(`document.querySelector('h1')?.textContent.includes('Samen in gesprek')`));
+    check('www: links naar app, beheer en de docs', await waarde(`(() => {
+        const links = [...document.querySelectorAll('a')].map(a => a.href);
+        return ['${APP}/', '${ADMIN}/', '${API}/docs', '${API}/docs/openapi.json', '${API}/docs/schema.json', '${MATH}/docs', '${MATH}/docs/openapi.json']
+            .every(url => links.includes(url));
+    })()`));
+    check('www: stijl van de cdn', (await waarde(`getComputedStyle(document.body).fontFamily`)).includes('IBM Plex'));
+    check('www: zonder scripts, met Content-Security-Policy', await waarde(`document.scripts.length === 0`)
+        && (await fetch(`${WWW}/`)).headers.get('content-security-policy')?.includes("default-src 'none'"));
+
     // ---- app: a deelnemer with the old localStorage key keeps its antwoorden
     await naar(`${APP}/`);
     await doe(`localStorage.clear(); localStorage.setItem('user_id', '${data.deelnemer}');`);

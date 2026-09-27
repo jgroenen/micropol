@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniPol | Samen in gesprek</title>
+    <meta name="description" content="MiniPol is een kleine, open tool voor gesprekken met veel mensen: deelnemers beantwoorden stellingen, voegen er zelf toe, en zien welke groepen er zijn en waar iedereen het over eens is.">
+    <!-- the cdn: the design system; index.php fills in the urls of all parts -->
+    <link rel="stylesheet" href="{{CDN_URL}}/design/main.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <header class="site-kop">
+        <a class="site-titel" href="/">MiniPol</a>
+        <nav class="site-menu" aria-label="Onderdelen">
+            <a href="#hoe">Hoe het werkt</a>
+            <a href="#onderdelen">Onderdelen</a>
+            <a href="{{ADMIN_URL}}/">Beheer</a>
+            <a class="menu-knop" href="{{APP_URL}}/">Naar de app</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="product">
+            <section class="held">
+                <h1>Samen in gesprek, en zien waar je het over eens bent</h1>
+                <p class="inleiding">MiniPol is een kleine, open tool voor gesprekken met veel mensen. Deelnemers geven hun mening over korte stellingen en voegen er zelf toe. MiniPol laat zien welke groepen er ontstaan, wat die groepen onderscheidt, en waar iedereen het eigenlijk over eens is.</p>
+                <p class="acties">
+                    <a class="knop" href="{{APP_URL}}/">Doe mee aan een gesprek</a>
+                    <a href="#hoe">Hoe het werkt ↓</a>
+                </p>
+            </section>
+
+            <section id="hoe">
+                <h2>Hoe het werkt</h2>
+                <ol class="stappen">
+                    <li>
+                        <h3>Beantwoord stellingen</h3>
+                        <p>Je krijgt steeds één stelling: <em>eens</em>, <em>neutraal</em> of <em>oneens</em>. Zonder account: je browser onthoudt wie je bent.</p>
+                    </li>
+                    <li>
+                        <h3>Voeg zelf stellingen toe</h3>
+                        <p>Mis je iets? Dien een stelling in. Anderen krijgen hem daarna ook voorgelegd (soms pas na goedkeuring), en je ziet hoe hij beantwoord wordt.</p>
+                    </li>
+                    <li>
+                        <h3>Bekijk de groepen</h3>
+                        <p>Deelnemers die vaak hetzelfde antwoorden, vormen een groep. Je ziet bij welke groep je hoort, wat elke groep kenmerkt, en waar alle groepen het over eens zijn.</p>
+                    </li>
+                </ol>
+            </section>
+
+            <section>
+                <h2>Voor wie een gesprek organiseert</h2>
+                <ul class="punten">
+                    <li><strong>Gesprekken aanmaken</strong> met een titel en een korte omschrijving, in de beheeromgeving.</li>
+                    <li><strong>Moderatie zoals het past:</strong> stellingen van deelnemers direct tonen en achteraf afkeuren, of pas tonen na goedkeuring. Wie een stelling indiende, ziet de reden van een afkeuring.</li>
+                    <li><strong>Een logboek per gesprek:</strong> wie wanneer wat deed, van nieuwe stellingen tot beoordelingen. Deelnemers blijven daarin anoniem.</li>
+                    <li><strong>De matrix en de export:</strong> alle antwoorden per deelnemer, anoniem, om zelf verder te analyseren.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Open en eenvoudig</h2>
+                <ul class="punten">
+                    <li><strong>Anoniem meedoen:</strong> geen account en geen e-mailadres. Ook in de uitkomsten blijven deelnemers anoniem.</li>
+                    <li><strong>Geen database en geen build-stap:</strong> PHP en gewoon JavaScript. Alles wat er gebeurt, wordt bewaard als een reeks gebeurtenissen.</li>
+                    <li><strong>Een open API</strong> met een OpenAPI-beschrijving en JSON Schema, en een vaste exportindeling.</li>
+                    <li><strong>De analyse draait apart,</strong> op de math server: die rekent op de export van een gesprek. Valt hij uit, dan werkt het beantwoorden gewoon door.</li>
+                </ul>
+            </section>
+
+            <section id="onderdelen">
+                <h2>Onderdelen</h2>
+                <div class="onderdelen">
+                    <article>
+                        <h3><a href="{{APP_URL}}/">App</a></h3>
+                        <p>Voor deelnemers: stellingen beantwoorden en toevoegen, de groepen en de matrix.</p>
+                    </article>
+                    <article>
+                        <h3><a href="{{ADMIN_URL}}/">Beheer</a></h3>
+                        <p>Voor organisatoren: gesprekken aanmaken en aanpassen, stellingen beoordelen, het logboek.</p>
+                    </article>
+                    <article>
+                        <h3><a href="{{API_URL}}/docs">API</a></h3>
+                        <p>Gesprekken, stellingen, antwoorden, moderatie en de export, als JSON.</p>
+                        <ul class="links">
+                            <li><a href="{{API_URL}}/docs">Documentatie</a></li>
+                            <li><a href="{{API_URL}}/docs/openapi.json">OpenAPI-spec</a></li>
+                            <li><a href="{{API_URL}}/docs/schema.json">Typen (JSON Schema)</a></li>
+                        </ul>
+                    </article>
+                    <article>
+                        <h3><a href="{{MATH_URL}}/docs">Math server</a></h3>
+                        <p>De groepsanalyse van een gesprek, uit de export van de API.</p>
+                        <ul class="links">
+                            <li><a href="{{MATH_URL}}/docs">Documentatie</a></li>
+                            <li><a href="{{MATH_URL}}/docs/openapi.json">OpenAPI-spec</a></li>
+                            <li><a href="{{MATH_URL}}/docs/schema.json">Typen (JSON Schema)</a></li>
+                        </ul>
+                    </article>
+                    <article>
+                        <h3>Design system</h3>
+                        <p>De stijl en de gedeelde bibliotheken van app en beheer, op de cdn.</p>
+                        <ul class="links">
+                            <li><a href="{{CDN_URL}}/design/main.css">Stijlen</a></li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="site-voet">
+        <p>MiniPol · een kleine, open tool voor gesprekken</p>
+    </footer>
+</body>
+</html>

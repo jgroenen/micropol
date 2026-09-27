@@ -197,7 +197,6 @@ if len(export['stellingen']) != len(stellingen) - 1:
     print('FOUT de afgekeurde stelling staat in de export'); fouten += 1
 check('api', 'GET', '/export', 400)
 check('api', 'GET', '/export?gesprek_id=bestaatniet', 404)
-check('api', 'GET', '/docs', 200)
 check('api', 'GET', '/docs/openapi.json', 200)
 
 # ---- math: the analyse of the test gesprek
@@ -209,8 +208,16 @@ if herberekend['model']['berekend'] != analyse['model']['berekend']:
 check('math', 'GET', '/analyse', 400)
 check('math', 'GET', f'/analyse?api=http://evil.example&gesprek_id={G}', 403)
 check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_id=bestaatniet", 404)
-check('math', 'GET', '/docs', 200)
 check('math', 'GET', '/docs/openapi.json', 200)
+
+# ---- docs: /docs goes to the viewer with the url of the spec, which everyone may read (CORS *)
+for dienst in ('api', 'math'):
+    locatie = check(dienst, 'GET', '/docs', 302).get('Location', '')
+    if not locatie.startswith('https://petstore.swagger.io/?url=') or urllib.parse.unquote(locatie.split('url=', 1)[1]) != BASIS[dienst] + '/docs/openapi.json':
+        print(f'FOUT {dienst}: /docs stuurt niet door naar de viewer met de spec: {locatie}'); fouten += 1
+    for pad in ('/docs/openapi.json', '/docs/schema.json'):
+        if verzoek(dienst, 'GET', pad)[1].get('Access-Control-Allow-Origin') != '*':
+            print(f'FOUT {dienst}: {pad} zonder Access-Control-Allow-Origin: *'); fouten += 1
 
 # ---- api: logging out ends the token
 UIT = check('api', 'POST', '/sessie', 200, {'gebruikersnaam': GEBRUIKER, 'wachtwoord': WACHTWOORD})['token']

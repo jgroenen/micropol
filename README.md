@@ -4,17 +4,19 @@ Een kleine, Polis-achtige tool voor gesprekken. Deelnemers beantwoorden stelling
 
 Er is geen database, er zijn geen dependencies en er is geen build-stap: een PHP-backend die alles wat er gebeurt bijhoudt als events in bestanden, en frontends in vanilla JavaScript (ES modules).
 
-Het bestaat uit vijf delen die elk op een eigen server (en domein) draaien:
+Het bestaat uit zes delen die elk op een eigen server (en domein) draaien:
 
 | Deel | Wat | Lokaal |
 |---|---|---|
+| [www/](www/) | De productpagina: wat MiniPol is, met links naar alle andere delen en hun specs | <http://localhost:8000> |
 | [api/](api/) | De JSON-API in PHP, met de data | <http://localhost:8001> ([docs](http://localhost:8001/docs)) |
-| [app/](app/) | De frontend voor deelnemers (statische bestanden) | <http://localhost:8000> |
+| [app/](app/) | De frontend voor deelnemers (statische bestanden) | <http://localhost:8005> |
 | [admin/](admin/) | De beheeromgeving (statische bestanden) | <http://localhost:8002> |
 | [cdn/](cdn/) | Het design system en de JS-bibliotheken die de app en de admin delen (statische bestanden) | <http://localhost:8003> |
 | [math/](math/) | De math server: rekent de groepsanalyse uit de export van een API, zie [Math server](#math-server) | <http://localhost:8004> ([docs](http://localhost:8004/docs)) |
 
 ```
+www: links naar alle delen
 app ──▶ api ◀── admin
  │       ▲
  └─▶ math┘  (haalt GET /export)
@@ -23,13 +25,13 @@ app en admin laden gedeelde css/js van de cdn
 
 ## Starten
 
-Vereist PHP 8 of hoger. Start de vijf servers met [dev/start.sh](dev/start.sh):
+Vereist PHP 8 of hoger. Start de zes servers met [dev/start.sh](dev/start.sh):
 
 ```sh
 ./dev/start.sh
 ```
 
-Open daarna <http://localhost:8000> (app) of <http://localhost:8002> (beheer). De API-documentatie staat op <http://localhost:8001/docs> en <http://localhost:8004/docs>. Ctrl-C stopt alle servers.
+Open daarna <http://localhost:8000>: de productpagina, met links naar de app (<http://localhost:8005>), het beheer (<http://localhost:8002>) en de documentatie van API en math server. Ctrl-C stopt alle servers.
 
 ## Testen
 
@@ -59,6 +61,7 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 | [api/lib/](api/lib/) | Gedeelde code: opslag ([Data](api/lib/Data.php), [Jsonl](api/lib/Jsonl.php), [Csv](api/lib/Csv.php)), HTTP ([Http](api/lib/Http.php), [HttpFout](api/lib/HttpFout.php)) en inloggen ([Toegang](api/lib/Toegang.php), [Wachtwoord](api/lib/Wachtwoord.php)) |
 | [api/bin/](api/bin/) | [beheerder-toevoegen.php](api/bin/beheerder-toevoegen.php), zie [Beheer](#beheer), en [naar-events.php](api/bin/naar-events.php), zie [Opslag](#opslag) |
 | [api/data/](api/data/) | De data, zie [Opslag](#opslag) |
+| [www/](www/) | De productpagina: [index.php](www/index.php) vult de URL's van alle delen in [views/pagina.html](www/views/pagina.html) in; [css/](www/css/) en [instellingen.php](www/instellingen.php). Geen JavaScript |
 | [app/](app/) | Frontend: [index.php](app/index.php) serveert de pagina [views/pagina.html](app/views/pagina.html) met de cdn-URL erin; verder [js/](app/js/), [css/](app/css/) en de andere [views/](app/views/). [instellingen.php](app/instellingen.php) zegt waar de API, de math server en de cdn zijn (ook voor de browser, via [js/config.php](app/js/config.php)) |
 | [admin/](admin/) | Beheeromgeving, zie [Beheer](#beheer); zelfde opbouw als `app/`: [index.php](admin/index.php) met [views/pagina.html](admin/views/pagina.html), [js/](admin/js/), [css/](admin/css/), [views/](admin/views/) en [instellingen.php](admin/instellingen.php) |
 | [cdn/](cdn/) | Gedeeld door app en admin: het design system in [design/](cdn/design/) (het font IBM Plex Sans, reset, tokens, basisstijlen en lay-out; [main.css](cdn/design/main.css) laadt ze), en de bibliotheken in [lib/](cdn/lib/): [views.js](cdn/lib/views.js) (views laden), [verzoek.js](cdn/lib/verzoek.js) (calls naar de servers), [html.js](cdn/lib/html.js) (`escapeHtml`), [tabs.js](cdn/lib/tabs.js) (tabs, met hun stijl in [design/tabs.css](cdn/design/tabs.css)) en [apilog.js](cdn/lib/apilog.js) (de API-popup, met zijn eigen stylesheet) |
@@ -81,7 +84,8 @@ De volledige beschrijving staat in een OpenAPI 3.1-spec, per server:
 | Math server | [math/openapi.json](math/openapi.json) | <http://localhost:8004/docs> en <http://localhost:8004/docs/openapi.json> |
 
 - **Try it out:** op `/docs` kun je elke call uitproberen. De spec krijgt daar de server zelf als `servers`-url, dus dat werkt in elke omgeving. Voor de beheer-endpoints log je in met `POST /sessie` (ook via Try it out), en vul je het token in via **Authorize**.
-- **Swagger UI:** komt van cdn.jsdelivr.net (`swagger-ui-dist@5`). Alleen `/docs` gebruikt het; de API zelf niet.
+- **Viewer:** de servers hebben zelf geen Swagger UI. `/docs` stuurt door naar Swagger UI op [petstore.swagger.io](https://petstore.swagger.io), met de URL van de spec als `?url=` (`DOCS_VIEWER` in `config.php`). Daarvoor mag iedereen `/docs/openapi.json` en `/docs/schema.json` lezen (CORS `*`), en mag de viewer de API aanroepen voor Try it out.
+- **Lokaal** blokkeert Chrome dat een https-site als de viewer `http://localhost` leest, tenzij je de vraag om toegang tot je lokale netwerk toestaat. Lukt dat niet, open dan de spec zelf: <http://localhost:8001/docs/openapi.json>.
 - **Onderhoud:** pas de spec aan als je een endpoint toevoegt of verandert. `npx @redocly/cli lint api/openapi.json math/openapi.json` controleert of de spec geldig is.
 
 ### Typen
@@ -281,7 +285,7 @@ Is de math server niet bereikbaar, dan werkt de rest gewoon: beantwoorden en de 
 
 ## Losse servers
 
-De app, de admin, de API, de math server en de cdn draaien elk op een eigen subdomein. In productie staan ze samen op één VPS, met FrankenPHP (Caddy met PHP), zie [docs/livegang.md](docs/livegang.md).
+De productpagina, de app, de admin, de API, de math server en de cdn draaien elk op een eigen subdomein: `www.`, `app.`, `admin.`, `api.`, `math.` en `cdn.`. In productie staan ze samen op één VPS, met FrankenPHP (Caddy met PHP), zie [docs/livegang.md](docs/livegang.md).
 
 **Instellingen.** Er is geen bouwstap. Elk deel leest zijn instellingen uit omgevingsvariabelen, die de [Caddyfile](Caddyfile) afleidt uit het domein (`MINIPOL_DOMEIN`). Zonder variabelen gelden de waarden voor lokaal ontwikkelen (`localhost`):
 
@@ -289,6 +293,7 @@ De app, de admin, de API, de math server en de cdn draaien elk op een eigen subd
 |---|---|---|
 | `api/` | [config.php](api/config.php): de URL's van app en admin (CORS), en hoe lang een login geldig is | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` |
 | `math/` | [config.php](math/config.php): de URL's van app en API | `MINIPOL_APP_URL`, `MINIPOL_API_URL` |
+| `www/` | [instellingen.php](www/instellingen.php): de URL's van alle delen, om naar te linken | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL`, `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
 | `app/` | [instellingen.php](app/instellingen.php): de URL's van API, math server en cdn | `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
 | `admin/` | [instellingen.php](admin/instellingen.php): de URL's van API, app en cdn | `MINIPOL_API_URL`, `MINIPOL_APP_URL`, `MINIPOL_CDN_URL` |
 
@@ -299,7 +304,7 @@ App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL in `views/
 - **Math server:** moet de API kunnen bereiken, via zijn URL.
 - **CDN:** moet `Access-Control-Allow-Origin` meesturen, anders weigert de browser JS-modules van een ander domein. Lokaal doet [dev/cdn.php](dev/cdn.php) dat.
 
-De cdn gebruiken app en admin tegelijk: een wijziging daar raakt beide. Ook het font komt van de cdn, zodat app en admin geen andere servers aanspreken (zoals Google Fonts). Alleen de API-documentatie op `/docs` laadt Swagger UI van cdn.jsdelivr.net.
+De cdn gebruiken www, app en admin tegelijk: een wijziging daar raakt alle drie. Ook het font komt van de cdn, zodat ze geen andere servers aanspreken (zoals Google Fonts).
 
 ## Meer
 

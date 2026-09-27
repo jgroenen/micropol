@@ -8,7 +8,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-for poort in 8000 8001 8002 8003 8004; do
+for poort in 8000 8001 8002 8003 8004 8005; do
     if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$poort/")" = 000 ]; then
         echo "Fout: niets op localhost:$poort; start eerst ./dev/start.sh" >&2
         exit 1

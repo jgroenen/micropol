@@ -8,8 +8,13 @@ function instelling($naam, $standaard) {
     return is_string($waarde) && $waarde !== '' ? $waarde : $standaard;
 }
 
-// Origins (scheme://host[:port]) of the pages that may call the math server from the browser (CORS).
-define('TOEGESTANE_ORIGINS', [instelling('MINIPOL_APP_URL', 'http://localhost:8000')]);
+// The documentation on /docs is shown by this viewer (Swagger UI), which gets the url of the spec as ?url=.
+// Its origin may call this server too, for "Try it out".
+const DOCS_VIEWER = 'https://petstore.swagger.io/';
+
+// Origins (scheme://host[:port]) of the pages that may call the math server from the browser (CORS):
+// the app, and the viewer of the docs.
+define('TOEGESTANE_ORIGINS', [instelling('MINIPOL_APP_URL', 'http://localhost:8005'), rtrim(DOCS_VIEWER, '/')]);
 
 // Base urls of the api servers whose export the math server may fetch (GET <api>/export?gesprek_id=...).
 // Only these: the math server must not fetch any url a caller gives it.

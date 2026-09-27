@@ -1,0 +1,180 @@
+/*
+ * Styles of the product page, on top of the design system on the cdn (design/main.css there, see index.php).
+ * Layer order decides which styles win, not file order.
+ */
+@layer reset, tokens, base, layout, components;
+
+@layer components {
+    /* the menu in the header, to the right of the name */
+    .site-menu {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--space-2) var(--space-4);
+        margin-inline-start: auto;
+        padding-inline-start: var(--space-4);
+
+        & a {
+            font-weight: 300;
+        }
+
+        & .menu-knop {
+            padding: var(--space-1) var(--space-3);
+            border-radius: var(--radius);
+            background: var(--color-brand);
+            color: var(--color-on-brand);
+            font-weight: 600;
+            text-decoration: none;
+
+            &:hover {
+                background: var(--color-brand-hover);
+            }
+        }
+    }
+
+    .product {
+        inline-size: 100%;
+        max-inline-size: 60rem;
+        margin-inline: auto;
+
+        & section + section {
+            margin-block-start: var(--space-6);
+        }
+
+        & h2 {
+            margin: 0 0 var(--space-4);
+            font-size: var(--font-size-h1);
+            font-weight: 600;
+        }
+
+        & h3 {
+            margin: 0 0 var(--space-2);
+            font-size: var(--font-size-h3);
+            font-weight: 600;
+        }
+
+        & p {
+            margin: 0;
+        }
+    }
+
+    .held {
+        & h1 {
+            max-inline-size: 36rem;
+            margin: 0 0 var(--space-4);
+            font-size: var(--font-size-stelling);
+            line-height: 1.25;
+            font-weight: 600;
+        }
+
+        & .inleiding {
+            max-inline-size: 40rem;
+            font-size: var(--font-size-h3);
+            font-weight: 300;
+        }
+
+        & .acties {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--space-3) var(--space-4);
+            margin-block-start: var(--space-5);
+        }
+
+        & .knop {
+            text-decoration: none;
+            text-align: center;
+        }
+    }
+
+    /* three steps, next to each other when there is room */
+    .stappen {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: var(--space-4);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: stap;
+
+        & li {
+            padding: var(--space-4);
+            border-radius: var(--radius);
+            background: var(--color-surface);
+            box-shadow: var(--shadow);
+            counter-increment: stap;
+
+            &::before {
+                content: counter(stap);
+                display: grid;
+                place-items: center;
+                inline-size: 2rem;
+                block-size: 2rem;
+                margin-block-end: var(--space-3);
+                border-radius: 50%;
+                background: var(--color-brand);
+                color: var(--color-on-brand);
+                font-weight: 600;
+            }
+        }
+
+        & p {
+            font-weight: 300;
+        }
+    }
+
+    .punten {
+        display: grid;
+        gap: var(--space-3);
+        max-inline-size: 44rem;
+        margin: 0;
+        padding-inline-start: var(--space-4);
+        font-weight: 300;
+
+        & strong {
+            font-weight: 600;
+        }
+    }
+
+    /* the parts, with their links */
+    .onderdelen {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+        gap: var(--space-4);
+
+        & article {
+            padding: var(--space-4);
+            border-radius: var(--radius);
+            background: var(--color-surface);
+            box-shadow: var(--shadow);
+        }
+
+        & p {
+            color: var(--color-muted);
+            font-weight: 300;
+        }
+
+        & .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1) var(--space-3);
+            margin: var(--space-3) 0 0;
+            padding: 0;
+            list-style: none;
+            font-size: var(--font-size-small);
+        }
+    }
+
+    .site-voet {
+        padding: 0 var(--space-4) var(--space-4);
+        color: var(--color-muted);
+        font-size: var(--font-size-small);
+        font-weight: 300;
+        text-align: center;
+
+        & p {
+            margin: 0;
+        }
+    }
+}

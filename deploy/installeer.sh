@@ -6,7 +6,7 @@
 #
 # It installs FrankenPHP, makes the user minipol (who owns the repository and runs the service),
 # writes /etc/minipol.env, and starts the service minipol. Caddy gets the certificates itself, so the
-# domain and its subdomains (www, admin, api, math, cdn) must already point to this server.
+# domain and its subdomains (www, app, admin, api, math, cdn) must already point to this server.
 # Running it again is safe; see docs/livegang.md.
 set -eu
 

@@ -11,6 +11,6 @@ function instelling($naam, $standaard) {
 
 return [
     'API_URL' => instelling('MINIPOL_API_URL', 'http://localhost:8001'),
-    'APP_URL' => instelling('MINIPOL_APP_URL', 'http://localhost:8000'),
+    'APP_URL' => instelling('MINIPOL_APP_URL', 'http://localhost:8005'),
     'CDN_URL' => instelling('MINIPOL_CDN_URL', 'http://localhost:8003'),
 ];

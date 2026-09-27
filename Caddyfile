@@ -17,7 +17,8 @@
 
 # the urls of the parts, for PHP (see the instellingen.php and config.php of each part)
 (urls) {
-	env MINIPOL_APP_URL https://www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_WWW_URL https://www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
+	env MINIPOL_APP_URL https://app.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
 	env MINIPOL_ADMIN_URL https://admin.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
 	env MINIPOL_API_URL https://api.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
 	env MINIPOL_MATH_URL https://math.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}
@@ -32,7 +33,7 @@
 	}
 }
 
-# app and admin: static files, plus index.php and js/config.php with the urls
+# www, app and admin: static files, plus index.php (and js/config.php) with the urls
 (frontend) {
 	root * {$MINIPOL_ROOT:/srv/minipol}/{args[0]}
 	import beveiliging
@@ -53,7 +54,12 @@
 	}
 }
 
+# the product page, with links to all the other parts
 www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
+	import frontend www
+}
+
+app.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
 	import frontend app
 }
 
@@ -79,7 +85,7 @@ cdn.{$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
 	file_server
 }
 
-# the bare domain to the app
+# the bare domain to the product page
 {$MINIPOL_DOMEIN}{$MINIPOL_POORT} {
 	redir https://www.{$MINIPOL_DOMEIN}{$MINIPOL_POORT}{uri} permanent
 }
