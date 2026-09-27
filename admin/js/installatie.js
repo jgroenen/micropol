@@ -1,6 +1,6 @@
 import { postInstallatie } from './api.js';
 import { zetSessie } from './toegang.js';
-import { accountVeldenHtml, accountVelden, accountFout } from './util.js';
+import { accountVeldenHtml, accountVelden, toonWachtwoordHints, accountFout } from './util.js';
 import { toonView } from './views.js';
 
 // right after installing, logged in as admin/admin: making the first superbeheerder (views/installatie.html)
@@ -16,6 +16,7 @@ function koppel() {
     fout = document.getElementById('installatie-fout');
     knop = document.getElementById('installatie-knop');
     document.getElementById('installatie-velden').innerHTML = accountVeldenHtml('installatie');
+    toonWachtwoordHints(formulier);
     formulier.addEventListener('submit', maak);
     gekoppeld = true;
 }

@@ -1,6 +1,6 @@
 import { getUitnodiging, neemUitnodigingAan, login } from './api.js';
 import { ingelogdAccount, zetSessie } from './toegang.js';
-import { accountVeldenHtml, accountVelden, accountFout, ROLNAMEN } from './util.js';
+import { accountVeldenHtml, accountVelden, toonWachtwoordHints, accountFout, ROLNAMEN } from './util.js';
 import { toonView } from './views.js';
 
 // an uitnodiging (views/uitnodiging.html), from the link someone sent: accept it logged in, with a new
@@ -20,6 +20,7 @@ function koppel() {
     nieuw = document.getElementById('uitnodiging-nieuw');
     inloggen = document.getElementById('uitnodiging-inloggen');
     document.getElementById('uitnodiging-velden').innerHTML = accountVeldenHtml('uitnodiging');
+    toonWachtwoordHints(nieuw);
     document.getElementById('uitnodiging-aannemen').addEventListener('click', () => aannemen(() => neemUitnodigingAan(huidigToken)));
     nieuw.addEventListener('submit', event => {
         event.preventDefault();

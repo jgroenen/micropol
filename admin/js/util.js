@@ -20,10 +20,38 @@ export function accountVeldenHtml(prefix) {
         <label for="${prefix}-email">E-mailadres</label>
         <input id="${prefix}-email" name="email" type="email" autocomplete="email" required>
         <label for="${prefix}-wachtwoord">Wachtwoord <span>(minstens 12 tekens)</span></label>
-        <input id="${prefix}-wachtwoord" name="wachtwoord" type="password" autocomplete="new-password" minlength="12" required>
+        <input id="${prefix}-wachtwoord" name="wachtwoord" type="password" autocomplete="new-password" minlength="${MIN_WACHTWOORD}" required aria-describedby="${prefix}-wachtwoord-hint">
+        <p id="${prefix}-wachtwoord-hint" class="veld-hint" aria-live="polite"></p>
         <label for="${prefix}-herhaal">Wachtwoord nogmaals</label>
-        <input id="${prefix}-herhaal" name="herhaal" type="password" autocomplete="new-password" minlength="12" required>
+        <input id="${prefix}-herhaal" name="herhaal" type="password" autocomplete="new-password" minlength="${MIN_WACHTWOORD}" required aria-describedby="${prefix}-herhaal-hint">
+        <p id="${prefix}-herhaal-hint" class="veld-hint" aria-live="polite"></p>
     `;
+}
+
+// as Beheer::MIN_WACHTWOORD in the api
+const MIN_WACHTWOORD = 12;
+
+// while typing, below the wachtwoord: how many characters are still needed, and whether the second one is the
+// same; call once, after the fields of accountVeldenHtml() are in the form
+export function toonWachtwoordHints(form) {
+    const hint = document.getElementById(form.wachtwoord.getAttribute('aria-describedby'));
+    const herhaalHint = document.getElementById(form.herhaal.getAttribute('aria-describedby'));
+    const toon = () => {
+        // characters as the api counts them (mb_strlen), not UTF-16 units
+        const nog = MIN_WACHTWOORD - [...form.wachtwoord.value].length;
+        const goed = nog <= 0;
+        hint.textContent = form.wachtwoord.value === '' ? ''
+            : goed ? '✓ Lang genoeg'
+            : `Nog ${nog} ${nog === 1 ? 'teken' : 'tekens'}`;
+        hint.classList.toggle('goed', goed);
+        const gelijk = form.herhaal.value === form.wachtwoord.value;
+        herhaalHint.textContent = form.herhaal.value === '' ? '' : gelijk ? '✓ Gelijk' : 'Nog niet gelijk';
+        herhaalHint.classList.toggle('goed', gelijk);
+    };
+    form.wachtwoord.addEventListener('input', toon);
+    form.herhaal.addEventListener('input', toon);
+    // after form.reset()
+    form.addEventListener('reset', () => setTimeout(toon));
 }
 
 // { gebruikersnaam, email, wachtwoord } from such a form, or null (with the reason in fout) when the two

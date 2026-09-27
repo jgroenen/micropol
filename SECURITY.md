@@ -15,6 +15,7 @@ Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijf
 - **Rollen:** elke call van de beheeromgeving controleert de rol van het account in het gesprek, zie [Beheer](README.md#beheer). Direct na installatie werkt admin/admin, alleen om de eerste superbeheerder te maken: doe dat meteen.
 - **Deelnemers blijven anoniem:** hun id komt nooit terug uit de API; in de export, de matrix en het logboek zijn ze een nummer.
 - **Panelleden ook:** MiniPol bewaart bij een antwoord via een panellink alleen het panel, nooit de link. Per link bewaart het alleen aantallen, zonder volgorde of tijd, en die lopen een dag achter. Wie de export én alle data heeft, kan dus nog steeds niet zien wat een panellid antwoordde. Zie [Panels](README.md#panels).
+- **Geen paden van buitenaf:** alleen een gesprek-id komt in een bestandspad, en dat mag alleen letters, cijfers en `-` bevatten. Die controle zit in de functie die het pad maakt ([Data.php](api/lib/Data.php)), niet alleen in de handlers: een ongeldig id geeft een fout, nooit een pad buiten de datamap.
 - **Geen id's of tokens in URL's:** de `deelnemer_id` werkt als een token en gaat daarom in `Authorization: Bearer`, net als het token van een beheerder; een kanaaltoken alleen in de body van een POST. Foutmeldingen van PHP bevatten geen argumenten (`zend.exception_ignore_args`).
 
 ## Wat hier niet nodig is

@@ -17,7 +17,7 @@ class AnalyseHandler {
             throw new HttpFout(403, 'This api is not allowed.');
         }
         // the id ends up in a path (see AnalyseModel)
-        if (preg_match('/^[A-Za-z0-9-]+$/', $gesprekId) !== 1) {
+        if (preg_match('/\A[A-Za-z0-9-]+\z/', $gesprekId) !== 1) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
 

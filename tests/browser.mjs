@@ -261,6 +261,11 @@ try {
     // ---- admin: the link: a new account, then on the gesprek as its gespreksbeheerder
     await naar(link);
     check('admin: uitnodiging zonder login', await wachtOp(`${zichtbaar('uitnodiging')} && document.getElementById('uitnodiging-tekst').textContent.includes('gespreksbeheerder')`));
+    // the hints below the wachtwoord, while typing
+    await doe(`const f = document.getElementById('uitnodiging-nieuw'); f.wachtwoord.value = 'kort'; f.wachtwoord.dispatchEvent(new Event('input')); f.herhaal.value = 'kor'; f.herhaal.dispatchEvent(new Event('input'));`);
+    check('admin: hint bij een te kort wachtwoord', await wachtOp(`document.getElementById('uitnodiging-wachtwoord-hint').textContent === 'Nog 8 tekens' && document.getElementById('uitnodiging-herhaal-hint').textContent === 'Nog niet gelijk'`));
+    await doe(`const f = document.getElementById('uitnodiging-nieuw'); f.wachtwoord.value = f.herhaal.value = '${WACHTWOORD}'; f.herhaal.dispatchEvent(new Event('input'));`);
+    check('admin: hint bij een goed wachtwoord', await wachtOp(`document.getElementById('uitnodiging-wachtwoord-hint').textContent === '✓ Lang genoeg' && document.getElementById('uitnodiging-herhaal-hint').textContent === '✓ Gelijk'`));
     await doe(`const f = document.getElementById('uitnodiging-nieuw'); f.gebruikersnaam.value = '${GEBRUIKER}-browser'; f.email.value = 'browser@example.org'; f.wachtwoord.value = '${WACHTWOORD}'; f.herhaal.value = '${WACHTWOORD}'; document.getElementById('uitnodiging-nieuw-knop').click();`);
     check('admin: uitnodiging aangenomen, op het nieuwe gesprek', await wachtOp(`document.getElementById('gesprek-titel')?.textContent === 'Uit de browsertest' && !document.getElementById('tab-gegevens').hidden`));
     await naar(link);

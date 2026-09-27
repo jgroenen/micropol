@@ -22,6 +22,9 @@ class Data {
     // logins, see Toegang; the token is stored as its sha256; verloopt 0 once logged out
     const SESSIES = ['token_hash', 'account_id', 'begonnen', 'verloopt'];
 
+    // a gesprek id that is safe in a path: no / and no .. (\z, since $ also allows a newline at the end)
+    const VEILIG_ID = '/\A[A-Za-z0-9-]+\z/';
+
     // the types of events, with their fields besides the ones every event has
     const GESPREK_AANGEMAAKT = 'gesprek.aangemaakt';       // titel, omschrijving, moderatie
     const GESPREK_AANGEPAST = 'gesprek.aangepast';         // only the fields that changed
@@ -110,10 +113,18 @@ class Data {
 
     // ---- events
 
-    // the file of a stream: 'gesprekken' or 'beheer', or 'stellingen', 'antwoorden' or 'team' of one gesprek;
-    // the gesprek id must have passed gesprekBestaat(), since it ends up in the path
+    // the file of a stream: 'gesprekken' or 'beheer', or 'stellingen', 'antwoorden' or 'team' of one gesprek
     public static function stroom($naam, $gesprekId = null) {
-        return DATA_DIR . (in_array($naam, self::ALGEMENE_STROMEN, true) ? "/$naam.jsonl" : "/gesprekken/$gesprekId/$naam.jsonl");
+        return in_array($naam, self::ALGEMENE_STROMEN, true) ? DATA_DIR . "/$naam.jsonl" : self::gesprekMap($gesprekId) . "/$naam.jsonl";
+    }
+
+    // the map of a gesprek. The id ends up in the path, so it is checked here too, not only in gesprekBestaat():
+    // a handler that forgets that check gets an error, never a path outside the map (like ../../beheer)
+    private static function gesprekMap($gesprekId) {
+        if (!is_string($gesprekId) || preg_match(self::VEILIG_ID, $gesprekId) !== 1) {
+            throw new RuntimeException('Not a valid gesprek id for a path.');
+        }
+        return DATA_DIR . "/gesprekken/$gesprekId";
     }
 
     // the events of a stream, oldest first (a generator)
@@ -161,7 +172,7 @@ class Data {
 
     // also guards the file names, since a gesprek id ends up in a path
     public static function gesprekBestaat($id) {
-        return preg_match('/^[A-Za-z0-9-]+$/', $id) === 1 && self::gesprek($id) !== null;
+        return is_string($id) && preg_match(self::VEILIG_ID, $id) === 1 && self::gesprek($id) !== null;
     }
 
     // whether deelnemers can take part: it exists and is not paused (opgeschort) or over (beeindigd)
@@ -446,7 +457,7 @@ class Data {
     }
 
     private static function paneltellingenBestand($gesprekId) {
-        $dir = DATA_DIR . "/gesprekken/$gesprekId";
+        $dir = self::gesprekMap($gesprekId);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
