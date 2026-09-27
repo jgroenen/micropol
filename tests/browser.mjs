@@ -136,6 +136,28 @@ try {
     check('app: stelling toegevoegd', await wachtOp(`${zichtbaar('melding')} && document.getElementById('mijn-stellingen-lijst').textContent.includes('<b>uit</b> de browsertest')`));
     await doe(`document.getElementById('tab-groepen').click();`);
     check('app: tab groepen', await wachtOp(`document.getElementById('groep-status').textContent.length > 0`));
+    // ---- app: once all stellingen are answered, new ones of other deelnemers come by themselves
+    await doe(`document.getElementById('tab-antwoorden').click();`);
+    await doe(`for (let i = 0; i < 100 && !document.getElementById('antwoord-knoppen').hidden; i++) {
+        const knop = document.querySelector('#antwoord-knoppen [data-antwoord=neutraal]');
+        const tekst = document.getElementById('huidige-stelling').textContent;
+        knop.click();
+        const start = Date.now();
+        while (document.getElementById('huidige-stelling').textContent === tekst && Date.now() - start < 3000) {
+            await new Promise(r => setTimeout(r, 50));
+        }
+    }`);
+    check('app: alle stellingen beantwoord', await wachtOp(`document.getElementById('huidige-stelling').textContent.includes('verschijnen hier vanzelf')`));
+    const nieuweStelling = await fetch(`${API}/stellingen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${crypto.randomUUID()}` },
+        body: JSON.stringify({ gesprek_id: data.gesprek, tekst: 'Een nieuwe stelling terwijl de browsertest wacht.' }),
+    });
+    check('app: een andere deelnemer voegt een stelling toe', nieuweStelling.status === 201);
+    // 2 minutes later, as far as the page knows
+    await doe(`const echt = Date.now; Date.now = () => echt() + 121000; document.dispatchEvent(new Event('visibilitychange'));`);
+    check('app: nieuwe stelling verschijnt vanzelf', await wachtOp(`document.getElementById('huidige-stelling').textContent === 'Een nieuwe stelling terwijl de browsertest wacht.' && !document.getElementById('antwoord-knoppen').hidden`));
+
     check('app: API-popup telt de calls', Number(await waarde(`document.querySelector('.api-log-teller').textContent`)) > 0);
     check('app: API-popup met eigen stylesheet van de cdn', await wachtOp(`getComputedStyle(document.querySelector('.api-log-knop')).position === 'fixed'`));
 

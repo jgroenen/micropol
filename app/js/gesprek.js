@@ -52,6 +52,8 @@ function koppel() {
     document.getElementById('sluit-toevoegen').addEventListener('click', toonBeantwoorden);
 
     toevoegen.addEventListener('submit', dienStellingIn);
+    // no looking for new stellingen while the page is out of view; back in view, it goes on
+    document.addEventListener('visibilitychange', wachtOpNieuweStellingen);
     gekoppeld = true;
 }
 
@@ -104,6 +106,7 @@ export async function toonGesprek(id) {
             melding.textContent = 'De link waarmee je kwam, werkt niet meer. Je kunt gewoon verder meedoen.';
             melding.hidden = false;
         }
+        laatstGekeken = Date.now();
         huidig = { gesprek, antwoorden: antwoorden ?? {}, mijnStellingen: eigenStellingen ?? [], stelling: null, analyse: analyse ?? null, analyseMislukt: analyse === undefined };
         zetGesprekTitel(gesprek.titel);
         document.getElementById('moderatie-hint').hidden = gesprek.moderatie !== 'vooraf';
@@ -228,10 +231,11 @@ function toonBeantwoorden() {
 
     const stelling = stellingen.find(s => !(s.id in antwoorden));
     huidig.stelling = stelling || null;
+    wachtOpNieuweStellingen();
 
     if (!stelling) {
         teller.textContent = '';
-        huidigeStelling.textContent = 'Dit waren alle stellingen voor nu. Dien zelf stellingen in. Of kom later terug, dan zijn er nieuwe stellingen van andere deelnemers.';
+        huidigeStelling.textContent = 'Dit waren alle stellingen voor nu. Dien zelf stellingen in. Nieuwe stellingen van andere deelnemers verschijnen hier vanzelf.';
         knoppen.hidden = true;
         return;
     }
@@ -241,6 +245,57 @@ function toonBeantwoorden() {
     huidigeStelling.textContent = stelling.tekst;
     knoppen.hidden = false;
     antwoordKnoppen.forEach(b => b.disabled = false);
+}
+
+// once all stellingen are answered: every 2 minutes a look for new ones, only while the page is in view
+const NIEUWE_STELLINGEN_NA = 2 * 60 * 1000;
+let wachtTimer = null;
+let laatstGekeken = 0;
+
+function wachtOpNieuweStellingen() {
+    clearTimeout(wachtTimer);
+    wachtTimer = null;
+    if (!huidig || huidig.stelling || document.hidden || !opDezePagina(huidig.gesprek.id)) {
+        return;
+    }
+    wachtTimer = setTimeout(kijkNaarNieuweStellingen, Math.max(0, laatstGekeken + NIEUWE_STELLINGEN_NA - Date.now()));
+}
+
+// whether the page of this gesprek is shown (not the list, nor its matrix)
+function opDezePagina(gesprekId) {
+    return location.hash.replace(/\?.*$/, '') === `#/gesprekken/${encodeURIComponent(gesprekId)}`;
+}
+
+async function kijkNaarNieuweStellingen() {
+    wachtTimer = null;
+    const vorig = huidig;
+    if (!vorig || !opDezePagina(vorig.gesprek.id)) {
+        return;
+    }
+    laatstGekeken = Date.now();
+    let gesprek;
+    try {
+        gesprek = await getGesprek(vorig.gesprek.id);
+    } catch (error) {
+        console.error('Error looking for new stellingen:', error);
+    }
+    if (huidig !== vorig) {
+        return;
+    }
+    if (gesprek === null || (gesprek && isGesloten(gesprek))) {
+        // gone, paused or over in the meantime: show that
+        await toonGesprek(vorig.gesprek.id);
+        return;
+    }
+    const bekend = new Set(vorig.gesprek.stellingen.map(s => s.id));
+    const nieuw = gesprek ? gesprek.stellingen.filter(s => !bekend.has(s.id)) : [];
+    vorig.gesprek.stellingen.push(...nieuw);
+    // while adding a stelling, the new ones wait until the form closes
+    if (nieuw.length > 0 && !beantwoorden.hidden) {
+        toonBeantwoorden();
+        return;
+    }
+    wachtOpNieuweStellingen();
 }
 
 // save an antwoord, then move on to the next stelling
