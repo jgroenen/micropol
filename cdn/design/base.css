@@ -48,8 +48,10 @@ a {
     font-weight: 600;
     cursor: pointer;
 
+    /* the color too: a link that looks like a knop would otherwise get the hover color of links */
     &:hover:not(:disabled) {
         background-color: var(--color-brand-hover);
+        color: var(--color-on-brand);
     }
 
     &:disabled {

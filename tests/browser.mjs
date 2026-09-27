@@ -106,6 +106,10 @@ try {
         return ['${APP}/', '${ADMIN}/', '${API}/docs', '${API}/docs/openapi.json', '${API}/docs/schema.json', '${MATH}/docs', '${MATH}/docs/openapi.json']
             .every(url => links.includes(url));
     })()`));
+    const knop = await waarde(`(() => { const r = document.querySelector('.held .knop').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    await cmd('Input.dispatchMouseEvent', { type: 'mouseMoved', x: knop.x, y: knop.y });
+    check('www: knop houdt witte tekst bij hover', await wachtOp(`getComputedStyle(document.querySelector('.held .knop')).color === 'oklch(1 0 0)'`, 2000));
+    await cmd('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 });
     check('www: stijl van de cdn', (await waarde(`getComputedStyle(document.body).fontFamily`)).includes('IBM Plex'));
     check('www: zonder scripts, met Content-Security-Policy', await waarde(`document.scripts.length === 0`)
         && (await fetch(`${WWW}/`)).headers.get('content-security-policy')?.includes("default-src 'none'"));
