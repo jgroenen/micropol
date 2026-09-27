@@ -272,6 +272,7 @@ Accounts loggen in bij de API ([Toegang.php](api/lib/Toegang.php)), met een eenv
 - **Verlengen:** gebeurt bij gebruik, met hooguit één nieuwe regel per 5 minuten per login, zodat het bestand niet bij elke call groeit.
 - **Uitloggen** (`DELETE /sessie`) beëindigt het token meteen.
 - **Een onbekende gebruikersnaam** kost even veel tijd als een fout wachtwoord, zodat je aan de responstijd niet kunt zien welke gebruikersnamen bestaan.
+- **Een limiet op mislukte pogingen** ([Inlogpogingen.php](api/lib/Inlogpogingen.php)): na 10 per uur van één IP-adres (bij IPv6 het /64), of 20 voor één gebruikersnaam, volgt 429 tot het uur voorbij is. Zonder IP-adressen op de server: `inlogpogingen.json` bewaart alleen een HMAC ervan, met een sleutel die elk uur nieuw is en daarna wordt weggegooid. Na dat uur kan dus niemand meer terugrekenen welk IP-adres of welke gebruikersnaam het was.
 
 `sessies.csv` (`token_hash, account_id, begonnen, verloopt`) is append-only, zoals de rest: `verloopt` 0 betekent uitgelogd, en de laatste regel telt. Samen vormt het ook het logboek van wie wanneer inlogde. Verlopen regels worden (nog) niet opgeruimd.
 

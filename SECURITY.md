@@ -10,16 +10,25 @@ Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijf
 
 ## Hoe MiniPol beveiligd is
 
-- **Inloggen:** een willekeurig token van 256 bits, waarvan de API alleen de sha256 bewaart; wachtwoorden met `password_hash`. Zie [Inloggen](README.md#inloggen).
+- **Inloggen:** een willekeurig token van 256 bits, waarvan de API alleen de sha256 bewaart; wachtwoorden met `password_hash`, van minstens 12 tekens. Na 10 mislukte pogingen per uur van één IP-adres, of 20 voor één gebruikersnaam, volgt 429. Zie [Inloggen](README.md#inloggen).
+- **Geen IP-adressen op de server:** de limiet op inloggen bewaart alleen een HMAC van het IP-adres, met een sleutel die elk uur nieuw is en daarna weg. Verzoeken worden niet gelogd (zie [Logging](#logging)).
 - **Rollen:** elke call van de beheeromgeving controleert de rol van het account in het gesprek, zie [Beheer](README.md#beheer). Direct na installatie werkt admin/admin, alleen om de eerste superbeheerder te maken: doe dat meteen.
 - **Deelnemers blijven anoniem:** hun id komt nooit terug uit de API; in de export, de matrix en het logboek zijn ze een nummer.
 - **Panelleden ook:** MiniPol bewaart bij een antwoord via een panellink alleen het panel, nooit de link. Per link bewaart het alleen aantallen, zonder volgorde of tijd, en die lopen een dag achter. Wie de export én alle data heeft, kan dus nog steeds niet zien wat een panellid antwoordde. Zie [Panels](README.md#panels).
 - **Geen id's of tokens in URL's:** de `deelnemer_id` werkt als een token en gaat daarom in `Authorization: Bearer`, net als het token van een beheerder; een kanaaltoken alleen in de body van een POST. Foutmeldingen van PHP bevatten geen argumenten (`zend.exception_ignore_args`).
 
+## Wat hier niet nodig is
+
+Een algemene security-checklist noemt vaak twee dingen die voor MiniPol niet gelden:
+
+- **CSRF-tokens.** CSRF werkt alleen als de browser een inloggegeven vanzelf meestuurt, zoals een cookie: een andere site laat dan jouw browser iets doen met jouw sessie. MiniPol gebruikt geen cookies. Het token van een beheerder en de `deelnemer_id` staan in `Authorization`, en die header zet een browser nooit vanzelf. Een andere site kan ze ook niet lezen: ze staan in de `localStorage` van de admin of de app, op een ander domein. **Komen er ooit cookies bij, dan zijn CSRF-tokens wél nodig.**
+- **CORS beperken tot eigen domeinen.** De API is bewust open voor elke site, als basis voor open innovatie. CORS beschermt de server niet (een aanvaller gebruikt gewoon `curl`), maar de bezoeker tegen misbruik van zijn inloggegevens door andere sites, en ook dat speelt zonder cookies niet. Wat een open API wel mogelijk maakt, en wat [kanalen](README.md#kanalen) tegengaan, staat bij [Bekende grenzen](#bekende-grenzen). Beperken kan met `TOEGESTANE_ORIGINS` in [api/config.php](api/config.php).
+
 ## Logging
 
 MiniPol logt zelf geen verzoeken, en de [Caddyfile](Caddyfile) zet geen access log aan. Zo blijft het:
 - **Een access log** (van Caddy, een proxy of een CDN) mag alleen methode, pad, status en tijd bevatten. Log nooit de header `Authorization` of de inhoud van verzoeken: daar staan de `deelnemer_id` en het kanaaltoken, en samen koppelen die een panellid aan zijn antwoorden. Kort IP-adressen in.
+- **Een proxy of CDN ervoor** (zoals Cloudflare)? Dan ziet PHP het IP-adres van de proxy, en telt de limiet op inloggen alle bezoekers samen. Neem dan het IP-adres uit de header van de proxy, alleen als het verzoek van die proxy komt, en laat de proxy zelf ook geen IP-adressen bewaren.
 - **Blijft er dan nog iets over?** Met IP-adres en tijd uit een log, en de tijden in de data, is ruwweg te zien wanneer iemand meedeed. Maar niet via welke persoonlijke link, want die staat nergens bij een tijd.
 - **In de browser:** een strikte Content-Security-Policy op elke pagina, en alle tekst van gebruikers ge-escaped.
 - **De data:** nooit direct op te vragen; alles gaat via `index.php`.
@@ -29,7 +38,6 @@ MiniPol logt zelf geen verzoeken, en de [Caddyfile](Caddyfile) zet geen access l
 
 - **Panels vertrouwen de server:** dat een panellid los staat van zijn link, komt doordat de code het niet vastlegt, en die code is open. Wie de server beheert en de code aanpast, kan het wel vastleggen. Een harde, wiskundige garantie geven *blinde handtekeningen* (RFC 9474, zoals in Privacy Pass): de server geeft per antwoord een munt die hij bij het inwisselen niet meer herkent. Dat is een mogelijke volgende stap.
 - **Nep-antwoorden:** meedoen is anoniem, dus iemand kan met veel verschillende `deelnemer_id`s veel „deelnemers” maken en zo de groepen beïnvloeden. Doordat de API open is voor elke site, kan dat ook via de browsers van de bezoekers van een andere site. Er is nog geen limiet per IP-adres of per tijd. Wat wel kan: meedoen alleen via [kanalen](README.md#kanalen) toestaan, en een kanaal dat misbruikt wordt intrekken, en de antwoorden erdoor laten wegvallen.
-- **Inloggen:** er is nog geen limiet op het aantal inlogpogingen. Wachtwoorden zijn minstens 12 tekens.
 
 ## De toeleveringsketen
 

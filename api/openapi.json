@@ -1756,9 +1756,26 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Te veel mislukte pogingen, van dit IP-adres of voor deze gebruikersnaam; `Retry-After` zegt over hoeveel seconden het weer kan",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fout"
+                }
+              }
+            }
           }
         },
-        "description": "Direct na installatie, zolang er geen superbeheerder is, logt ook admin/admin in: met `account` null en `installatie` true. Die login kan alleen de eerste superbeheerder maken (`POST /installatie`)."
+        "description": "Direct na installatie, zolang er geen superbeheerder is, logt ook admin/admin in: met `account` null en `installatie` true. Die login kan alleen de eerste superbeheerder maken (`POST /installatie`). Na 10 mislukte pogingen per uur van één IP-adres, of 20 voor één gebruikersnaam, volgt 429 tot het uur voorbij is."
       },
       "delete": {
         "tags": [

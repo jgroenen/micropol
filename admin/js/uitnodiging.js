@@ -84,7 +84,10 @@ async function aannemen(neemAan) {
         location.hash = huidig.gesprek ? `#/gesprekken/${encodeURIComponent(huidig.gesprek.id)}` : '#/';
         zetSessie(sessie);
     } catch (error) {
-        fout.textContent = error.status === 401 ? 'Onjuiste gebruikersnaam of wachtwoord.' : accountFout(error);
+        fout.textContent = {
+            401: 'Onjuiste gebruikersnaam of wachtwoord.',
+            429: 'Te veel mislukte pogingen. Probeer het over een uur opnieuw.',
+        }[error.status] ?? accountFout(error);
         fout.hidden = false;
     } finally {
         document.querySelectorAll('#uitnodiging button').forEach(knop => knop.disabled = false);

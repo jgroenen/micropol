@@ -10,6 +10,7 @@ class SessieHandler {
     }
 
     // POST /sessie  { gebruikersnaam, wachtwoord } => { account, installatie, token, verloopt }
+    // After too many failed attempts from one IP address or for one gebruikersnaam a 429, see Inlogpogingen.
     // Right after installing, while there is no superbeheerder, admin/admin logs in too, with account null
     // and installatie true: that login can only make the first superbeheerder (POST /installatie).
     public function POST($id = null) {
@@ -20,6 +21,7 @@ class SessieHandler {
         if ($gebruikersnaam === '' || $wachtwoord === '') {
             throw new HttpFout(400, 'gebruikersnaam and wachtwoord are required.');
         }
+        Inlogpogingen::controleer($gebruikersnaam);
 
         if ($gebruikersnaam === Beheer::INSTALLATIE_GEBRUIKERSNAAM && $wachtwoord === Beheer::INSTALLATIE_WACHTWOORD && Beheer::installatieNodig()) {
             Http::json(['account' => null, 'installatie' => true] + Toegang::login(Beheer::INSTALLATIE));
@@ -31,6 +33,7 @@ class SessieHandler {
             Wachtwoord::doeAlsOf($wachtwoord);
         }
         if ($account === null || !Wachtwoord::klopt($wachtwoord, $account)) {
+            Inlogpogingen::mislukt($gebruikersnaam);
             throw new HttpFout(401, 'Wrong gebruikersnaam or wachtwoord.');
         }
         Http::json(['account' => Beheer::metRollen($account), 'installatie' => false] + Toegang::login($account['id']));

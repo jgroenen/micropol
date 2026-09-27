@@ -37,9 +37,10 @@ async function logIn(event) {
         formulier.reset();
         zetSessie(sessie);
     } catch (error) {
-        fout.textContent = error.status === 401
-            ? 'Onjuiste gebruikersnaam of wachtwoord.'
-            : 'Inloggen lukt nu niet. Probeer het later opnieuw.';
+        fout.textContent = {
+            401: 'Onjuiste gebruikersnaam of wachtwoord.',
+            429: 'Te veel mislukte pogingen. Probeer het over een uur opnieuw.',
+        }[error.status] ?? 'Inloggen lukt nu niet. Probeer het later opnieuw.';
         fout.hidden = false;
     } finally {
         knop.disabled = false;

@@ -161,4 +161,5 @@ rsync -a root@<vps>:/srv/minipol/api/data/ backup/api-data/
 
 - De VPS zelf beveiligen, zoals automatische updates (`unattended-upgrades`), inloggen met alleen een SSH-sleutel, en fail2ban. Die zijn wel aan te raden.
 - FrankenPHP bijwerken. `installeer.sh` installeert een vaste versie, en controleert de download met een sha256. Voor een nieuwere versie pas je in `installeer.sh` `FRANKENPHP_VERSIE` en de twee checksums aan (die staan bij de release op GitHub). Rol dat uit, en draai `installeer.sh` daarna nog een keer. Zie [SECURITY.md](../SECURITY.md).
-- Een beperking op het aantal inlogpogingen, en het opruimen van verlopen logins in `api/data/sessies.csv`.
+- Het opruimen van verlopen logins in `api/data/sessies.csv`.
+- Een proxy of CDN voor de server regelen: zie [Logging in SECURITY.md](../SECURITY.md#logging) voor wat er dan bij het IP-adres verandert.
