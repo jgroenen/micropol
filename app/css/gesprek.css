@@ -1,10 +1,4 @@
 /* answering and adding stellingen, see js/gesprek.js */
-.gesprek-nav {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-3);
-}
-
 .stelling-teller {
     margin: 0 0 var(--space-3);
     font-size: var(--font-size-h3);
@@ -12,11 +6,16 @@
 }
 
 .huidige-stelling {
-    min-block-size: 3lh;
-    margin: 0 0 var(--space-6);
+    min-block-size: 2lh;
+    margin: 0 0 var(--space-4);
     font-size: var(--font-size-stelling);
     line-height: 1.33;
     font-weight: 300;
+}
+
+/* the answer buttons belong to the stelling above them: little space there, more to the tabs below */
+#antwoord-knoppen {
+    margin-block-end: var(--space-6);
 }
 
 /* tabs below the stelling: mijn antwoorden, mijn stellingen, groepen */

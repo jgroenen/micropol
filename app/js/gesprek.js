@@ -63,9 +63,8 @@ export async function toonGesprek(id) {
     try {
         await toonView('gesprek');
         koppel();
-        const matrixUrl = `#/gesprekken/${encodeURIComponent(id)}/matrix`;
-        document.getElementById('matrix-link').href = matrixUrl;
-        document.getElementById('groepen-link').href = matrixUrl;
+        // the matrix is under the tab of the groups
+        document.getElementById('groepen-link').href = `#/gesprekken/${encodeURIComponent(id)}/matrix`;
         melding.hidden = true;
         beantwoorden.hidden = true;
         tabs.hidden = true;
