@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs MiniPol on a VPS (Ubuntu or Debian), once. Run it as root from the cloned repository:
 #
-#   git clone https://github.com/jgroenen/micropol.git /srv/minipol
+#   git clone https://github.com/jgroenen/minipol.git /srv/minipol
 #   /srv/minipol/deploy/installeer.sh <domein> <email>
 #
 # It installs FrankenPHP, makes the user minipol (who owns the repository and runs the service),
