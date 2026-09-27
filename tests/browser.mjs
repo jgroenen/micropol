@@ -215,6 +215,16 @@ try {
     await doe(`[...document.querySelectorAll('#kanalen-lijst li')].find(li => li.textContent.includes('Browserkanaal')).querySelector('[data-actie=intrekken]').click();`);
     await doe(`document.querySelector('#kanalen-lijst .intrekken-formulier:not([hidden]) [type=submit]').click();`);
     check('admin: kanaal ingetrokken', await wachtOp(`document.getElementById('kanalen-lijst').textContent.includes('Ingetrokken')`));
+    // a panel: links for panelleden, with an export (CSV)
+    await doe(`const f = document.getElementById('panel-nieuw'); f.naam.value = 'Browserpanel'; f.aantal.value = '2'; f.querySelector('[type=submit]').click();`);
+    check('admin: panel gemaakt', await wachtOp(`document.getElementById('panels-lijst').textContent.includes('Browserpanel') && document.getElementById('panels-lijst').textContent.includes('2 links')`));
+    check('admin: export van het panel', await doe(`
+        const panel = document.querySelector('#panels-lijst li[data-panel]').dataset.panel;
+        const antwoord = await fetch('${API}/panels/' + panel + '?gesprek_id=${data.gesprek}', { headers: { Authorization: 'Bearer ' + localStorage.getItem('minipol_admin_token') } });
+        const regels = (await antwoord.text()).trim().split('\\n');
+        return regels[0] === 'nummer,link,antwoorden,stellingen,status' && regels.length === 3 && regels[1].startsWith('1,${APP}/#/gesprekken/');`));
+    await doe(`document.querySelector('#panels-lijst [data-panel-actie=export]').click();`);
+    check('admin: exportknop zonder fout', await waarde(`document.getElementById('kanalen-fout').hidden`));
     await naar(`${ADMIN}/#/`);
     check('admin: gespreksbeheerder ziet zijn gesprekken, zonder knop voor een nieuw', await wachtOp(`document.getElementById('gesprekken-lijst').textContent.includes('Testgesprek (browser)') && document.getElementById('open-nieuw').hidden`));
     await naar(`${ADMIN}/#/gesprekken/bestaatniet`);

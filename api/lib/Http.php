@@ -34,8 +34,13 @@ class Http {
             return;
         }
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, MiniPol-Deelnemer');
         header('Access-Control-Max-Age: 600');
+    }
+
+    // a trimmed request header, like 'MiniPol-Deelnemer', or '' if missing
+    public static function kop($naam) {
+        return trim((string) ($_SERVER['HTTP_' . strtoupper(str_replace('-', '_', $naam))] ?? ''));
     }
 
     // the token from "Authorization: Bearer <token>", or null

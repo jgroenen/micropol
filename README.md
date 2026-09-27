@@ -120,9 +120,9 @@ Het overzicht hieronder is de korte versie:
 | `POST /gesprekken` | Gesprek aanmaken, alleen voor superbeheerders: `{ titel, omschrijving, moderatie }` (max. 200 en 1000 tekens; omschrijving optioneel; `moderatie` is `achteraf` (standaard) of `vooraf`, zie [Moderatie](#moderatie)) |
 | `PUT /gesprekken/<id>` | Gesprek aanpassen, alleen voor de gespreksbeheerders ervan: `{ titel, omschrijving, moderatie }`, zelfde regels als aanmaken; zonder `moderatie` blijft die gelijk |
 | `GET /gesprekken/<id>` | Eén gesprek met zijn zichtbare stellingen (`{ id, tekst }`) in willekeurige volgorde |
-| `GET /stellingen?gesprek_id=<id>&deelnemer_id=<id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
+| `GET /stellingen?gesprek_id=<id>`, met header `MiniPol-Deelnemer: <id>` | De stellingen die één deelnemer heeft toegevoegd, met per stelling `beoordeling` (`goedgekeurd`, `afgekeurd` of `null`), `reden`, `zichtbaar` en `antwoorden: { eens, neutraal, oneens }` (aantal deelnemers) |
 | `POST /stellingen` | Stelling toevoegen: `{ gesprek_id, deelnemer_id, tekst }` (max. 500 tekens); geeft de stelling terug met `beoordeling`, `reden` en `zichtbaar` |
-| `GET /antwoorden?gesprek_id=<id>&deelnemer_id=<id>` | De antwoorden van één deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
+| `GET /antwoorden?gesprek_id=<id>`, met header `MiniPol-Deelnemer: <id>` | De antwoorden van één deelnemer: `{ antwoorden: [{ gesprek_id, deelnemer_id, stelling_id, waarde }] }` |
 | `GET /antwoorden?gesprek_id=<id>` | Alle antwoorden als matrix: `{ gesprek_id, deelnemers: [{ nummer, antwoorden: { stelling_id: waarde } }] }`, anoniem, zoals in de export |
 | `POST /antwoorden` | Antwoord geven: `{ gesprek_id, deelnemer_id, stelling_id, waarde }`, met `waarde` één van `eens`, `oneens`, `neutraal`; alleen op zichtbare stellingen |
 | `GET /beoordelingen?gesprek_id=<id>` | Alle stellingen van een gesprek met `beoordeling`, `reden`, `zichtbaar` en `antwoorden`, alleen voor het team van het gesprek |
@@ -140,7 +140,12 @@ Het overzicht hieronder is de korte versie:
 | `POST /gespreksstatus` | Een gesprek pauzeren, beëindigen of weer openen, alleen voor superbeheerders |
 | `GET`, `POST /kanalen` | De [kanalen](#kanalen) van een gesprek, met hun cijfers; een kanaal maken |
 | `PUT /kanalen/<id>` | Meetellen aan of uit, of een kanaal intrekken |
+| `POST /panels`, `PUT /panels/<id>` | Een [panel](#panels) maken; links erbij, een link intrekken, meetellen, of het panel intrekken |
+| `GET /panels/<id>?gesprek_id=<id>` | De export van een panel, als CSV |
+| `POST /kanaalcontrole` | Of een kanaallink nog werkt: `{ gesprek_id, kanaal }` geeft `{ geldig }` |
 | `DELETE /sessie` | Uitloggen: het token werkt daarna niet meer |
+**Geen id's of tokens in een URL.** URL's komen in logs terecht, van de server, een proxy of een CDN. Daarom staat de `deelnemer_id` bij het ophalen in de header `MiniPol-Deelnemer`, en gaat een kanaaltoken alleen mee in de body van een POST. Voeg je een call toe, doe het dan ook zo.
+
 Wat alleen voor de beheeromgeving is, vraagt het token uit `POST /sessie` in de header `Authorization: Bearer <token>`, anders volgt 401. Mag het account het niet, dan volgt 403. Zie [Beheer](#beheer) en [Inloggen](#inloggen).
 
 In de app en de admin toont de knop **{ } API** de API-calls van de huidige pagina, met request en response. Het wachtwoord en het token staan daar niet in.
@@ -178,7 +183,8 @@ Alles wat er gebeurt, staat als **event** in [api/data/](api/data/): één JSON-
 | `gesprekken/<gesprek_id>/stellingen.jsonl` | `stelling.toegevoegd`, `stelling.goedgekeurd`, `stelling.afgekeurd` |
 | `gesprekken/<gesprek_id>/antwoorden.jsonl` | `antwoord.gegeven` |
 | `gesprekken/<gesprek_id>/team.jsonl` | `lid.toegevoegd`, `.opgeschort`, `.hersteld`, `.verwijderd`: het team van het gesprek |
-| `gesprekken/<gesprek_id>/kanalen.jsonl` | `kanaal.aangemaakt`, `.aangepast`, `.ingetrokken`: de [kanalen](#kanalen) van het gesprek |
+| `gesprekken/<gesprek_id>/kanalen.jsonl` | `kanaal.aangemaakt`, `.aangepast`, `.ingetrokken`, en `panel.aangemaakt`, `.uitgebreid`, `.aangepast`, `.ingetrokken`: de [kanalen](#kanalen) en [panels](#panels) van het gesprek |
+| `gesprekken/<gesprek_id>/paneltellingen.json` | Geen stroom: per link van een panel alleen het aantal antwoorden en stellingen, zie [Panels](#panels) |
 | `beheer.jsonl` | `account.aangemaakt`, `wachtwoord.ingesteld`, `superbeheerder.benoemd`, `.opgeschort`, `.hersteld`, `.verwijderd`, `uitnodiging.aangemaakt`, `.gebruikt` |
 
 Een event ziet er zo uit:
@@ -194,7 +200,7 @@ Een event ziet er zo uit:
 - **De stand volgt uit de events:** een gesprek, zijn stellingen met hun beoordeling, en de antwoorden krijg je door de events op volgorde te lezen ([Data.php](api/lib/Data.php)). Een wijziging is een nieuw event, en het laatste telt. Beantwoordt iemand een stelling opnieuw, dan telt het laatste antwoord.
 - **Snel genoeg:** `GET /gesprekken` leest alleen het kleine `gesprekken.jsonl`, en tellingen, de matrix en de export lezen de antwoorden van één gesprek.
 
-De bestanden worden alleen aangevuld, nooit gewijzigd. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
+De bestanden worden alleen aangevuld, nooit gewijzigd, op `paneltellingen.json` na. Gesprekken worden aangemaakt in de [beheeromgeving](#beheer).
 
 Logins zijn geen events: die staan in `sessies.csv` (`token_hash, account_id, begonnen, verloopt`), zie [Inloggen](#inloggen). Daar telt de laatste regel met dezelfde `token_hash`.
 
@@ -291,6 +297,17 @@ Meedoen is anoniem: iedereen met de link van een gesprek kan antwoorden. Daar is
 - **Zonder kanaal meedoen** staat per gesprek aan of uit, in de tab **Gegevens** (`zonder_kanaal`). Uit: alleen wie via een werkende kanaallink komt, kan meedoen; de anderen zien „Meedoen kan alleen via een link”. Aan (standaard): iedereen kan meedoen, en de kanalen laten alleen zien waar deelnemers vandaan komen.
 
 Alles staat als events in `kanalen.jsonl`, en een antwoord of stelling via een kanaal heeft een `kanaal_id`. Een keuze is dus altijd terug te draaien, en in het logboek staat wie wat wanneer deed.
+
+### Panels
+
+Een **panel** is een set links, één per panellid, voor een panel dat een andere partij beheert, zoals een onderzoeksbureau. De gespreksbeheerder maakt het in de tab **Kanalen**, met een naam en een aantal links.
+
+- **De export** (CSV, `GET /panels/<id>`) heeft per link: `nummer`, `link`, `antwoorden`, `stellingen` en `status`. Geef hem aan de partij die de panelleden kent: die stuurt de links rond, en koppelt de nummers aan mensen. Wanneer je hem weer downloadt, staan de aantallen erin, bijvoorbeeld voor een beloning of een herinnering.
+- **De aantallen lopen een dag achter.** Wat vandaag binnenkomt, staat er vanaf middernacht UTC in (01:00 of 02:00 in Nederland). Zo kan niemand zien wanneer één link er een antwoord bij kreeg, ook niet door de export steeds opnieuw te downloaden en te vergelijken met de tijden in het logboek. Hoe lang het venster is, staat in `PANEL_TELVENSTER` in [api/config.php](api/config.php); lokaal is het een seconde.
+- **MiniPol bewaart geen namen**, alleen een nummer per link.
+- **Een deelnemer staat helemaal los van zijn link.** Een antwoord of stelling via een panellink bewaart alleen het panel (`panel_id`), nooit de link. Per link telt MiniPol alleen hoeveel antwoorden en stellingen erdoor kwamen, in `paneltellingen.json`: zonder deelnemer, stelling, tijdstip of volgorde. Daarom is dat het enige bestand dat geen stroom is: een regel per antwoord zou via de volgorde weer te koppelen zijn. Ook met de export en alle data samen is dus niet na te gaan wat een panellid antwoordde.
+- **Gevolgen daarvan:** meetellen gaat per panel, niet per link. `antwoorden` telt elk gegeven antwoord, dus ook een gewijzigd antwoord.
+- **Links erbij** maken kan, doorgenummerd. **Eén link intrekken** kan ook, bijvoorbeeld een link die op sociale media is doorgedeeld. En het **hele panel intrekken**, net als een kanaal.
 
 ## Logboek
 

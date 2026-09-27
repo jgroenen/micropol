@@ -144,6 +144,34 @@ export function putKanaal(kanaalId, wijziging) {
     return stuur('PUT', `/kanalen/${encodeURIComponent(kanaalId)}`, wijziging);
 }
 
+// { gesprek_id, naam, aantal } => the new panel
+export function postPanel(panel) {
+    return stuur('POST', '/panels', panel);
+}
+
+// { gesprek_id, erbij, link_intrekken, meetellen, status } => the panel
+export function putPanel(panelId, wijziging) {
+    return stuur('PUT', `/panels/${encodeURIComponent(panelId)}`, wijziging);
+}
+
+// the export of a panel: a CSV file, saved in the browser as <naam>.csv
+export async function downloadPanel(gesprekId, panel) {
+    const response = await fetch(`${API_URL}/panels/${encodeURIComponent(panel.panel_id)}?gesprek_id=${encodeURIComponent(gesprekId)}`, {
+        headers: { Authorization: `Bearer ${leesToken()}` },
+    });
+    if (!response.ok) {
+        const error = new Error(`Export failed: ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${panel.naam.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'panel'}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 // { gesprek_id, status, reden } => the gesprek
 export function postGespreksstatus(wijziging) {
     return stuur('POST', '/gespreksstatus', wijziging);

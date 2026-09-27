@@ -139,7 +139,7 @@ curl -I https://www.<domein>/ && curl -I https://app.<domein>/ && curl https://a
 | De data | `/srv/minipol/api/data` en `/srv/minipol/math/data` |
 | Instellingen | `/etc/minipol.env` |
 | Certificaten | `/var/lib/minipol/caddy/`; vernieuwen gaat vanzelf |
-| Logs | `journalctl -u minipol` (ook de PHP-fouten) |
+| Logs | `journalctl -u minipol` (de PHP-fouten, zonder argumenten); er is geen access log, zie [Logging in SECURITY.md](../SECURITY.md#logging) |
 | Herstarten | `systemctl restart minipol` |
 
 Pas op de server niets aan in `/srv/minipol`: de volgende pull verwacht een schone repository. Pas het aan in git en rol uit.

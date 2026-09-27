@@ -1,4 +1,4 @@
-import { getGesprek, getMijnAntwoorden, getMijnStellingen, getAnalyse, postAntwoord, postStelling } from './api.js';
+import { getGesprek, kanaalGeldig, getMijnAntwoorden, getMijnStellingen, getAnalyse, postAntwoord, postStelling } from './api.js';
 import { deelnemerId } from './deelnemer.js';
 import { escapeHtml } from 'cdn/html.js';
 import { maakTabs } from 'cdn/tabs.js';
@@ -72,8 +72,9 @@ export async function toonGesprek(id) {
         toevoegen.hidden = true;
 
         const kanaal = kanaalVan(id);
-        const [gesprek, antwoorden, eigenStellingen, analyse] = await Promise.all([
-            getGesprek(id, kanaal),
+        const [gesprek, geldig, antwoorden, eigenStellingen, analyse] = await Promise.all([
+            getGesprek(id),
+            kanaal === null ? null : kanaalGeldig(id, kanaal).catch(() => false),
             getMijnAntwoorden(id, deelnemerId),
             getMijnStellingen(id, deelnemerId),
             // the groups are extra: answering works without them (e.g. when the math server is down)
@@ -91,7 +92,7 @@ export async function toonGesprek(id) {
             return;
         }
         // a kanaal whose link works no more is forgotten; without a kanaal, only when the gesprek allows it
-        const kanaalVervallen = kanaal !== null && !gesprek.kanaal_geldig;
+        const kanaalVervallen = kanaal !== null && !geldig;
         if (kanaalVervallen) {
             vergeetKanaal(id);
         }

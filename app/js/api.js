@@ -6,8 +6,13 @@ import { API_URL, MATH_URL } from './config.php';
 // lookups give null when there is nothing (404). What is sent is one object in the shape of the api schema;
 // an id in the url is a parameter of its own.
 
-function get(url) {
-    return jsonVerzoek(API_URL + url);
+function get(url, headers = {}) {
+    return jsonVerzoek(API_URL + url, { headers });
+}
+
+// the deelnemer_id goes in a header, never in a url: urls end up in logs, and it is the key of a deelnemer
+function alsDeelnemer(deelnemerId) {
+    return { 'MiniPol-Deelnemer': deelnemerId };
 }
 
 function post(url, data) {
@@ -24,16 +29,19 @@ export async function getGesprekken() {
 }
 
 // { id, titel, omschrijving, moderatie, status, zonder_kanaal, stellingen: [{ id, tekst }] } or null;
-// only the zichtbare stellingen, in random order. With the token of a kanaal also kanaal_geldig: whether its
-// link still works
-export function getGesprek(gesprekId, kanaal = null) {
-    const zoek = kanaal ? `?kanaal=${encodeURIComponent(kanaal)}` : '';
-    return ofNull(get(`/gesprekken/${encodeURIComponent(gesprekId)}${zoek}`));
+// only the zichtbare stellingen, in random order
+export function getGesprek(gesprekId) {
+    return ofNull(get(`/gesprekken/${encodeURIComponent(gesprekId)}`));
+}
+
+// whether the link of a kanaal still works; a POST, so the token is never in a url
+export async function kanaalGeldig(gesprekId, kanaal) {
+    return (await post('/kanaalcontrole', { gesprek_id: gesprekId, kanaal })).geldig;
 }
 
 // { stelling_id: waarde } for one deelnemer, or null if the gesprek does not exist
 export async function getMijnAntwoorden(gesprekId, deelnemerId) {
-    const data = await ofNull(get(`/antwoorden?gesprek_id=${encodeURIComponent(gesprekId)}&deelnemer_id=${encodeURIComponent(deelnemerId)}`));
+    const data = await ofNull(get(`/antwoorden?gesprek_id=${encodeURIComponent(gesprekId)}`, alsDeelnemer(deelnemerId)));
     if (!data) {
         return null;
     }
@@ -59,7 +67,7 @@ export function getAnalyse(gesprekId) {
 // [{ id, gesprek_id, tekst, deelnemer_id, beoordeling, reden, zichtbaar, antwoorden: { eens, neutraal, oneens } }]
 // added by one deelnemer, or null if the gesprek does not exist; beoordeling is goedgekeurd, afgekeurd or null
 export async function getMijnStellingen(gesprekId, deelnemerId) {
-    const data = await ofNull(get(`/stellingen?gesprek_id=${encodeURIComponent(gesprekId)}&deelnemer_id=${encodeURIComponent(deelnemerId)}`));
+    const data = await ofNull(get(`/stellingen?gesprek_id=${encodeURIComponent(gesprekId)}`, alsDeelnemer(deelnemerId)));
     return data ? data.stellingen : null;
 }
 

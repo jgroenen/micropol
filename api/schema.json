@@ -114,11 +114,6 @@
         "zonder_kanaal": {
           "type": "boolean",
           "description": "Of deelnemers zonder kanaal mogen meedoen (standaard true). false: alleen via de link van een kanaal. Altijd aan of uit te zetten."
-        },
-        "kanaal_geldig": {
-          "type": "boolean",
-          "readOnly": true,
-          "description": "Alleen bij `GET /gesprekken/{id}?kanaal=<token>`: of de link van dat kanaal nog werkt"
         }
       }
     },
@@ -259,11 +254,15 @@
         "lid.verwijderd",
         "kanaal.aangemaakt",
         "kanaal.aangepast",
-        "kanaal.ingetrokken"
+        "kanaal.ingetrokken",
+        "panel.aangemaakt",
+        "panel.uitgebreid",
+        "panel.aangepast",
+        "panel.ingetrokken"
       ]
     },
     "Event": {
-      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `gesprek.opgeschort`, `gesprek.beeindigd`: `reden`; `gesprek.hersteld`: niets\n- `lid.toegevoegd`: `account_id`, `gebruikersnaam`, `rol`\n- `lid.opgeschort`, `lid.verwijderd`: `account_id`, `gebruikersnaam`, `reden`; `lid.hersteld`: `account_id`, `gebruikersnaam`\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`, en via een kanaal `kanaal_id` en `kanaal`\n- `kanaal.aangemaakt`: `kanaal_id`, `kanaal` (de naam), `naam`, `token`\n- `kanaal.aangepast`, `kanaal.ingetrokken`: `kanaal_id`, `kanaal`, `meetellen`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.",
+      "description": "Iets wat in een gesprek gebeurde. De data is een reeks events; een gesprek, zijn stellingen en de antwoorden volgen daaruit. Naast de velden die elk event heeft, staan er de velden van zijn type in:\n\n- `gesprek.aangemaakt`: `titel`, `omschrijving`, `moderatie`\n- `gesprek.aangepast`: alleen de velden die veranderden\n- `gesprek.opgeschort`, `gesprek.beeindigd`: `reden`; `gesprek.hersteld`: niets\n- `lid.toegevoegd`: `account_id`, `gebruikersnaam`, `rol`\n- `lid.opgeschort`, `lid.verwijderd`: `account_id`, `gebruikersnaam`, `reden`; `lid.hersteld`: `account_id`, `gebruikersnaam`\n- `stelling.toegevoegd`: `stelling_id`, `tekst`\n- `stelling.goedgekeurd`: `stelling_id`, `tekst`, soms `reden`\n- `stelling.afgekeurd`: `stelling_id`, `tekst`, `reden`\n- `antwoord.gegeven`: `stelling_id`, `tekst`, `waarde`, en via een kanaal `kanaal_id` en `kanaal`, of via een panel alleen `panel_id` en `panel` (nooit de link)\n- `kanaal.aangemaakt`: `kanaal_id`, `kanaal` (de naam), `naam`, `token`\n- `kanaal.aangepast`, `kanaal.ingetrokken`: `kanaal_id`, `kanaal`, `meetellen`\n\nIn de opslag staat `tekst` alleen bij `stelling.toegevoegd`; de API zet hem bij elk event over een stelling.\n- `panel.aangemaakt`, `panel.uitgebreid`: `panel_id`, `panel` (de naam), en `aantal`: hoeveel links (de links zelf staan in de export)\n- `panel.aangepast`, `panel.ingetrokken`: `panel_id`, `panel`, `meetellen`",
       "type": "object",
       "required": [
         "id",
@@ -392,6 +391,17 @@
         },
         "zonder_kanaal": {
           "type": "boolean"
+        },
+        "panel_id": {
+          "type": "string"
+        },
+        "panel": {
+          "type": "string",
+          "description": "De naam van het panel van het event"
+        },
+        "aantal": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -768,6 +778,88 @@
           "type": "integer",
           "minimum": 0,
           "readOnly": true
+        },
+        "panel_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "readOnly": true,
+          "description": "Voor een link van een panel: het panel"
+        },
+        "nummer": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "readOnly": true,
+          "description": "Voor een link van een panel: het volgnummer"
+        },
+        "stellingen": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true,
+          "description": "Alleen voor een link van een panel: hoeveel stellingen erdoor kwamen"
+        }
+      }
+    },
+    "Panel": {
+      "description": "Een panel: een set links, één per panellid, voor een panel waarvan de leden elders bekend zijn (bijvoorbeeld bij een onderzoeksbureau). MiniPol bewaart geen naam, alleen een volgnummer per link. Een antwoord via een link bewaart alleen het panel, niet de link; per link worden alleen aantallen geteld. De links met hun aantallen staan in de export (`GET /panels/{panel_id}`).",
+      "type": "object",
+      "required": [
+        "panel_id",
+        "naam",
+        "status",
+        "meetellen",
+        "links"
+      ],
+      "properties": {
+        "panel_id": {
+          "type": "string",
+          "readOnly": true
+        },
+        "naam": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "actief",
+            "ingetrokken"
+          ]
+        },
+        "meetellen": {
+          "type": "boolean"
+        },
+        "links": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true,
+          "description": "Hoeveel links"
+        },
+        "gebruikt": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true,
+          "description": "Hoeveel links minstens één antwoord of stelling gaven"
+        },
+        "antwoorden": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true
+        },
+        "stellingen": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true
+        },
+        "deelnemers": {
+          "type": "integer",
+          "minimum": 0,
+          "readOnly": true,
+          "description": "Hoeveel deelnemers via het panel antwoordden"
         }
       }
     }

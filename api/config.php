@@ -20,6 +20,11 @@ const DOCS_VIEWER = 'https://petstore.swagger.io/';
 // the docs would be: [APP_URL, ADMIN_URL, rtrim(DOCS_VIEWER, '/')]
 define('TOEGESTANE_ORIGINS', ['*']);
 
+// The links of a panel are counted per this many seconds of the clock: what comes in counts from the next
+// window on, so nobody sees when one link went up by one (see Data::telPanellink()). A day in production, from
+// midnight UTC (01:00 or 02:00 in the Netherlands); dev/start.sh makes it a second, to see it at once.
+define('PANEL_TELVENSTER', max(1, (int) instelling('MINIPOL_PANEL_TELVENSTER', '86400')));
+
 // a login of a beheerder ends after this many seconds without using it, and after SESSIE_MAX at the latest
 const SESSIE_IDLE = 60 * 60;
 const SESSIE_MAX = 12 * 3600;

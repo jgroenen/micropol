@@ -7,15 +7,22 @@ class KanalenHandler {
     const MAX_NAAM = 100;
 
     // GET /kanalen?gesprek_id=<id>   the team of the gesprek
-    // { kanalen: [Kanaal with deelnemers and antwoorden], zonder_kanaal: { deelnemers, antwoorden } }
+    // { kanalen: [Kanaal with deelnemers and antwoorden], panels: [Panel], zonder_kanaal: { deelnemers, antwoorden } };
+    // the links of a panel are not in kanalen, but counted in their panel (see PanelsHandler)
     public function GET($id = null) {
         $gesprekId = $this->gesprekId($_GET);
         Toegang::vereisRol($gesprekId, Beheer::TEAMROLLEN);
-        [$perKanaal, $zonder] = $this->aantallen($gesprekId);
+        [$perKanaal, $zonder, $perPanel] = self::aantallen($gesprekId);
+        $kanalen = array_filter(Data::kanalen($gesprekId), function ($kanaal) {
+            return $kanaal['panel_id'] === null;
+        });
         Http::json([
             'kanalen' => array_values(array_map(function ($kanaal) use ($perKanaal) {
                 return $kanaal + ($perKanaal[$kanaal['kanaal_id']] ?? ['deelnemers' => 0, 'antwoorden' => 0]);
-            }, Data::kanalen($gesprekId))),
+            }, $kanalen)),
+            'panels' => array_values(array_map(function ($panel) use ($gesprekId, $perPanel) {
+                return PanelsHandler::metAantallen($gesprekId, $panel, $perPanel);
+            }, Data::panels($gesprekId))),
             'zonder_kanaal' => $zonder,
         ]);
     }
@@ -38,7 +45,8 @@ class KanalenHandler {
 
     // PUT /kanalen/<kanaal_id>  { gesprek_id, meetellen, status }   gespreksbeheerders of the gesprek
     // meetellen (true or false): whether the antwoorden through it count; status ingetrokken: the link works
-    // no more, for good. Both optional. Returns the kanaal, like GET.
+    // no more, for good. Both optional. Returns the kanaal, like GET. A link of a panel can only be withdrawn:
+    // its antwoorden keep only the panel, so meetellen goes per panel (PUT /panels/<id>).
     public function PUT($id = null) {
         $input = Http::body();
         $gesprekId = $this->gesprekId($input);
@@ -46,6 +54,9 @@ class KanalenHandler {
         $kanaal = Data::kanalen($gesprekId)[$id ?? ''] ?? null;
         if ($kanaal === null) {
             throw new HttpFout(404, 'Kanaal not found in this gesprek.');
+        }
+        if ($kanaal['panel_id'] !== null && array_key_exists('meetellen', $input)) {
+            throw new HttpFout(400, 'meetellen goes per panel for the links of a panel.');
         }
         $meetellen = array_key_exists('meetellen', $input) ? $input['meetellen'] : $kanaal['meetellen'];
         if (!is_bool($meetellen)) {
@@ -61,12 +72,19 @@ class KanalenHandler {
 
         $door = Data::doorBeheerder($beheerder);
         if ($status !== $kanaal['status']) {
-            Data::voegEventToe(Data::KANAAL_INGETROKKEN, $door, $gesprekId, ['kanaal_id' => $id, 'meetellen' => $meetellen]);
+            $velden = $kanaal['panel_id'] === null ? ['kanaal_id' => $id, 'meetellen' => $meetellen] : ['kanaal_id' => $id];
+            Data::voegEventToe(Data::KANAAL_INGETROKKEN, $door, $gesprekId, $velden);
         } elseif ($meetellen !== $kanaal['meetellen']) {
             Data::voegEventToe(Data::KANAAL_AANGEPAST, $door, $gesprekId, ['kanaal_id' => $id, 'meetellen' => $meetellen]);
         }
-        [$perKanaal] = $this->aantallen($gesprekId);
-        Http::json(Data::kanalen($gesprekId)[$id] + ($perKanaal[$id] ?? ['deelnemers' => 0, 'antwoorden' => 0]));
+        $kanaal = Data::kanalen($gesprekId)[$id];
+        if ($kanaal['panel_id'] !== null) {
+            // a link of a panel: only its own counts, which keep no deelnemers
+            Http::json($kanaal + (Data::paneltellingen($gesprekId)[$id] ?? ['antwoorden' => 0, 'stellingen' => 0]));
+            return;
+        }
+        [$perKanaal] = self::aantallen($gesprekId);
+        Http::json($kanaal + ($perKanaal[$id] ?? ['deelnemers' => 0, 'antwoorden' => 0]));
     }
 
     // gesprek_id from the query or the body; a 400 or 404 if missing or unknown
@@ -81,22 +99,29 @@ class KanalenHandler {
         return $gesprekId;
     }
 
-    // [[kanaal_id => { deelnemers, antwoorden }], { deelnemers, antwoorden } without a kanaal]: all antwoorden,
-    // also through a kanaal that does not count; a deelnemer counts once per kanaal
-    private function aantallen($gesprekId) {
+    // [[kanaal_id => { deelnemers, antwoorden }], { deelnemers, antwoorden } without a kanaal,
+    // [panel_id => { deelnemers, antwoorden }]]: all antwoorden, also through a kanaal or panel that does not
+    // count; a deelnemer counts once per kanaal or panel
+    public static function aantallen($gesprekId) {
         $deelnemers = [];
         $antwoorden = [];
         foreach (Data::events('antwoorden', $gesprekId) as $event) {
-            $kanaal = $event['kanaal_id'] ?? '';
-            $deelnemers[$kanaal][$event['door']['id']] = true;
-            $antwoorden[$kanaal] = ($antwoorden[$kanaal] ?? 0) + 1;
+            $sleutel = isset($event['panel_id']) ? 'panel:' . $event['panel_id'] : ($event['kanaal_id'] ?? '');
+            $deelnemers[$sleutel][$event['door']['id']] = true;
+            $antwoorden[$sleutel] = ($antwoorden[$sleutel] ?? 0) + 1;
         }
-        $aantallen = [];
-        foreach ($antwoorden as $kanaal => $aantal) {
-            $aantallen[$kanaal] = ['deelnemers' => count($deelnemers[$kanaal]), 'antwoorden' => $aantal];
+        $perKanaal = [];
+        $perPanel = [];
+        foreach ($antwoorden as $sleutel => $aantal) {
+            $telling = ['deelnemers' => count($deelnemers[$sleutel]), 'antwoorden' => $aantal];
+            if (str_starts_with($sleutel, 'panel:')) {
+                $perPanel[substr($sleutel, 6)] = $telling;
+            } else {
+                $perKanaal[$sleutel] = $telling;
+            }
         }
-        $zonder = $aantallen[''] ?? ['deelnemers' => 0, 'antwoorden' => 0];
-        unset($aantallen['']);
-        return [$aantallen, $zonder];
+        $zonder = $perKanaal[''] ?? ['deelnemers' => 0, 'antwoorden' => 0];
+        unset($perKanaal['']);
+        return [$perKanaal, $zonder, $perPanel];
     }
 }

@@ -76,6 +76,21 @@
                     <button type="submit" class="knop-klein">Kanaal maken</button>
                 </div>
             </form>
+
+            <section class="panels">
+                <h2>Panels</h2>
+                <p class="uitleg-tekst">Een panel is een link per panellid, voor een panel dat een andere partij beheert, zoals een onderzoeksbureau. MiniPol bewaart geen namen, alleen een nummer per link. Ook bewaart MiniPol niet welke link welk antwoord gaf: per link alleen hoeveel, en dat loopt een dag achter. Geef de export aan de partij die de panelleden kent; die koppelt de nummers aan de mensen.</p>
+                <ul class="beheer-lijst" id="panels-lijst"></ul>
+                <p class="leeg-tekst" id="panels-leeg" hidden>Nog geen panels.</p>
+                <form class="uitnodigen" id="panel-nieuw">
+                    <h2>Nieuw panel</h2>
+                    <div class="uitnodigen-kop">
+                        <label>Naam <input name="naam" maxlength="100" required placeholder="bijvoorbeeld Burgerpanel 2026"></label>
+                        <label>Links <input name="aantal" type="number" min="1" max="1000" value="100" required></label>
+                        <button type="submit" class="knop-klein">Panel maken</button>
+                    </div>
+                </form>
+            </section>
         </div>
 
         <!-- see js/team.js -->

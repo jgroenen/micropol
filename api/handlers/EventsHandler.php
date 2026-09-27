@@ -39,6 +39,7 @@ class EventsHandler {
         }
         $teksten = [];
         $kanalen = Data::kanalen($gesprekId);
+        $panels = Data::panels($gesprekId);
         $events = array_merge(
             $this->laatste(Data::events('gesprekken'), $limiet + 1, $voor, $gesprekId),
             $this->laatste($this->nummer(Data::events('antwoorden', $gesprekId), $nummers), $limiet + 1, $voor),
@@ -52,8 +53,8 @@ class EventsHandler {
 
         $accounts = Beheer::accounts();
         Http::json([
-            'events' => array_map(function ($event) use ($nummers, $teksten, $accounts, $kanalen) {
-                return $this->openbaar($event, $nummers, $teksten, $accounts, $kanalen);
+            'events' => array_map(function ($event) use ($nummers, $teksten, $accounts, $kanalen, $panels) {
+                return $this->openbaar($event, $nummers, $teksten, $accounts, $kanalen, $panels);
             }, array_slice($events, 0, $limiet)),
             'meer' => count($events) > $limiet,
         ]);
@@ -97,8 +98,9 @@ class EventsHandler {
     }
 
     // the event as the api gives it: tijdstip in ISO 8601, door without the id of a deelnemer, the tekst of
-    // its stelling, the gebruikersnaam of the account it is about (an event of the team), and the naam of its kanaal
-    private function openbaar(array $event, array $nummers, array $teksten, array $accounts, array $kanalen) {
+    // its stelling, the gebruikersnaam of the account it is about (an event of the team), and the naam of its
+    // kanaal or panel; of the links of a panel only how many
+    private function openbaar(array $event, array $nummers, array $teksten, array $accounts, array $kanalen, array $panels) {
         $event['tijdstip'] = $event['tijdstip'] === null ? null : date('c', $event['tijdstip']);
         $door = $event['door'];
         if (($door['soort'] ?? null) === Data::DOOR_DEELNEMER) {
@@ -114,6 +116,14 @@ class EventsHandler {
         }
         if (isset($event['kanaal_id'])) {
             $event['kanaal'] = $kanalen[$event['kanaal_id']]['naam'] ?? '';
+        }
+        if (isset($event['panel_id'])) {
+            $event['panel'] = $panels[$event['panel_id']]['naam'] ?? '';
+        }
+        // the links of a panel are in its export, not in the logboek: only how many
+        if (isset($event['links'])) {
+            $event['aantal'] = count($event['links']);
+            unset($event['links']);
         }
         return $event;
     }

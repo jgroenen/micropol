@@ -4,13 +4,14 @@
 class StellingenHandler {
     const MAX_TEKST = 500;
 
-    // GET /stellingen?gesprek_id=<id>&deelnemer_id=<id>   stellingen added by one deelnemer,
-    // with their moderatie state (beoordeling, reden, zichtbaar) and antwoorden { eens, neutraal, oneens }
+    // GET /stellingen?gesprek_id=<id>   with header MiniPol-Deelnemer: <id>   stellingen added by one deelnemer,
+    // with their moderatie state (beoordeling, reden, zichtbaar) and antwoorden { eens, neutraal, oneens };
+    // the deelnemer_id is a header, never in the url (see AntwoordenHandler)
     public function GET($id = null) {
         $gesprekId = Http::field($_GET, 'gesprek_id');
-        $deelnemerId = Http::field($_GET, 'deelnemer_id');
+        $deelnemerId = Http::kop('MiniPol-Deelnemer');
         if ($gesprekId === '' || $deelnemerId === '') {
-            throw new HttpFout(400, 'gesprek_id and deelnemer_id are required.');
+            throw new HttpFout(400, 'gesprek_id and the header MiniPol-Deelnemer are required.');
         }
         if (!Data::deelnemerIdGeldig($deelnemerId)) {
             throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
@@ -46,10 +47,11 @@ class StellingenHandler {
         if (!Data::gesprekActief($gesprekId)) {
             throw new HttpFout(409, 'This gesprek is paused or over.');
         }
-        $kanaal = Data::kanaalVelden($gesprekId, Http::field($input, 'kanaal'));
+        $kanaal = Data::kanaalVoorDeelname($gesprekId, Http::field($input, 'kanaal'));
 
         $stellingId = Data::uuid();
-        Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst] + $kanaal);
+        Data::voegEventToe(Data::STELLING_TOEGEVOEGD, Data::doorDeelnemer($deelnemerId), $gesprekId, ['stelling_id' => $stellingId, 'tekst' => $tekst] + Data::deelnameVelden($kanaal));
+        Data::telPanellink($gesprekId, $kanaal, 'stellingen');
         Http::json(Data::stelling($gesprekId, $stellingId), 201);
     }
 }

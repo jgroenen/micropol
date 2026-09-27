@@ -2,6 +2,7 @@
 # Runs all tests against the servers of dev/start.sh, which must be running:
 #   tests/migraties.sh      the migraties, on data in the oldest form
 #   tests/schemacontrole.php the validator of api.php, tested itself
+#   tests/paneltellingen.php the counts of the links of a panel, per day
 #   tests/api.php           every call of api and math checked against their OpenAPI spec, logging in included
 #   tests/browser.mjs       the product page, the app and the admin in Chrome
 # The tests start on an empty api: they install it (admin/admin makes the first superbeheerder) and make
@@ -52,6 +53,7 @@ draai() {
 }
 draai tests/migraties.sh
 draai php tests/schemacontrole.php
+draai php tests/paneltellingen.php
 draai php tests/api.php
 draai node tests/browser.mjs
 

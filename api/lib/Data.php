@@ -7,7 +7,9 @@
 //   gesprekken/<id>/stellingen.jsonl  stelling.toegevoegd, stelling.goedgekeurd, stelling.afgekeurd
 //   gesprekken/<id>/antwoorden.jsonl  antwoord.gegeven
 //   gesprekken/<id>/team.jsonl        lid.toegevoegd, .opgeschort, .hersteld, .verwijderd (see Beheer)
-//   gesprekken/<id>/kanalen.jsonl     kanaal.aangemaakt, .aangepast, .ingetrokken
+//   gesprekken/<id>/kanalen.jsonl     kanaal.aangemaakt, .aangepast, .ingetrokken; panel.aangemaakt, .uitgebreid,
+//                                     .aangepast, .ingetrokken
+// and one file that is no stream: gesprekken/<id>/paneltellingen.json, see telPanellink()
 //   beheer.jsonl                      accounts, wachtwoorden, superbeheerders and uitnodigingen (see Beheer)
 // Every event has id (UUID v7: sorting by id is sorting by time), tijdstip (unix time; null in data
 // from before the events), type, door ({ soort, id } of who did it; null when unknown) and gesprek_id
@@ -26,17 +28,22 @@ class Data {
     const GESPREK_OPGESCHORT = 'gesprek.opgeschort';       // reden; paused: deelnemers see a notice
     const GESPREK_BEEINDIGD = 'gesprek.beeindigd';         // reden; over: deelnemers see that it is over
     const GESPREK_HERSTELD = 'gesprek.hersteld';           // open again, after opgeschort or beeindigd
-    const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst, kanaal_id (when via a kanaal)
+    const STELLING_TOEGEVOEGD = 'stelling.toegevoegd';     // stelling_id, tekst, kanaal_id or panel_id (see deelnameVelden())
     const STELLING_GOEDGEKEURD = 'stelling.goedgekeurd';   // stelling_id, reden (optional)
     const STELLING_AFGEKEURD = 'stelling.afgekeurd';       // stelling_id, reden
-    const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde, kanaal_id (when via a kanaal)
+    const ANTWOORD_GEGEVEN = 'antwoord.gegeven';           // stelling_id, waarde, kanaal_id or panel_id (see deelnameVelden())
     // a kanaal: a link for taking part, handed to one promotion channel (like a newsletter); see kanalen()
     const KANAAL_AANGEMAAKT = 'kanaal.aangemaakt';         // kanaal_id, naam, token
     const KANAAL_AANGEPAST = 'kanaal.aangepast';           // kanaal_id, meetellen
-    const KANAAL_INGETROKKEN = 'kanaal.ingetrokken';       // kanaal_id, meetellen
+    const KANAAL_INGETROKKEN = 'kanaal.ingetrokken';       // kanaal_id, meetellen (not for a link of a panel)
+    // a panel: a set of kanalen, one link per panellid; the members are known elsewhere, see panels()
+    const PANEL_AANGEMAAKT = 'panel.aangemaakt';           // panel_id, naam, links: [{ kanaal_id, token, nummer }]
+    const PANEL_UITGEBREID = 'panel.uitgebreid';           // panel_id, links: more links, numbered on
+    const PANEL_AANGEPAST = 'panel.aangepast';             // panel_id, meetellen
+    const PANEL_INGETROKKEN = 'panel.ingetrokken';         // panel_id, meetellen: all its links work no more
     // the stream of each kind of event, by the part of the type before the dot; the events of Beheer too
     const STROMEN = [
-        'gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden', 'lid' => 'team', 'kanaal' => 'kanalen',
+        'gesprek' => 'gesprekken', 'stelling' => 'stellingen', 'antwoord' => 'antwoorden', 'lid' => 'team', 'kanaal' => 'kanalen', 'panel' => 'kanalen',
         'account' => 'beheer', 'wachtwoord' => 'beheer', 'superbeheerder' => 'beheer', 'uitnodiging' => 'beheer',
     ];
     // the streams of the whole server; the others are per gesprek
@@ -247,15 +254,18 @@ class Data {
     // ---- antwoorden
 
     // [deelnemer_id => [stelling_id => waarde]], deelnemers in order of their first antwoord;
-    // the last antwoord of a deelnemer on a stelling counts. Antwoorden through a kanaal that does not count
-    // (meetellen false) are left out, unless $alles
+    // the last antwoord of a deelnemer on a stelling counts. Antwoorden through a kanaal or a panel that does
+    // not count (meetellen false) are left out, unless $alles
     public static function matrix($gesprekId, $alles = false) {
-        $uit = $alles ? [] : array_filter(self::kanalen($gesprekId), function ($kanaal) {
-            return !$kanaal['meetellen'];
-        });
+        [$kanalen, $panels] = $alles ? [[], []] : self::kanalenEnPanels($gesprekId);
+        $telNiet = function ($ding) {
+            return !$ding['meetellen'];
+        };
+        $uit = array_filter($kanalen, $telNiet);
+        $panelsUit = array_filter($panels, $telNiet);
         $rows = [];
         foreach (self::events('antwoorden', $gesprekId) as $event) {
-            if (!isset($uit[$event['kanaal_id'] ?? ''])) {
+            if (!isset($uit[$event['kanaal_id'] ?? '']) && !isset($panelsUit[$event['panel_id'] ?? ''])) {
                 $rows[$event['door']['id']][$event['stelling_id']] = $event['waarde'];
             }
         }
@@ -264,43 +274,183 @@ class Data {
 
     // ---- kanalen
 
-    // the kanalen of a gesprek: [kanaal_id => { kanaal_id, naam, token, status (actief or ingetrokken), meetellen }].
-    // A kanaal is a link for taking part (the app with ?kanaal=<token>), for one promotion channel. The token
-    // is no secret: the channel shares the link openly. Ingetrokken, the link works no more; whether the
-    // antwoorden through it count (meetellen) can change any time.
+    // the kanalen of a gesprek: [kanaal_id => { kanaal_id, naam, token, status (actief or ingetrokken), meetellen,
+    // panel_id, nummer }]. A kanaal is a link for taking part (the app with ?kanaal=<token>), for one promotion
+    // channel. The token is no secret: the channel shares the link openly. Ingetrokken, the link works no more;
+    // whether the antwoorden through it count (meetellen) can change any time.
+    // The links of a panel are kanalen too, with their panel_id and nummer; their status and meetellen follow
+    // their panel, and one link can be withdrawn on its own.
     public static function kanalen($gesprekId) {
+        return self::kanalenEnPanels($gesprekId)[0];
+    }
+
+    // the panels of a gesprek: [panel_id => { panel_id, naam, status, meetellen, links }] (links: how many).
+    // A panel is a set of links, one per panellid, whose members are known only elsewhere (like a research
+    // agency): MiniPol keeps no name, only a nummer per link. An antwoord through a link keeps only the panel,
+    // not the link, so no deelnemer can be linked to his link; how often each link was used is counted apart,
+    // see telPanellink().
+    public static function panels($gesprekId) {
+        return self::kanalenEnPanels($gesprekId)[1];
+    }
+
+    private static function kanalenEnPanels($gesprekId) {
         $kanalen = [];
+        $panels = [];
         foreach (self::events('kanalen', $gesprekId) as $event) {
-            $id = $event['kanaal_id'];
-            if ($event['type'] === self::KANAAL_AANGEMAAKT) {
-                $kanalen[$id] = ['kanaal_id' => $id, 'naam' => $event['naam'], 'token' => $event['token'], 'status' => self::KANAAL_ACTIEF, 'meetellen' => true];
-            } elseif (isset($kanalen[$id])) {
-                if ($event['type'] === self::KANAAL_INGETROKKEN) {
-                    $kanalen[$id]['status'] = self::KANAAL_INGETROKKEN_STATUS;
-                }
-                if (array_key_exists('meetellen', $event)) {
-                    $kanalen[$id]['meetellen'] = (bool) $event['meetellen'];
+            $id = $event['kanaal_id'] ?? null;
+            $panelId = $event['panel_id'] ?? null;
+            switch ($event['type']) {
+                case self::KANAAL_AANGEMAAKT:
+                    $kanalen[$id] = ['kanaal_id' => $id, 'naam' => $event['naam'], 'token' => $event['token'], 'status' => self::KANAAL_ACTIEF, 'meetellen' => true, 'panel_id' => null, 'nummer' => null];
+                    break;
+                case self::KANAAL_INGETROKKEN:
+                case self::KANAAL_AANGEPAST:
+                    if (isset($kanalen[$id])) {
+                        if ($event['type'] === self::KANAAL_INGETROKKEN) {
+                            $kanalen[$id]['status'] = self::KANAAL_INGETROKKEN_STATUS;
+                        }
+                        if (array_key_exists('meetellen', $event)) {
+                            $kanalen[$id]['meetellen'] = (bool) $event['meetellen'];
+                        }
+                    }
+                    break;
+                case self::PANEL_AANGEMAAKT:
+                    $panels[$panelId] = ['panel_id' => $panelId, 'naam' => $event['naam'], 'status' => self::KANAAL_ACTIEF, 'meetellen' => true, 'links' => 0];
+                    // no break: its links
+                case self::PANEL_UITGEBREID:
+                    if (isset($panels[$panelId])) {
+                        foreach ($event['links'] as $link) {
+                            $kanalen[$link['kanaal_id']] = [
+                                'kanaal_id' => $link['kanaal_id'],
+                                'naam' => $panels[$panelId]['naam'] . ' #' . $link['nummer'],
+                                'token' => $link['token'],
+                                'status' => self::KANAAL_ACTIEF,
+                                'meetellen' => true,
+                                'panel_id' => $panelId,
+                                'nummer' => $link['nummer'],
+                            ];
+                        }
+                        $panels[$panelId]['links'] += count($event['links']);
+                    }
+                    break;
+                case self::PANEL_INGETROKKEN:
+                case self::PANEL_AANGEPAST:
+                    if (isset($panels[$panelId])) {
+                        if ($event['type'] === self::PANEL_INGETROKKEN) {
+                            $panels[$panelId]['status'] = self::KANAAL_INGETROKKEN_STATUS;
+                        }
+                        if (array_key_exists('meetellen', $event)) {
+                            $panels[$panelId]['meetellen'] = (bool) $event['meetellen'];
+                        }
+                    }
+                    break;
+            }
+        }
+        // the links of a panel follow it
+        foreach ($kanalen as &$kanaal) {
+            $panel = $panels[$kanaal['panel_id']] ?? null;
+            if ($panel !== null) {
+                $kanaal['meetellen'] = $panel['meetellen'];
+                if ($panel['status'] !== self::KANAAL_ACTIEF) {
+                    $kanaal['status'] = self::KANAAL_INGETROKKEN_STATUS;
                 }
             }
         }
-        return $kanalen;
+        unset($kanaal);
+        return [$kanalen, $panels];
     }
 
-    // for an antwoord or a stelling: [kanaal_id => ...] to add to its event, or [] without a kanaal. A HttpFout 403
-    // when the token is no actief kanaal of the gesprek (anymore), or when there is no token while the gesprek
-    // only takes part through kanalen (zonder_kanaal false)
-    public static function kanaalVelden($gesprekId, $token) {
+    // the kanaal an antwoord or a stelling comes through: the actief kanaal of the token, or null without a
+    // token. A HttpFout 403 when the token is no actief kanaal of the gesprek (anymore), or when there is no
+    // token while the gesprek only takes part through kanalen (zonder_kanaal false)
+    public static function kanaalVoorDeelname($gesprekId, $token) {
         if ($token === '') {
             if (!self::gesprek($gesprekId)['zonder_kanaal']) {
                 throw new HttpFout(403, 'This gesprek only takes part through the link of a kanaal.');
             }
-            return [];
+            return null;
         }
         $kanaal = self::kanaalMetToken($gesprekId, $token);
         if ($kanaal === null) {
             throw new HttpFout(403, 'This kanaal does not work (anymore).');
         }
-        return ['kanaal_id' => $kanaal['kanaal_id']];
+        return $kanaal;
+    }
+
+    // what the event of an antwoord or stelling keeps of its kanaal: its kanaal_id; for a link of a panel only
+    // the panel_id, never the link (see panels()); nothing without a kanaal
+    public static function deelnameVelden(?array $kanaal) {
+        if ($kanaal === null) {
+            return [];
+        }
+        return $kanaal['panel_id'] !== null ? ['panel_id' => $kanaal['panel_id']] : ['kanaal_id' => $kanaal['kanaal_id']];
+    }
+
+    // counts one antwoord or stelling ($wat) through a link of a panel; nothing for another kanaal or none.
+    // gesprekken/<id>/paneltellingen.json holds per link only these two numbers: no deelnemer, no stelling, no
+    // time and no order, so it can not be linked to the antwoorden. That is why it is no stream, but a file
+    // that changes. What comes in counts only from the next day on (PANEL_TELVENSTER, see config.php), so
+    // nobody sees when one link went up by one, however often he looks:
+    // { venster, stand: { kanaal_id: { antwoorden, stellingen } }, lopend: {...} }
+    public static function telPanellink($gesprekId, ?array $kanaal, $wat) {
+        if ($kanaal === null || $kanaal['panel_id'] === null) {
+            return;
+        }
+        self::metPaneltellingen($gesprekId, function (array $tellingen) use ($kanaal, $wat) {
+            $tellingen['lopend'][$kanaal['kanaal_id']] ??= ['antwoorden' => 0, 'stellingen' => 0];
+            $tellingen['lopend'][$kanaal['kanaal_id']][$wat]++;
+            return $tellingen;
+        });
+    }
+
+    // [kanaal_id => { antwoorden, stellingen }] of the links of the panels of a gesprek, up to the end of
+    // yesterday, see telPanellink()
+    public static function paneltellingen($gesprekId) {
+        return self::metPaneltellingen($gesprekId, function (array $tellingen) {
+            return $tellingen;
+        })['stand'];
+    }
+
+    // reads the paneltellingen, moves what came in before this window to the stand, lets $wijzig change them,
+    // and writes them back; returns them
+    private static function metPaneltellingen($gesprekId, callable $wijzig) {
+        $handle = fopen(self::paneltellingenBestand($gesprekId), 'c+');
+        if ($handle === false) {
+            throw new RuntimeException('Failed to open the paneltellingen.');
+        }
+        flock($handle, LOCK_EX);
+        $tellingen = json_decode(stream_get_contents($handle), true);
+        if (!is_array($tellingen) || !isset($tellingen['venster'])) {
+            $tellingen = ['venster' => 0, 'stand' => [], 'lopend' => []];
+        }
+        $lengte = defined('PANEL_TELVENSTER') ? PANEL_TELVENSTER : 86400;
+        $venster = intdiv(time(), $lengte) * $lengte;
+        if ($tellingen['venster'] < $venster) {
+            foreach ($tellingen['lopend'] as $kanaalId => $telling) {
+                $tellingen['stand'][$kanaalId] ??= ['antwoorden' => 0, 'stellingen' => 0];
+                $tellingen['stand'][$kanaalId]['antwoorden'] += $telling['antwoorden'];
+                $tellingen['stand'][$kanaalId]['stellingen'] += $telling['stellingen'];
+            }
+            $tellingen['lopend'] = [];
+            $tellingen['venster'] = $venster;
+        }
+        $tellingen = $wijzig($tellingen);
+        ftruncate($handle, 0);
+        rewind($handle);
+        // an empty map stays an object in JSON
+        fwrite($handle, json_encode(['venster' => $tellingen['venster'], 'stand' => (object) $tellingen['stand'], 'lopend' => (object) $tellingen['lopend']]));
+        fflush($handle);
+        flock($handle, LOCK_UN);
+        fclose($handle);
+        return $tellingen;
+    }
+
+    private static function paneltellingenBestand($gesprekId) {
+        $dir = DATA_DIR . "/gesprekken/$gesprekId";
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        return "$dir/paneltellingen.json";
     }
 
     // the actief kanaal of this token in the gesprek, or null

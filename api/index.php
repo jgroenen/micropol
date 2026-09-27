@@ -35,6 +35,8 @@ $handlers = [
     'superbeheerders' => 'SuperbeheerdersHandler',
     'gespreksstatus' => 'GespreksstatusHandler',
     'kanalen' => 'KanalenHandler',
+    'panels' => 'PanelsHandler',
+    'kanaalcontrole' => 'KanaalcontroleHandler',
 ];
 
 // the app and the admin are on other origins: allow those (CORS), and answer the preflight

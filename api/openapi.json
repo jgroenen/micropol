@@ -53,7 +53,7 @@
     },
     {
       "name": "Kanalen",
-      "description": "Links om mee te doen, per promotiekanaal"
+      "description": "Links om mee te doen, per promotiekanaal, en panels: een link per panellid"
     }
   ],
   "paths": {
@@ -172,18 +172,7 @@
           "404": {
             "$ref": "#/components/responses/NietGevonden"
           }
-        },
-        "parameters": [
-          {
-            "name": "kanaal",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Het token van een kanaallink: dan zegt `kanaal_geldig` of die link nog werkt"
-          }
-        ]
+        }
       },
       "put": {
         "tags": [
@@ -246,14 +235,14 @@
             "$ref": "#/components/parameters/GesprekId"
           },
           {
-            "name": "deelnemer_id",
-            "in": "query",
-            "required": true,
+            "name": "MiniPol-Deelnemer",
+            "in": "header",
             "schema": {
               "type": "string",
               "pattern": "^[A-Za-z0-9-]{1,64}$"
             },
-            "description": "Het id van de deelnemer"
+            "description": "De `deelnemer_id`. Een header en geen parameter in de URL: URL's komen in logs, en dit id is de sleutel van een deelnemer.",
+            "required": true
           }
         ],
         "responses": {
@@ -354,20 +343,21 @@
           "Antwoorden"
         ],
         "summary": "De antwoorden van één deelnemer, of van iedereen als matrix",
-        "description": "Met `deelnemer_id`: de antwoorden van die deelnemer. Zonder: de matrix, per deelnemer anoniem, zoals in de export.",
+        "description": "Met de header `MiniPol-Deelnemer`: de antwoorden van die deelnemer. Zonder: de matrix, per deelnemer anoniem, zoals in de export.",
         "operationId": "getAntwoorden",
         "parameters": [
           {
             "$ref": "#/components/parameters/GesprekId"
           },
           {
-            "name": "deelnemer_id",
-            "in": "query",
-            "required": false,
+            "name": "MiniPol-Deelnemer",
+            "in": "header",
             "schema": {
               "type": "string",
               "pattern": "^[A-Za-z0-9-]{1,64}$"
-            }
+            },
+            "description": "De `deelnemer_id`. Een header en geen parameter in de URL: URL's komen in logs, en dit id is de sleutel van een deelnemer.",
+            "required": false
           }
         ],
         "responses": {
@@ -1211,7 +1201,7 @@
           "Kanalen"
         ],
         "summary": "De kanalen van een gesprek",
-        "description": "Voor het team van het gesprek: elk kanaal met hoeveel deelnemers en antwoorden erdoor kwamen (ook als het niet meetelt), en hetzelfde voor wie zonder kanaal meedeed.",
+        "description": "Voor het team van het gesprek: elk kanaal met hoeveel deelnemers en antwoorden erdoor kwamen (ook als het niet meetelt), en hetzelfde voor wie zonder kanaal meedeed. De links van een panel staan niet in `kanalen`, maar tellen mee in hun panel.",
         "operationId": "getKanalen",
         "security": [
           {
@@ -1232,7 +1222,8 @@
                   "type": "object",
                   "required": [
                     "kanalen",
-                    "zonder_kanaal"
+                    "zonder_kanaal",
+                    "panels"
                   ],
                   "properties": {
                     "kanalen": {
@@ -1256,6 +1247,12 @@
                           "type": "integer",
                           "minimum": 0
                         }
+                      }
+                    },
+                    "panels": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Panel"
                       }
                     }
                   }
@@ -1354,7 +1351,7 @@
           "Kanalen"
         ],
         "summary": "Meetellen aan of uit, of een kanaal intrekken",
-        "description": "Voor de gespreksbeheerders van het gesprek. `meetellen` kan altijd aan of uit; `status` `ingetrokken` zet de link voorgoed uit (terug naar `actief` geeft 409).",
+        "description": "Voor de gespreksbeheerders van het gesprek. `meetellen` kan altijd aan of uit; `status` `ingetrokken` zet de link voorgoed uit (terug naar `actief` geeft 409). Een link van een panel kan alleen worden ingetrokken: meetellen gaat per panel.",
         "operationId": "putKanaal",
         "security": [
           {
@@ -1414,6 +1411,260 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/panels": {
+      "post": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "Een panel maken",
+        "description": "Voor de gespreksbeheerders van het gesprek: een panel met `aantal` links, genummerd vanaf 1. De links staan in de export.",
+        "operationId": "postPanel",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "naam",
+                  "aantal"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "naam": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "aantal": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Het nieuwe panel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Panel"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      }
+    },
+    "/panels/{panel_id}": {
+      "parameters": [
+        {
+          "name": "panel_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "De export van een panel (CSV)",
+        "description": "Voor het team van het gesprek: per link `nummer`, `link`, `antwoorden` (hoeveel antwoorden via de link gegeven zijn; een gewijzigd antwoord telt ook), `stellingen` en `status`. Om aan de partij te geven die de panelleden kent.",
+        "operationId": "getPanel",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GesprekId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "De links, als CSV",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "Links erbij, een link intrekken, meetellen aan of uit, of een panel intrekken",
+        "description": "Voor de gespreksbeheerders van het gesprek. `erbij`: zoveel links meer, doorgenummerd. `link_intrekken`: het nummer van één link die niet meer werkt, bijvoorbeeld omdat hij is doorgedeeld. `meetellen`: of de antwoorden via het panel meetellen. `status` `ingetrokken`: alle links werken niet meer, voorgoed (409 bij terug naar `actief` of links erbij).",
+        "operationId": "putPanel",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "erbij": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "meetellen": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "actief",
+                      "ingetrokken"
+                    ]
+                  },
+                  "link_intrekken": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Het nummer van één link die niet meer werkt"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Het panel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Panel"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "401": {
+            "$ref": "#/components/responses/NietIngelogd"
+          },
+          "403": {
+            "$ref": "#/components/responses/GeenToegang"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/kanaalcontrole": {
+      "post": {
+        "tags": [
+          "Kanalen"
+        ],
+        "summary": "Of een kanaallink nog werkt",
+        "description": "Voor de app, als een deelnemer terugkomt met een kanaal. Een POST, zodat het token in de body staat en nooit in een URL: URL's komen in logs, en bij een panellink hoort het token bij één persoon.",
+        "operationId": "postKanaalcontrole",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gesprek_id",
+                  "kanaal"
+                ],
+                "properties": {
+                  "gesprek_id": {
+                    "type": "string"
+                  },
+                  "kanaal": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Of de link werkt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "geldig"
+                  ],
+                  "properties": {
+                    "geldig": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fout"
+          },
+          "404": {
+            "$ref": "#/components/responses/NietGevonden"
           }
         }
       }
@@ -1719,6 +1970,9 @@
       },
       "Kanaal": {
         "$ref": "schema.json#/$defs/Kanaal"
+      },
+      "Panel": {
+        "$ref": "schema.json#/$defs/Panel"
       }
     }
   }

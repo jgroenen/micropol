@@ -14,7 +14,8 @@ trap 'kill 0' INT TERM EXIT
 php api/bin/migreer.php || exit 1
 
 php -S localhost:8000 -t www &
-php -S localhost:8001 api/index.php &
+# panel links counted per second instead of per day, to see it at once (see api/config.php)
+MINIPOL_PANEL_TELVENSTER=1 php -S localhost:8001 api/index.php &
 php -S localhost:8002 -t admin &
 php -S localhost:8003 dev/cdn.php &
 php -S localhost:8004 math/index.php &

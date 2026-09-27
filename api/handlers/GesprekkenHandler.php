@@ -11,7 +11,6 @@ class GesprekkenHandler {
     //                            the others the gesprekken of their team
     // GET /gesprekken/<id>       one gesprek with its zichtbare stellingen, in random order; a paused or
     //                            ended gesprek has no stellingen, the app shows a notice instead
-    //   ?kanaal=<token>          also kanaal_geldig: whether the link of that kanaal still works
     public function GET($id = null) {
         if ($id === null) {
             $account = Toegang::account();
@@ -26,10 +25,6 @@ class GesprekkenHandler {
         $gesprek['stellingen'] = !Data::gesprekActief($id) ? [] : array_map(function ($stelling) {
             return ['id' => $stelling['id'], 'tekst' => $stelling['tekst']];
         }, $this->volgorde(Data::zichtbareStellingen($id)));
-        $token = Http::field($_GET, 'kanaal');
-        if ($token !== '') {
-            $gesprek['kanaal_geldig'] = Data::kanaalMetToken($id, $token) !== null;
-        }
         Http::json($gesprek);
     }
 

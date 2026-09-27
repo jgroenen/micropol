@@ -11,6 +11,8 @@
 		# errors go to the log (journalctl -u minipol), never into a response
 		php_ini display_errors 0
 		php_ini log_errors 1
+		# no arguments in the traces of errors: they could hold a token or a deelnemer_id
+		php_ini zend.exception_ignore_args 1
 	}
 	email {$MINIPOL_EMAIL}
 }

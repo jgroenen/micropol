@@ -100,7 +100,7 @@ function groepeer(events) {
     for (const event of events) {
         const vorige = groepen.at(-1)?.[0];
         if (event.type === 'antwoord.gegeven' && vorige?.type === 'antwoord.gegeven'
-            && vorige.door?.nummer === event.door?.nummer && vorige.kanaal === event.kanaal) {
+            && vorige.door?.nummer === event.door?.nummer && vorige.kanaal === event.kanaal && vorige.panel === event.panel) {
             groepen.at(-1).push(event);
         } else {
             groepen.push([event]);
@@ -154,7 +154,20 @@ function wat(groep) {
         case 'kanaal.aangemaakt':
             return `maakte kanaal ${citaat(event.naam)}`;
         case 'kanaal.ingetrokken':
-            return `trok kanaal ${citaat(event.kanaal)} in; de antwoorden erdoor tellen ${event.meetellen ? 'mee' : 'niet mee'}`;
+            // a link of a panel has no meetellen of its own
+            return event.meetellen === undefined
+                ? `trok de link ${citaat(event.kanaal)} in`
+                : `trok kanaal ${citaat(event.kanaal)} in; de antwoorden erdoor tellen ${event.meetellen ? 'mee' : 'niet mee'}`;
+        case 'panel.aangemaakt':
+            return `maakte panel ${citaat(event.panel)} met ${event.aantal} links`;
+        case 'panel.uitgebreid':
+            return `maakte ${event.aantal} links erbij voor panel ${citaat(event.panel)}`;
+        case 'panel.ingetrokken':
+            return `trok panel ${citaat(event.panel)} in; de antwoorden erdoor tellen ${event.meetellen ? 'mee' : 'niet mee'}`;
+        case 'panel.aangepast':
+            return event.meetellen
+                ? `liet de antwoorden via panel ${citaat(event.panel)} weer meetellen`
+                : `liet de antwoorden via panel ${citaat(event.panel)} niet meer meetellen`;
         case 'kanaal.aangepast':
             return event.meetellen
                 ? `liet de antwoorden via kanaal ${citaat(event.kanaal)} weer meetellen`
@@ -181,8 +194,11 @@ function wijzigingen(event) {
     return delen.join(', ');
 }
 
-// ' via kanaal „…”' for an event through a kanaal, or nothing
+// ' via kanaal „…”' or ' via panel „…”' for an event through one, or nothing
 function via(event) {
+    if (event.panel) {
+        return ` via panel ${citaat(event.panel)}`;
+    }
     return event.kanaal ? ` via kanaal ${citaat(event.kanaal)}` : '';
 }
 
