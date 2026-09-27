@@ -1,6 +1,6 @@
 <?php
 
-// The page of the admin: views/pagina.html, with the url of the cdn filled in (from instellingen.php).
+// The page of the admin: views/pagina.html, with the urls of the cdn and www filled in (from instellingen.php).
 // The views inside the page are loaded by js/views.js.
 $instellingen = require __DIR__ . '/instellingen.php';
 
@@ -11,11 +11,11 @@ foreach ($instellingen as $naam => $url) {
         exit("MINIPOL_$naam is not a plain url.");
     }
 }
-['API_URL' => $api, 'CDN_URL' => $cdn] = array_map(function ($url) {
+['WWW_URL' => $www, 'API_URL' => $api, 'CDN_URL' => $cdn] = array_map(function ($url) {
     return rtrim($url, '/');
 }, $instellingen);
 
-$pagina = str_replace('{{CDN_URL}}', $cdn, file_get_contents(__DIR__ . '/views/pagina.html'));
+$pagina = str_replace(['{{CDN_URL}}', '{{WWW_URL}}'], [$cdn, $www], file_get_contents(__DIR__ . '/views/pagina.html'));
 
 // Content-Security-Policy: scripts, styles and fonts only from here and the cdn, calls only to the api;
 // the import map is the only inline script, allowed by its hash. A defence for when something slips through

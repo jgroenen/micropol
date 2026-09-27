@@ -122,6 +122,7 @@ try {
     await cmd('Page.reload');
     check('app: gesprek geladen', await wachtOp(`document.getElementById('mijn-antwoorden-lijst')?.children.length > 0`));
     check('app: titel van het gesprek in de kop en in de tabtitel', await wachtOp(`document.getElementById('site-gesprek').textContent.startsWith('Testgesprek') && document.title.startsWith('MiniPol | Testgesprek')`));
+    check('app: logo leidt naar www', await waarde(`document.querySelector('.site-titel').href`) === `${WWW}/`);
     check('app: oude user_id overgenomen als deelnemer_id', await waarde(`localStorage.getItem('deelnemer_id') === '${data.deelnemer}' && localStorage.getItem('user_id') === null`));
     check('app: eigen antwoorden (alleen zichtbare stellingen)', await waarde(`document.getElementById('mijn-antwoorden-lijst').children.length`) === data.zichtbaar);
     check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
@@ -196,6 +197,7 @@ try {
     };
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: zonder login het inlogformulier', await wachtOp(zichtbaar('inloggen')));
+    check('admin: logo leidt naar www', await waarde(`document.querySelector('.site-titel').href`) === `${WWW}/`);
     check('admin: met Content-Security-Policy', (await fetch(`${ADMIN}/`)).headers.get('content-security-policy')?.includes("frame-ancestors 'none'"));
     await inloggen(data.gespreksbeheerder, 'fout');
     check('admin: fout wachtwoord gemeld', await wachtOp(zichtbaar('inlog-fout')));

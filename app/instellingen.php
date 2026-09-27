@@ -10,6 +10,7 @@ function instelling($naam, $standaard) {
 }
 
 return [
+    'WWW_URL' => instelling('MINIPOL_WWW_URL', 'http://localhost:8000'),
     'API_URL' => instelling('MINIPOL_API_URL', 'http://localhost:8001'),
     'MATH_URL' => instelling('MINIPOL_MATH_URL', 'http://localhost:8004'),
     'CDN_URL' => instelling('MINIPOL_CDN_URL', 'http://localhost:8003'),

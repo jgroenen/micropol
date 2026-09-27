@@ -363,8 +363,8 @@ De productpagina, de app, de admin, de API, de math server en de cdn draaien elk
 | `api/` | [config.php](api/config.php): welke sites de API mogen aanroepen (CORS, nu alle), en hoe lang een login geldig is | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL` |
 | `math/` | [config.php](math/config.php): de URL's van app en API | `MINIPOL_APP_URL`, `MINIPOL_API_URL` |
 | `www/` | [instellingen.php](www/instellingen.php): de URL's van alle delen, om naar te linken | `MINIPOL_APP_URL`, `MINIPOL_ADMIN_URL`, `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
-| `app/` | [instellingen.php](app/instellingen.php): de URL's van API, math server en cdn | `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
-| `admin/` | [instellingen.php](admin/instellingen.php): de URL's van API, app en cdn | `MINIPOL_API_URL`, `MINIPOL_APP_URL`, `MINIPOL_CDN_URL` |
+| `app/` | [instellingen.php](app/instellingen.php): de URL's van www (het logo), API, math server en cdn | `MINIPOL_WWW_URL`, `MINIPOL_API_URL`, `MINIPOL_MATH_URL`, `MINIPOL_CDN_URL` |
+| `admin/` | [instellingen.php](admin/instellingen.php): de URL's van www (het logo), API, app en cdn | `MINIPOL_WWW_URL`, `MINIPOL_API_URL`, `MINIPOL_APP_URL`, `MINIPOL_CDN_URL` |
 
 App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL in `views/pagina.html` invult, en `js/config.php`, die de URL's als JS-module geeft, draaien in PHP.
 
