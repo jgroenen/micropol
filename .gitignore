@@ -2,6 +2,3 @@
 # use (see Jsonl::append and Csv::append), so a checkout without data works.
 api/data/
 math/data/
-
-# the python environment of the tests (jsonschema), made by tests/run.sh
-tests/.venv/

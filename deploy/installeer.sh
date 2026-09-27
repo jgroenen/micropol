@@ -22,14 +22,24 @@ EMAIL=$2
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 
 echo "== FrankenPHP"
+# a fixed version, checked against its sha256 before it is installed, so a changed or false download never
+# runs. A newer version is a conscious step: change the version and both checksums (from the release on
+# GitHub), and run this script again; see SECURITY.md.
+FRANKENPHP_VERSIE=v1.12.7
 case $(uname -m) in
-    x86_64) ARCH=x86_64 ;;
-    aarch64 | arm64) ARCH=aarch64 ;;
+    x86_64) ARCH=x86_64 SHA256=728a8b2476abb90810960615d8f6fb2f2129c3eb239a15f516672c0fd39ba884 ;;
+    aarch64 | arm64) ARCH=aarch64 SHA256=d2ec0cbb24cffc606af127f83e8a18282586d5f98954ee9d2a96e7a3f9e81b4b ;;
     *) fout "onbekende processor $(uname -m)" ;;
 esac
-if [ ! -x /usr/local/bin/frankenphp ]; then
-    curl -fsSL -o /usr/local/bin/frankenphp "https://github.com/php/frankenphp/releases/latest/download/frankenphp-linux-$ARCH"
-    chmod 755 /usr/local/bin/frankenphp
+if ! /usr/local/bin/frankenphp version 2>/dev/null | grep -qF "$FRANKENPHP_VERSIE"; then
+    download=$(mktemp)
+    curl -fsSL -o "$download" "https://github.com/php/frankenphp/releases/download/$FRANKENPHP_VERSIE/frankenphp-linux-$ARCH"
+    if ! echo "$SHA256  $download" | sha256sum -c --quiet; then
+        rm -f "$download"
+        fout "de download van FrankenPHP $FRANKENPHP_VERSIE heeft niet de verwachte sha256; niets geïnstalleerd."
+    fi
+    install -m 755 "$download" /usr/local/bin/frankenphp
+    rm -f "$download"
 fi
 /usr/local/bin/frankenphp version
 

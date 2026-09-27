@@ -1,0 +1,41 @@
+# All tests (tests/run.sh) on every push and pull request, on a clean Ubuntu: it has PHP, Node and Chrome.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # fixed on a commit, not on a tag that can move: see SECURITY.md
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Versies
+        run: php --version && node --version && google-chrome --version
+
+      - name: Servers starten
+        run: |
+          ./dev/start.sh > servers.log 2>&1 &
+          for poort in 8000 8001 8002 8003 8004 8005; do
+            for i in $(seq 1 30); do
+              curl -s -o /dev/null "http://localhost:$poort/" && break
+              sleep 1
+            done
+          done
+
+      - name: Tests
+        run: ./tests/run.sh
+        env:
+          CHROME: /usr/bin/google-chrome
+
+      - name: Log van de servers, als het misging
+        if: failure()
+        run: cat servers.log

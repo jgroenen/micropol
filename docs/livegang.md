@@ -121,7 +121,7 @@ Zonder back-up toont het de back-ups die er zijn. De data van vóór het terugze
 
 ## Controleren
 
-De tests kunnen ook tegen de echte server draaien. Dan maken ze testdata aan op die server, dus doe dat alleen op een testserver, niet in productie. Zie de bovenkant van [tests/api.py](../tests/api.py) en [tests/browser.mjs](../tests/browser.mjs) voor de variabelen, zoals `TEST_API_URL`.
+De tests kunnen ook tegen de echte server draaien. Dan maken ze testdata aan op die server, dus doe dat alleen op een testserver, niet in productie. Zie de bovenkant van [tests/api.php](../tests/api.php) en [tests/browser.mjs](../tests/browser.mjs) voor de variabelen, zoals `TEST_API_URL`.
 
 Voor productie is dit genoeg:
 
@@ -158,5 +158,5 @@ rsync -a root@<vps>:/srv/minipol/api/data/ backup/api-data/
 ## Wat het script niet doet
 
 - De VPS zelf beveiligen, zoals automatische updates (`unattended-upgrades`), inloggen met alleen een SSH-sleutel, en fail2ban. Die zijn wel aan te raden.
-- FrankenPHP bijwerken. Haal daarvoor een nieuwe versie naar `/usr/local/bin/frankenphp` en herstart de dienst.
+- FrankenPHP bijwerken. `installeer.sh` installeert een vaste versie, en controleert de download met een sha256. Voor een nieuwere versie pas je in `installeer.sh` `FRANKENPHP_VERSIE` en de twee checksums aan (die staan bij de release op GitHub). Rol dat uit, en draai `installeer.sh` daarna nog een keer. Zie [SECURITY.md](../SECURITY.md).
 - Een beperking op het aantal inlogpogingen, en het opruimen van verlopen logins in `api/data/sessies.csv`.

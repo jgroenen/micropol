@@ -1,11 +1,13 @@
 #!/bin/sh
 # Runs all tests against the servers of dev/start.sh, which must be running:
-#   tests/api.py       every call of api and math checked against their OpenAPI spec, logging in included
-#   tests/browser.mjs  the app and the admin in Chrome
+#   tests/migraties.sh      the migraties, on data in the oldest form
+#   tests/schemacontrole.php the validator of api.php, tested itself
+#   tests/api.php           every call of api and math checked against their OpenAPI spec, logging in included
+#   tests/browser.mjs       the product page, the app and the admin in Chrome
 # The tests start on an empty api: they install it (admin/admin makes the first superbeheerder) and make
 # their own data. The data of api and math is copied first and put back afterwards, so nothing is left
 # behind. Don't use the app while they run.
-# Needs python3, node (18 or newer) and Chrome; jsonschema is installed in tests/.venv the first time.
+# Needs php (8.1 or newer), node (18 or newer) and Chrome; nothing to install.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -16,8 +18,6 @@ for poort in 8000 8001 8002 8003 8004 8005; do
     fi
 done
 
-[ -d tests/.venv ] || python3 -m venv tests/.venv
-tests/.venv/bin/pip install -q --disable-pip-version-check -r tests/requirements.txt
 
 BEWAARD=$(mktemp -d)
 UITVOER=$BEWAARD/testdata.json
@@ -49,7 +49,8 @@ draai() {
     fi
 }
 draai tests/migraties.sh
-draai tests/.venv/bin/python tests/api.py
+draai php tests/schemacontrole.php
+draai php tests/api.php
 draai node tests/browser.mjs
 
 # the script for a superbeheerder when nobody can log in anymore

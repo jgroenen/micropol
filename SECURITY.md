@@ -1,0 +1,35 @@
+# Beveiliging
+
+## Een kwetsbaarheid melden
+
+Vind je een zwakke plek in MiniPol, meld die dan **niet** in een openbaar issue. Gebruik **Report a vulnerability** onder het tabblad **Security** van deze repository ([private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)). Alleen de beheerder van de repository ziet je melding.
+
+Beschrijf wat je vond, hoe je het kunt nadoen, en wat iemand ermee zou kunnen. Je krijgt binnen een week antwoord. Een oplossing komt zo snel als het kan, en daarna een openbare melding, met jouw naam als je dat wilt.
+
+Alleen de nieuwste versie van `main` krijgt oplossingen: een server die bijblijft met [deploy/uppen.sh](deploy/uppen.sh), heeft die vanzelf.
+
+## Hoe MiniPol beveiligd is
+
+- **Inloggen:** een willekeurig token van 256 bits, waarvan de API alleen de sha256 bewaart; wachtwoorden met `password_hash`. Zie [Inloggen](README.md#inloggen).
+- **Rollen:** elke call van de beheeromgeving controleert de rol van het account in het gesprek, zie [Beheer](README.md#beheer). Direct na installatie werkt admin/admin, alleen om de eerste superbeheerder te maken: doe dat meteen.
+- **Deelnemers blijven anoniem:** hun id komt nooit terug uit de API; in de export, de matrix en het logboek zijn ze een nummer.
+- **In de browser:** een strikte Content-Security-Policy op elke pagina, en alle tekst van gebruikers ge-escaped.
+- **De data:** nooit direct op te vragen; alles gaat via `index.php`.
+
+## De toeleveringsketen
+
+MiniPol leunt op zo min mogelijk anderen. Dit is alles, met hoe elk risico is afgedekt:
+
+| Wat | Waarvoor | Afgedekt |
+|---|---|---|
+| PHP 8 | draaien | Van de server zelf, of in FrankenPHP. |
+| [FrankenPHP](https://frankenphp.dev) | de webserver in productie (Caddy met PHP, HTTPS) | [installeer.sh](deploy/installeer.sh) installeert een **vaste versie** en controleert de download met een **sha256** vóór installatie. Een nieuwere versie is een bewuste stap: versie en checksums aanpassen, en installeer.sh opnieuw draaien. |
+| Deze repository | [uppen.sh](deploy/uppen.sh) pullt `main` en draait die code | Tweestapsverificatie op het GitHub-account, branch protection op `main`, en een deploy key van de server die alleen mag lezen. |
+| IBM Plex Sans | het font | Meegeleverd in [cdn/design/fonts/](cdn/design/fonts/): vaste bestanden, geen externe server. |
+| [petstore.swagger.io](https://petstore.swagger.io) | de viewer van `/docs` | Leest alleen de openbare spec. De site mag de API aanroepen (CORS), maar alleen met een token dat iemand daar zelf invult; op de eigen domeinen draait hij niet. |
+| Node en Chrome | alleen de browsertest | Draaien alleen bij het testen, nooit op de server. |
+| [actions/checkout](https://github.com/actions/checkout) | de tests op GitHub | Vastgezet op een commit, niet op een tag die kan verschuiven. |
+
+Er zijn geen pakketten van Composer, npm of pip: tijdens het draaien niet, en bij het testen ook niet.
+
+**Een nieuwe afhankelijkheid** voeg je alleen toe als het echt niet anders kan. Zet hem dan vast op een versie en een checksum (of een commit), en zet hem in deze tabel.

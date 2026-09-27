@@ -2,7 +2,7 @@
 // answering, adding a stelling, the tabs, the matrix, a paused gesprek, and in the admin the roles:
 // a gespreksbeheerder moderates and sees the logboek and the team, a superbeheerder makes a gesprek with
 // an uitnodiging, which a new account accepts; and logging in and out.
-// Uses the data that tests/api.py made (TEST_UITVOER); run it with tests/run.sh.
+// Uses the data that tests/api.php made (TEST_UITVOER); run it with tests/run.sh.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

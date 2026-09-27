@@ -25,7 +25,7 @@ app en admin laden gedeelde css/js van de cdn
 
 ## Starten
 
-Vereist PHP 8 of hoger. Start de zes servers met [dev/start.sh](dev/start.sh):
+Vereist alleen PHP 8.1 of hoger. Start de zes servers met [dev/start.sh](dev/start.sh):
 
 ```sh
 ./dev/start.sh
@@ -43,12 +43,14 @@ Start eerst de servers (`./dev/start.sh`), en dan:
 
 | Test | Wat |
 |---|---|
-| [tests/api.py](tests/api.py) | Elke call van API en math tegen de OpenAPI-spec: status, request en response, inclusief inloggen en uitloggen. Elke operatie in de specs wordt minstens één keer aangeroepen. |
+| [tests/api.php](tests/api.php) | Elke call van API en math tegen de OpenAPI-spec: status, request en response, inclusief inloggen en uitloggen. Elke operatie in de specs wordt minstens één keer aangeroepen. |
+| [tests/schemacontrole.php](tests/schemacontrole.php) | De validator die `api.php` gebruikt ([lib/Schemacontrole.php](tests/lib/Schemacontrole.php)): een eigen, kleine JSON Schema-controle zonder afhankelijkheden, die zelf ook getest wordt |
 | [tests/browser.mjs](tests/browser.mjs) | De productpagina, de app en de admin in Chrome (headless) |
 | [tests/migraties.sh](tests/migraties.sh) | De [migraties](#migraties) op data in de oudste vorm |
 
 - **Testdata:** de tests beginnen op een lege API. Ze installeren hem (admin/admin maakt de eerste superbeheerder) en maken hun eigen data aan. Daarna zet `run.sh` de data van API en math terug. Gebruik de app niet terwijl de tests draaien.
-- **Nodig:** python3, node (18 of nieuwer) en Chrome. `jsonschema` komt bij de eerste run in `tests/.venv`.
+- **Nodig:** PHP 8.1 of nieuwer, Node 18 of nieuwer, en Chrome. Er hoeft niets geïnstalleerd te worden: geen Composer, npm of pip. Node en Chrome zijn alleen voor de browsertest; MiniPol zelf heeft alleen PHP nodig.
+- **Op GitHub** draaien alle tests bij elke push, zie [.github/workflows/tests.yml](.github/workflows/tests.yml).
 
 ## Structuur
 
@@ -333,6 +335,12 @@ App en admin zijn verder statisch. Alleen `index.php`, die de cdn-URL in `views/
 - **CDN:** moet `Access-Control-Allow-Origin` meesturen, anders weigert de browser JS-modules van een ander domein. Lokaal doet [dev/cdn.php](dev/cdn.php) dat.
 
 De cdn gebruiken www, app en admin tegelijk: een wijziging daar raakt alle drie. Ook het font komt van de cdn, zodat ze geen andere servers aanspreken (zoals Google Fonts).
+
+## Licentie en beveiliging
+
+MiniPol valt onder de [MIT-licentie](LICENSE). Het font IBM Plex Sans valt onder de [SIL Open Font License](cdn/design/fonts/LICENSE-OFL.txt).
+
+Een kwetsbaarheid meld je zoals beschreven in [SECURITY.md](SECURITY.md). Daar staat ook waar MiniPol op leunt, en hoe elk risico in die toeleveringsketen is afgedekt.
 
 ## Meer
 
