@@ -237,9 +237,16 @@ try {
     check('admin: uitgelogd', await waarde(zichtbaar('inloggen')));
 } finally {
     ws.close();
+    // wait until Chrome has really stopped (at most 5 seconds): until then it may still write in its profile
+    const gestopt = new Promise(r => chrome.once('exit', r));
     chrome.kill();
-    await slaap(300);
-    rmSync(profiel, { recursive: true, force: true });
+    await Promise.race([gestopt, slaap(5000)]);
+    // cleaning up is no test: when the map cannot be removed yet, it stays in the temp directory
+    try {
+        rmSync(profiel, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+        console.log(`let op: het Chrome-profiel ${profiel} is niet opgeruimd (${error.code})`);
+    }
 }
 
 console.log(`browser.mjs: ${fouten} fouten`);
