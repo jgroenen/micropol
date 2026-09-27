@@ -49,7 +49,7 @@
                 "1"
               ]
             },
-            "description": "Het model nu opnieuw berekenen"
+            "description": "Het model nu opnieuw berekenen, als het minstens 5 minuten oud is"
           }
         ],
         "responses": {

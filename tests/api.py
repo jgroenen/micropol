@@ -126,6 +126,8 @@ check('api', 'GET', '/gesprekken/bestaatniet', 404)
 # ---- api: stellingen and antwoorden, from a few deelnemers
 stellingen = [check('api', 'POST', '/stellingen', 201, {'gesprek_id': G, 'deelnemer_id': 'deelnemer-1', 'tekst': f'Teststelling {i}.'})['id'] for i in range(1, 9)]
 check('api', 'POST', '/stellingen', 400, {'gesprek_id': G})
+check('api', 'POST', '/stellingen', 400, {'gesprek_id': G, 'deelnemer_id': 'x' * 65, 'tekst': 'Te lang id.'})
+check('api', 'POST', '/stellingen', 400, {'gesprek_id': G, 'deelnemer_id': '../x', 'tekst': 'Vreemd id.'})
 check('api', 'POST', '/stellingen', 404, {'gesprek_id': 'bestaatniet', 'deelnemer_id': 'x', 'tekst': 'x'})
 wacht = check('api', 'POST', '/stellingen', 201, {'gesprek_id': VOORAF, 'deelnemer_id': 'deelnemer-1', 'tekst': 'Wacht op goedkeuring.'})
 if wacht['zichtbaar']:
@@ -138,6 +140,8 @@ for d in range(1, 5):
     for i, s in enumerate(stellingen):
         check('api', 'POST', '/antwoorden', 201, {'gesprek_id': G, 'deelnemer_id': f'deelnemer-{d}', 'stelling_id': s, 'waarde': ['eens', 'neutraal', 'oneens'][(i + d) % 3]})
 check('api', 'POST', '/antwoorden', 400, {'gesprek_id': G, 'deelnemer_id': 'x', 'stelling_id': stellingen[0], 'waarde': 'misschien'})
+check('api', 'POST', '/antwoorden', 400, {'gesprek_id': G, 'deelnemer_id': 'x' * 65, 'stelling_id': stellingen[0], 'waarde': 'eens'})
+check('api', 'GET', f"/antwoorden?gesprek_id={G}&deelnemer_id={'x' * 65}", 400)
 check('api', 'POST', '/antwoorden', 404, {'gesprek_id': G, 'deelnemer_id': 'x', 'stelling_id': wacht['id'], 'waarde': 'eens'})
 check('api', 'POST', '/antwoorden', 404, {'gesprek_id': 'bestaatniet', 'deelnemer_id': 'x', 'stelling_id': 'x', 'waarde': 'eens'})
 check('api', 'GET', f'/antwoorden?gesprek_id={G}&deelnemer_id=deelnemer-1', 200)
@@ -197,7 +201,11 @@ check('api', 'GET', '/docs', 200)
 check('api', 'GET', '/docs/openapi.json', 200)
 
 # ---- math: the analyse of the test gesprek
-check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_id={G}", 200)
+analyse = check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_id={G}", 200)
+# a forced recalculation only when the model is at least 5 minutes old, so not right after the first
+herberekend = check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_id={G}&herbereken=1", 200)
+if herberekend['model']['berekend'] != analyse['model']['berekend']:
+    print('FOUT herbereken=1 rekent opnieuw terwijl het model net berekend is'); fouten += 1
 check('math', 'GET', '/analyse', 400)
 check('math', 'GET', f'/analyse?api=http://evil.example&gesprek_id={G}', 403)
 check('math', 'GET', f"/analyse?api={urllib.parse.quote(BASIS['api'])}&gesprek_id=bestaatniet", 404)

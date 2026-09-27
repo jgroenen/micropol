@@ -11,6 +11,9 @@ class AntwoordenHandler {
         if ($gesprekId === '') {
             throw new HttpFout(400, 'gesprek_id is required.');
         }
+        if ($deelnemerId !== '' && !Data::deelnemerIdGeldig($deelnemerId)) {
+            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
+        }
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
@@ -30,6 +33,9 @@ class AntwoordenHandler {
         $waarde = Http::field($input, 'waarde');
         if ($gesprekId === '' || $deelnemerId === '' || $stellingId === '') {
             throw new HttpFout(400, 'gesprek_id, deelnemer_id and stelling_id are required.');
+        }
+        if (!Data::deelnemerIdGeldig($deelnemerId)) {
+            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
         }
         if (!in_array($waarde, Data::WAARDEN, true)) {
             throw new HttpFout(400, 'waarde must be one of: ' . implode(', ', Data::WAARDEN) . '.');

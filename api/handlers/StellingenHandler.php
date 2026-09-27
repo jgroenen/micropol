@@ -12,6 +12,9 @@ class StellingenHandler {
         if ($gesprekId === '' || $deelnemerId === '') {
             throw new HttpFout(400, 'gesprek_id and deelnemer_id are required.');
         }
+        if (!Data::deelnemerIdGeldig($deelnemerId)) {
+            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
+        }
         if (!Data::gesprekBestaat($gesprekId)) {
             throw new HttpFout(404, 'Gesprek not found.');
         }
@@ -30,6 +33,9 @@ class StellingenHandler {
         $tekst = Http::line($input, 'tekst');
         if ($gesprekId === '' || $deelnemerId === '' || $tekst === '') {
             throw new HttpFout(400, 'gesprek_id, deelnemer_id and tekst are required.');
+        }
+        if (!Data::deelnemerIdGeldig($deelnemerId)) {
+            throw new HttpFout(400, 'deelnemer_id may only have letters, digits and dashes, at most ' . Data::MAX_DEELNEMER_ID . '.');
         }
         if (mb_strlen($tekst) > self::MAX_TEKST) {
             throw new HttpFout(400, 'tekst may be at most ' . self::MAX_TEKST . ' characters.');

@@ -134,6 +134,10 @@ function toonMijnAntwoorden() {
 function toonMijnStellingen() {
     vulLijst('mijn-stellingen', [...huidig.mijnStellingen].reverse()
         .map(s => `<li class="mijn-stelling"><span>${escapeHtml(s.tekst)}</span>${s.zichtbaar ? verdeling(s.antwoorden) : moderatieStatus(s)}</li>`));
+    // the width of each part of a bar; set here, since the Content-Security-Policy allows no style attributes
+    document.querySelectorAll('#mijn-stellingen-lijst .verdeling [data-aantal]').forEach(deel => {
+        deel.style.flexGrow = deel.dataset.aantal;
+    });
 }
 
 function moderatieStatus(stelling) {
@@ -153,7 +157,7 @@ function verdeling(telling) {
     const beschrijving = volgorde.map(w => `${telling[w]} ${labels[w].toLowerCase()}`).join(', ');
     const delen = volgorde
         .filter(w => telling[w] > 0)
-        .map(w => `<span class="${w}" style="flex-grow: ${telling[w]}" title="${labels[w]}: ${telling[w]}">${telling[w]}</span>`)
+        .map(w => `<span class="${w}" data-aantal="${telling[w]}" title="${labels[w]}: ${telling[w]}">${telling[w]}</span>`)
         .join('');
     return `<div class="verdeling" role="img" aria-label="${beschrijving}">${delen}</div>`;
 }

@@ -217,7 +217,8 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,64}$"
             },
             "description": "Het id van de deelnemer"
           }
@@ -318,7 +319,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,64}$"
             }
           }
         ],

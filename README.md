@@ -193,9 +193,11 @@ De data staat niet in git (zie [.gitignore](.gitignore)): elke server heeft zijn
 
 De data is nooit direct op te vragen: in productie stuurt de [Caddyfile](Caddyfile) elk verzoek aan API en math server naar `index.php`.
 
+De pagina's van app en admin hebben een strikte Content-Security-Policy ([app/index.php](app/index.php), [admin/index.php](admin/index.php)). Scripts, stijlen en fonts komen alleen van de eigen server en de cdn, en calls gaan alleen naar de API (en de math server). Inline scripts en `style`-attributen mogen niet; de import map is toegestaan via zijn hash. Zet een breedte of kleur daarom via JavaScript (`element.style`), niet in de HTML. De browsertest faalt als Chrome iets blokkeert.
+
 ## Deelnemers
 
-Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `localStorage` bewaart ([app/js/deelnemer.js](app/js/deelnemer.js)). Er is geen login.
+Een deelnemer is een willekeurige `deelnemer_id` (UUID) die de browser in `localStorage` bewaart ([app/js/deelnemer.js](app/js/deelnemer.js)). Er is geen login. De API neemt alleen ids aan van hooguit 64 letters, cijfers en streepjes, zodat niemand de data kan vullen met lange ids.
 
 ## Beheer
 

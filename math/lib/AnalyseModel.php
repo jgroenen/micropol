@@ -7,13 +7,18 @@
 // Recalculated when a file is missing or older than MAX_LEEFTIJD.
 class AnalyseModel {
     const MAX_LEEFTIJD = 6 * 3600; // seconds
+    // anyone may ask for a recalculation, so a forced one only happens when the model is at least this old:
+    // otherwise many requests could keep the server busy recalculating
+    const MIN_LEEFTIJD = 5 * 60; // seconds
 
     // ['pca' => [...], 'kmeans' => [...]], recalculated first if needed
     // $maakModel: callable that calculates a fresh model, given the previous model (or null)
+    // $forceer: recalculate also when the model is not too old yet, but at least MIN_LEEFTIJD old
     public static function haal($api, $gesprekId, callable $maakModel, $forceer = false) {
+        $maxLeeftijd = $forceer ? self::MIN_LEEFTIJD : self::MAX_LEEFTIJD;
         $dir = self::dir($api, $gesprekId);
         $model = self::lees($dir);
-        if (!$forceer && self::vers($model)) {
+        if (self::vers($model, $maxLeeftijd)) {
             return $model;
         }
 
@@ -26,7 +31,7 @@ class AnalyseModel {
         flock($lock, LOCK_EX);
         try {
             $model = self::lees($dir);
-            if (!$forceer && self::vers($model)) {
+            if (self::vers($model, $maxLeeftijd)) {
                 return $model;
             }
 
@@ -65,9 +70,10 @@ class AnalyseModel {
         return $model;
     }
 
-    private static function vers(array $model) {
+    // whether both parts are there and at most $maxLeeftijd seconds old
+    private static function vers(array $model, $maxLeeftijd) {
         foreach (['pca', 'kmeans'] as $deel) {
-            if (!isset($model[$deel]['berekend']) || time() - $model[$deel]['berekend'] > self::MAX_LEEFTIJD) {
+            if (!isset($model[$deel]['berekend']) || time() - $model[$deel]['berekend'] > $maxLeeftijd) {
                 return false;
             }
         }

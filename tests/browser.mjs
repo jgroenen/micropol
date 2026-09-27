@@ -57,6 +57,10 @@ ws.onmessage = e => {
     if (m.method === 'Runtime.exceptionThrown') {
         check('geen JavaScript-fout op de pagina', false, JSON.stringify(m.params.exceptionDetails).slice(0, 300));
     }
+    // everything the pages need must fit the Content-Security-Policy of app/index.php and admin/index.php
+    if (m.method === 'Log.entryAdded' && /Content.Security.Policy/i.test(m.params.entry.text)) {
+        check('niets geblokkeerd door de Content-Security-Policy', false, m.params.entry.text.slice(0, 300));
+    }
 };
 const cmd = (method, params = {}) => new Promise(r => {
     const id = ++volgnummer;
@@ -86,6 +90,7 @@ async function naar(url) {
 }
 
 await cmd('Runtime.enable');
+await cmd('Log.enable');
 await cmd('Page.enable');
 await cmd('Network.enable');
 await cmd('Network.setCacheDisabled', { cacheDisabled: true });
@@ -101,6 +106,7 @@ try {
     check('app: eigen antwoorden (alleen zichtbare stellingen)', await waarde(`document.getElementById('mijn-antwoorden-lijst').children.length`) === data.zichtbaar);
     check('app: stijl van de cdn', (await waarde(`getComputedStyle(document.querySelector('.knop') ?? document.body).fontFamily`)).includes('IBM Plex'));
     // loaded, and (below) nothing from Google: so from the cdn, the only other source
+    check('app: met Content-Security-Policy', (await fetch(`${APP}/`)).headers.get('content-security-policy')?.includes("default-src 'none'"));
     check('app: font IBM Plex Sans geladen', await doe(`await document.fonts.ready; return [...document.fonts].some(f => f.family.includes('IBM Plex Sans') && f.status === 'loaded');`));
     check('app: geen verzoeken naar Google', await waarde(`!performance.getEntriesByType('resource').some(r => /google|gstatic/.test(r.name))`));
 
@@ -122,6 +128,7 @@ try {
     // ---- admin: logging in
     await naar(`${ADMIN}/#/gesprekken/${data.gesprek}`);
     check('admin: zonder login het inlogformulier', await wachtOp(zichtbaar('inloggen')));
+    check('admin: met Content-Security-Policy', (await fetch(`${ADMIN}/`)).headers.get('content-security-policy')?.includes("frame-ancestors 'none'"));
     await doe(`const f = document.getElementById('inlog-formulier'); f.gebruikersnaam.value = '${GEBRUIKER}'; f.wachtwoord.value = 'fout'; document.getElementById('inlog-knop').click();`);
     check('admin: fout wachtwoord gemeld', await wachtOp(zichtbaar('inlog-fout')));
     await doe(`const f = document.getElementById('inlog-formulier'); f.wachtwoord.value = '${WACHTWOORD}'; document.getElementById('inlog-knop').click();`);

@@ -38,6 +38,8 @@ class Data {
 
     // the values the data allows
     const WAARDEN = ['eens', 'neutraal', 'oneens'];
+    // a deelnemer_id is made by the browser (a UUID); its length is limited, so nobody can fill the data with long ids
+    const MAX_DEELNEMER_ID = 64;
     // stellingen are shown unless afgekeurd (blacklist), or only once goedgekeurd (whitelist), see zichtbaar()
     const MODERATIE_ACHTERAF = 'achteraf';
     const MODERATIE_VOORAF = 'vooraf';
@@ -94,6 +96,11 @@ class Data {
 
     public static function doorBeheerder(array $beheerder) {
         return ['soort' => self::DOOR_BEHEERDER, 'id' => $beheerder['id']];
+    }
+
+    // whether a deelnemer_id is at most MAX_DEELNEMER_ID letters, digits and dashes
+    public static function deelnemerIdGeldig($deelnemerId) {
+        return preg_match('/^[A-Za-z0-9-]{1,' . self::MAX_DEELNEMER_ID . '}$/', $deelnemerId) === 1;
     }
 
     public static function doorDeelnemer($deelnemerId) {

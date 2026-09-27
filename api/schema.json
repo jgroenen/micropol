@@ -107,7 +107,8 @@
         },
         "deelnemer_id": {
           "type": "string",
-          "description": "De deelnemer die hem toevoegde"
+          "description": "De deelnemer die hem toevoegde; hooguit 64 letters, cijfers en streepjes",
+          "pattern": "^[A-Za-z0-9-]{1,64}$"
         },
         "tekst": {
           "type": "string",
@@ -160,7 +161,9 @@
           "type": "string"
         },
         "deelnemer_id": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,64}$",
+          "description": "Het id van de deelnemer; hooguit 64 letters, cijfers en streepjes"
         },
         "stelling_id": {
           "type": "string"

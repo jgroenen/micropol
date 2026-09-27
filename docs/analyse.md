@@ -89,7 +89,7 @@ Per API en gesprek staat het model in `math/data/analyse/<bron>/<gesprek_id>/`:
 | `pca.json` | `stellingen` (volgorde van de kolommen), `gemiddelden`, `componenten` (3 vectoren), `verklaarde_variantie`, `min_antwoorden`, `berekend` |
 | `kmeans.json` | `k`, `centra` (middelpunt per groep, in 3D), `gekozen_op`, `berekend` |
 
-Het model wordt opnieuw berekend als een bestand ontbreekt of ouder is dan **6 uur** (`AnalyseModel::MAX_LEEFTIJD`). Dat gebeurt bij het eerste verzoek daarna, niet op een vaste klok. Met `&herbereken=1` forceer je het.
+Het model wordt opnieuw berekend als een bestand ontbreekt of ouder is dan **6 uur** (`AnalyseModel::MAX_LEEFTIJD`). Dat gebeurt bij het eerste verzoek daarna, niet op een vaste klok. Met `&herbereken=1` forceer je het, maar alleen als het model minstens **5 minuten** oud is (`AnalyseModel::MIN_LEEFTIJD`). Iedereen kan dat vragen, en zo kan niemand de server bezighouden met steeds opnieuw rekenen.
 
 - **Eén tegelijk:** een lockbestand (`.lock`) zorgt dat maar één verzoek tegelijk herberekent. Andere verzoeken wachten en gebruiken daarna het nieuwe model.
 - **Veilig wegschrijven:** bestanden worden eerst naar een tijdelijk bestand geschreven en dan hernoemd, zodat niemand een half model leest.
