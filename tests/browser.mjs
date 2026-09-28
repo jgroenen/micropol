@@ -174,6 +174,15 @@ try {
 
     check('app: API-popup telt de calls', Number(await waarde(`document.querySelector('.api-log-teller').textContent`)) > 0);
     check('app: API-popup met eigen stylesheet van de cdn', await wachtOp(`getComputedStyle(document.querySelector('.api-log-knop')).position === 'fixed'`));
+    // the JSON in the popup has its keys colored
+    check('app: API-popup kleurt de JSON', await doe(`
+        document.querySelector('.api-log-knop').click();
+        const regel = [...document.querySelectorAll('.api-log-lijst > li')].find(li => li.querySelector('.url').textContent.endsWith('/gesprekken/${data.gesprek}'));
+        regel.querySelector('details').open = true;
+        await new Promise(r => setTimeout(r, 100));
+        const goed = regel.querySelector('.inhoud .sleutel')?.textContent === '"id"';
+        document.getElementById('api-log').hidePopover();
+        return goed;`));
 
     // ---- app: the matrix
     await naar(`${APP}/#/gesprekken/${data.gesprek}/matrix`);

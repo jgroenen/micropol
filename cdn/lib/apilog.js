@@ -137,19 +137,27 @@ function opgemaakt(tekst) {
     }
 }
 
-// formatted JSON with spans for keys, strings, numbers and true/false/null
+const TOKENS = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+
+// formatted JSON with spans for keys, strings, numbers and true/false/null. The tokens are found in the JSON
+// itself and each part is escaped after: escapeHtml makes a quote &quot;, which the pattern would not see.
 function kleur(tekst) {
-    return escapeHtml(opgemaakt(tekst)).replace(
-        /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
-        (match, string, dubbelepunt, woord) => {
-            if (string) {
-                return dubbelepunt
-                    ? `<span class="sleutel">${string}</span>${dubbelepunt}`
-                    : `<span class="tekst">${string}</span>`;
-            }
-            return `<span class="${woord ? 'woord' : 'getal'}">${match}</span>`;
+    const json = opgemaakt(tekst);
+    let html = '';
+    let vanaf = 0;
+    for (const match of json.matchAll(TOKENS)) {
+        const [token, string, dubbelepunt, woord] = match;
+        html += escapeHtml(json.slice(vanaf, match.index));
+        vanaf = match.index + token.length;
+        if (string) {
+            html += dubbelepunt
+                ? `<span class="sleutel">${escapeHtml(string)}</span>${dubbelepunt}`
+                : `<span class="tekst">${escapeHtml(string)}</span>`;
+        } else {
+            html += `<span class="${woord ? 'woord' : 'getal'}">${token}</span>`;
         }
-    );
+    }
+    return html + escapeHtml(json.slice(vanaf));
 }
 
 function grootte(tekst) {
