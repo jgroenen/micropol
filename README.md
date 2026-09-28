@@ -159,7 +159,7 @@ De twee PHP-diensten (api en math) zijn op dezelfde manier opgebouwd:
 - **`index.php`** is de router: `/<resource>[/<id>]` gaat naar `handlers/<Resource>Handler-><METHOD>($id)`.
 - **Fouten:** een handler gooit een `HttpFout($status, $melding)`, en `index.php` antwoordt dan met `{ "error": "..." }`.
 - **Data:** handlers lezen en schrijven alleen via `Data`. Wat er in een gesprek gebeurt, schrijven ze met `voegEventToe()`; `gesprekken()`, `stellingen()`, `matrix()` en de andere lezen de events en geven de stand. Accounts, rollen, teams en uitnodigingen staan in `Beheer`. Voor de logins zijn er `bestand()`, `voegToe()` en `laatste()`. Zie [Opslag](#opslag).
-- **Gedeelde bestanden:** `Csv.php`, `Http.php`, `HttpFout.php` en `DocsHandler.php` staan in elk project als gelijke kopie. De projecten zijn los, dus ze delen geen code.
+- **Gedeelde bestanden:** `Http.php`, `HttpFout.php` en `DocsHandler.php` staan in beide projecten als gelijke kopie. De projecten zijn los, dus ze delen geen code.
 
 App en admin zijn ook op dezelfde manier opgebouwd: `views/`, één module per view met `koppel()`, een hash-router in `main.js`, en `api.js` voor de calls. Het laden van views en de calls zelf komen van de cdn (`views.js` en `verzoek.js`). Een call die mislukt, gooit een `Error` met `status`; opzoekfuncties geven `null` als er niets is.
 
