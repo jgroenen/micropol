@@ -37,6 +37,9 @@ terugzetten() {
     rm -rf "$BEWAARD"
 }
 trap terugzetten EXIT
+# also when interrupted (Ctrl-C, kill, or dev/start.sh stopping its process group): sh runs the EXIT trap
+# on exit, not when a signal ends the script
+trap 'exit 1' INT TERM HUP
 
 # an empty api, as right after installing
 rm -rf api/data
